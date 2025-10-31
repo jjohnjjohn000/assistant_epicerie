@@ -1,0 +1,997 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Optimiseur de Rabais et Itinéraire</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; background-color: #f4f7f9; color: #333; margin: 0; padding: 0; display: flex; }
+        #toc { position: fixed; top: 0; left: 0; width: 220px; height: 100%; background: #2c3e50; color: white; padding: 20px; box-shadow: 2px 0 5px rgba(0,0,0,0.1); flex-shrink: 0; overflow-y: auto; }
+        #toc h2 { color: #ecf0f1; border-bottom: 1px solid #34495e; padding-bottom: 10px; }
+        #toc ul { list-style: none; padding: 0; }
+        #toc li a { color: #bdc3c7; text-decoration: none; display: block; padding: 10px 15px; border-radius: 5px; transition: background-color 0.3s, color 0.3s; }
+        #toc li a:hover, #toc li a.active { background-color: #34495e; color: white; }
+        .content-wrapper { flex-grow: 1; margin-left: 220px; padding: 20px; display: flex; justify-content: center; }
+        .container { width: 100%; max-width: 800px; background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        h1, h2 { color: #2c3e50; border-bottom: 2px solid #e0e0e0; padding-bottom: 10px; }
+        h2 { display: flex; justify-content: space-between; align-items: center; }
+        h4 { display: flex; justify-content: space-between; align-items: center; }
+        .btn { padding: 10px 20px; border: none; border-radius: 5px; color: white; cursor: pointer; font-size: 16px; background-color: #3498db; }
+        .btn-small { font-size: 12px; padding: 5px 10px; }
+        .btn:hover { background-color: #2980b9; }
+        .btn:disabled { background-color: #bdc3c7; cursor: not-allowed; }
+        .section { margin-bottom: 40px; }
+        
+        /* --- DÉBUT DE LA SOLUTION ROBUSTE (CSS GRID) --- */
+        .optimized-item {
+            display: grid;
+            grid-template-columns: 1fr auto; /* La 1ère colonne prend l'espace, la 2ème s'adapte au contenu */
+            grid-template-rows: auto auto; /* 2 rangées qui s'adaptent à la hauteur du contenu */
+            grid-template-areas:
+                "name price"
+                "deals price";
+            align-items: center; /* Centre verticalement les éléments dans leur cellule de grille */
+            column-gap: 15px; /* Espace entre les colonnes */
+            padding: 12px 0;
+            border-bottom: 1px solid #eee;
+            cursor: grab;
+        }
+        .item-name-grid {
+            grid-area: name; /* Assigne cet élément à la zone "name" de la grille */
+            font-weight: 500;
+        }
+        .item-deals-grid {
+            grid-area: deals; /* Assigne cet élément à la zone "deals" */
+            padding-top: 5px;
+            font-size: 0.9em;
+            color: #7f8c8d;
+        }
+        .item-deals-grid select {
+            width: 100%;
+        }
+        .item-price-grid {
+            grid-area: price; /* Assigne cet élément à la zone "price", qui s'étend sur 2 rangées */
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            white-space: nowrap;
+        }
+        /* --- FIN DE LA SOLUTION ROBUSTE --- */
+
+        .optimized-item.dragging { opacity: 0.5; background-color: #ecf0f1; }
+        .optimized-item.drag-over { border-top: 2px solid #3498db; }
+        .item-price { color: #27ae60; font-weight: bold; }
+        .item-store { font-size: 0.9em; color: #7f8c8d; }
+        #route-list { list-style-type: decimal; padding-left: 20px; }
+        #route-list li { padding: 8px 0; font-size: 1.1em; color: #34495e; }
+        .placeholder { color: #7f8c8d; font-style: italic; }
+        .store-item { background-color: #f8f9fa; border: 1px solid #e9ecef; border-radius: 5px; padding: 12px; margin-bottom: 8px; display: flex; align-items: center; }
+        .store-item input[type="checkbox"] { margin-right: 12px; transform: scale(1.2); }
+        .store-item label { flex-grow: 1; cursor: pointer; }
+        .store-name { font-weight: bold; }
+        #store-type-filters { margin: 15px 0; padding: 10px; background-color: #f8f9fa; border: 1px solid #e9ecef; border-radius: 5px; display: flex; flex-wrap: wrap; gap: 20px; align-items: center; }
+        #store-type-filters label { cursor: pointer; display: flex; align-items: center; gap: 5px; }
+        .store-details { font-size: 0.85em; color: #555; margin-top: 4px; }
+        .store-details a { color: #2980b9; text-decoration: none; }
+        .store-details a:hover { text-decoration: underline; }
+        .store-address { font-size: 0.85em; color: #333; margin-top: 5px; }
+        .store-actions { display: flex; flex-direction: column; gap: 5px; align-items: flex-end; }
+        .btn-view-flyer { background-color: #9b59b6; font-size: 12px; padding: 5px 10px; margin-top: 5px; }
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5); }
+        .modal-content { background-color: #fefefe; margin: 10% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 600px; border-radius: 8px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #ddd; padding-bottom: 10px; }
+        .modal-header h2 { margin: 0; color: #2c3e50; border-bottom: none; }
+        .close-btn, .close-btn-manager, .close-btn-edit { color: #aaa; font-size: 28px; font-weight: bold; cursor: pointer; }
+        .close-btn:hover, .close-btn:focus, .close-btn-manager:hover, .close-btn-manager:focus, .close-btn-edit:hover, .close-btn-edit:focus { color: black; }
+        .flyer-item-list { max-height: 400px; overflow-y: auto; margin-top: 15px; }
+        .flyer-item { display: flex; justify-content: space-between; padding: 8px 5px; border-bottom: 1px solid #eee; }
+        .flyer-item-name { font-weight: 500; }
+        .flyer-item-price { color: #27ae60; }
+        .managed-flyer-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 5px; border-bottom: 1px solid #eee; }
+        .btn-delete-flyer { background-color: #e74c3c; }
+        .btn-delete-flyer:hover { background-color: #c0392b; }
+    </style>
+</head>
+<body>
+
+    <nav id="toc">
+        <h2>Navigation</h2>
+        <ul>
+            <li><a href="Assistant Épicerie.html">Inventaire & Listes</a></li>
+            <li><a href="Optimiseur Rabais.html" class="active">Optimiseur de Rabais</a></li>
+        </ul>
+    </nav>
+
+    <main class="content-wrapper">
+        <div class="container">
+
+            <h1>Optimiseur de Rabais et Itinéraire</h1>
+
+            <section id="store-selection-section" class="section">
+                <h2>1. Sélection des Commerces</h2>
+                <p>Trouvez les magasins à proximité ou ajoutez-les via leur site web ou une circulaire JSON.</p>
+                
+                <div id="store-type-filters">
+                    <label><input type="checkbox" class="store-type-filter" value="supermarket" checked> Grandes surfaces</label>
+                    <label><input type="checkbox" class="store-type-filter" value="grocery" checked> Épiceries</label>
+                    <label><input type="checkbox" class="store-type-filter" value="convenience" checked> Dépanneurs</label>
+                    <label><input type="checkbox" class="store-type-filter" value="pharmacy" checked> Pharmacies</label>
+                </div>
+                
+                <div>
+                    <button id="findStoresBtn" class="btn">Trouver les commerces à proximité</button>
+                    <button id="sortStoresBtn" class="btn" style="display: none; background-color: #16a085; margin-left: 10px;">Trier par distance</button>
+                </div>
+
+                <div id="manual-add-section" style="margin-top: 25px;">
+                    <h4>Ajouter un commerce via son site web</h4>
+                    <form id="addStoreUrlForm" style="display: flex; gap: 10px;">
+                        <input type="url" id="manualStoreUrl" placeholder="https://www.exemple.com" style="flex-grow: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px;" required>
+                        <button type="submit" class="btn" style="background-color: #27ae60;">Ajouter</button>
+                    </form>
+                </div>
+                
+                <div id="flyer-import-section" style="margin-top: 25px;">
+                    <div id="ai-converter-helper" style="background-color: #e8f4fd; border: 1px solid #d1e9fc; border-radius: 8px; padding: 20px; margin-bottom: 25px;">
+                        <h4>Besoin d'aide pour convertir une circulaire ?</h4>
+                        <p>Utilisez un assistant IA comme Gemini pour transformer automatiquement une circulaire (PDF, image ou site web) en format JSON compatible.</p>
+                        <p><strong>Étape 1 :</strong> Copiez l'instruction ci-dessous. <br><strong>Étape 2 :</strong> Ouvrez Gemini, collez l'instruction, puis ajoutez le lien ou le contenu de la circulaire que vous voulez convertir.</p>
+                        <textarea id="ai-prompt-textarea" rows="12" readonly style="width: 100%; box-sizing: border-box; font-family: monospace; padding: 10px; border-radius: 5px; border: 1px solid #ccc; background-color: #f8f9fa;">
+Agis comme un expert en extraction de données de circulaires d'épicerie. Ta tâche est de transformer les informations d'une circulaire que je vais te fournir en un format JSON structuré.
+
+Le JSON doit impérativement suivre la structure suivante. Ne fournis aucune explication, commentaire ou texte avant ou après le bloc de code JSON.
+
+Voici la structure exacte à respecter :
+\`\`\`json
+{
+  "store": "NomDuMagasin",
+  "address": "123 Rue Principale, Ville, QC",
+  "website": "https://www.example.com",
+  "flyer_dates": "Dates de validité de la circulaire",
+  "categories": [
+    {
+      "category_name": "Nom de la catégorie (ex: Épicerie, Fruits et légumes)",
+      "items": [
+        {
+          "name": "Nom complet de l'article",
+          "brand": "Marque (si disponible)",
+          "description": "Description additionnelle",
+          "price": "Prix affiché (ex: 5.99, 2/4.00)",
+          "unit": "$/lb, l'unité, pour 2, etc.",
+          "member_price": "Prix membre (si différent)",
+          "regular_price": "Prix régulier (si un rabais est indiqué)",
+          "single_price": "Prix à l'unité (si un prix de groupe est affiché, ex: 2.50)",
+          "local": true,
+          "scene_points": "Points Scène+ (ou autre programme de points)"
+        }
+      ]
+    }
+  ]
+}
+\`\`\`
+
+Maintenant, analyse la circulaire que je vais te fournir et génère le JSON correspondant.
+                        </textarea>
+                        <div style="margin-top: 10px; display: flex; gap: 10px;">
+                            <button id="copy-ai-prompt-btn" class="btn" style="background-color: #27ae60;">Copier l'instruction</button>
+                            <a href="https://gemini.google.com/app" target="_blank" class="btn" style="background-color: #8e44ad; text-decoration: none; text-align: center;">Ouvrir Gemini</a>
+                        </div>
+                    </div>
+
+                    <h4>
+                        <span>Ajouter une circulaire (JSON)</span>
+                        <button id="manageFlyersBtn" class="btn btn-small" style="background-color: #7f8c8d;">Gérer les circulaires</button>
+                    </h4>
+                    <form id="importFlyerForm">
+                        <p style="margin-top:0; font-size: 0.9em; color: #555;">
+                            Collez ici les données de la circulaire au format JSON pour l'intégrer à l'optimiseur.
+                        </p>
+                        <textarea id="flyerJsonInput" placeholder='{"store": "NomDuMagasin", "categories": [{"items": [...]}]}' style="width: 100%; min-height: 100px; box-sizing: border-box; border: 1px solid #ced4da; border-radius: 4px; padding: 10px; font-family: monospace; margin-bottom: 10px;"></textarea>
+                        <button type="submit" class="btn" style="background-color: #8e44ad;">Intégrer la circulaire</button>
+                    </form>
+                </div>
+                
+                <div id="stores-list-display" style="margin-top: 20px;">
+                    <p class="placeholder">La liste des commerces apparaîtra ici.</p>
+                </div>
+            </section>
+
+            <section id="optimization-section" class="section">
+                <h2>
+                    <span>2. Optimisation de la Liste d'Épicerie</span>
+                    <button id="printListBtn" class="btn btn-small" style="background-color: #16a085;">Imprimer la liste</button>
+                </h2>
+                <p>Comparez votre liste d'épicerie avec les rabais des commerces sélectionnés.</p>
+                <button id="optimizeListBtn" class="btn">Optimiser ma liste</button>
+                <div id="optimization-display" style="margin-top: 20px;">
+                    <p class="placeholder">Votre liste optimisée apparaîtra ici.</p>
+                </div>
+            </section>
+
+            <section id="route-section" class="section">
+                <h2>3. Itinéraire d'Achat Suggéré</h2>
+                <p>Générez un itinéraire simple basé sur les magasins où se trouvent les meilleures offres.</p>
+                <button id="generateRouteBtn" class="btn">Générer l'itinéraire</button>
+                <div id="route-display" style="margin-top: 20px;">
+                     <p class="placeholder">Votre itinéraire apparaîtra ici.</p>
+                </div>
+            </section>
+
+        </div>
+    </main>
+
+    <div id="flyerModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-title">Circulaire</h2>
+                <span class="close-btn">&times;</span>
+            </div>
+            <div id="modal-body" class="flyer-item-list"></div>
+        </div>
+    </div>
+    
+    <div id="flyerManagerModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-manager-title">Gérer les Circulaires Sauvegardées</h2>
+                <span class="close-btn-manager">&times;</span>
+            </div>
+            <div id="modal-manager-body" class="flyer-item-list"></div>
+        </div>
+    </div>
+
+    <div id="editStoreModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Éditer le Commerce</h2>
+                <span class="close-btn-edit">&times;</span>
+            </div>
+            <div id="modal-edit-body">
+                <form id="editStoreForm">
+                    <input type="hidden" id="originalStoreName">
+                    <div style="margin-bottom: 15px;">
+                        <label for="editStoreName" style="display: block; margin-bottom: 5px; font-weight: bold;">Nom du commerce</label>
+                        <input type="text" id="editStoreName" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label for="editStoreAddress" style="display: block; margin-bottom: 5px; font-weight: bold;">Adresse</label>
+                        <input type="text" id="editStoreAddress" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+                    </div>
+                    <div style="margin-bottom: 20px;">
+                        <label for="editStoreWebsite" style="display: block; margin-bottom: 5px; font-weight: bold;">Site web</label>
+                        <input type="url" id="editStoreWebsite" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+                    </div>
+                    <div style="text-align: right;">
+                        <button type="submit" class="btn" style="background-color: #2ecc71;">Sauvegarder</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const findStoresBtn = document.getElementById('findStoresBtn');
+        const sortStoresBtn = document.getElementById('sortStoresBtn');
+        const storesListDisplay = document.getElementById('stores-list-display');
+        const optimizeListBtn = document.getElementById('optimizeListBtn');
+        const printListBtn = document.getElementById('printListBtn');
+        const generateRouteBtn = document.getElementById('generateRouteBtn');
+        const optimizationDisplay = document.getElementById('optimization-display');
+        const routeDisplay = document.getElementById('route-display');
+        const addStoreUrlForm = document.getElementById('addStoreUrlForm');
+        const manualStoreUrlInput = document.getElementById('manualStoreUrl');
+        const importFlyerForm = document.getElementById('importFlyerForm');
+        const flyerJsonInput = document.getElementById('flyerJsonInput');
+        
+        const flyerModal = document.getElementById('flyerModal');
+        const modalTitle = document.getElementById('modal-title');
+        const modalBody = document.getElementById('modal-body');
+        const closeBtn = document.querySelector('.close-btn');
+
+        const manageFlyersBtn = document.getElementById('manageFlyersBtn');
+        const flyerManagerModal = document.getElementById('flyerManagerModal');
+        const modalManagerBody = document.getElementById('modal-manager-body');
+        const closeBtnManager = document.querySelector('.close-btn-manager');
+
+        const editStoreModal = document.getElementById('editStoreModal');
+        const closeBtnEdit = document.querySelector('.close-btn-edit');
+        const editStoreForm = document.getElementById('editStoreForm');
+
+        const copyAiPromptBtn = document.getElementById('copy-ai-prompt-btn');
+        const aiPromptTextarea = document.getElementById('ai-prompt-textarea');
+
+        let optimizedItems = [];
+        let nearbyStores = []; 
+        let manualStores = [];
+        let flyerData = {}; 
+
+        function saveFlyerData() { localStorage.setItem('flyerData', JSON.stringify(flyerData)); }
+        function loadFlyerData() { flyerData = JSON.parse(localStorage.getItem('flyerData')) || {}; }
+        function saveManualStores() { localStorage.setItem('manualStoresList', JSON.stringify(manualStores)); }
+        function loadManualStores() { manualStores = JSON.parse(localStorage.getItem('manualStoresList')) || []; }
+        
+        function openFlyerManagerModal() {
+            renderFlyerManagerList();
+            flyerManagerModal.style.display = 'block';
+        }
+
+        function closeFlyerManagerModal() {
+            flyerManagerModal.style.display = 'none';
+        }
+
+        function renderFlyerManagerList() {
+            modalManagerBody.innerHTML = '';
+            const savedFlyers = Object.keys(flyerData);
+
+            if (savedFlyers.length === 0) {
+                modalManagerBody.innerHTML = '<p class="placeholder">Aucune circulaire sauvegardée.</p>';
+                return;
+            }
+
+            savedFlyers.sort().forEach(storeName => {
+                const itemElement = document.createElement('div');
+                itemElement.className = 'managed-flyer-item';
+                itemElement.innerHTML = `
+                    <span class="flyer-item-name">${storeName}</span>
+                    <button class="btn btn-small btn-delete-flyer" data-store-name="${storeName}">Supprimer</button>
+                `;
+                modalManagerBody.appendChild(itemElement);
+            });
+            
+            document.querySelectorAll('.btn-delete-flyer').forEach(button => {
+                button.addEventListener('click', deleteFlyerAndStore);
+            });
+        }
+        
+        function deleteFlyerAndStore(event) {
+            const storeNameToDelete = event.target.dataset.storeName;
+            
+            if (confirm(`Êtes-vous sûr de vouloir supprimer la circulaire et le commerce associé "${storeNameToDelete}" ? Cette action est irréversible.`)) {
+                if (flyerData[storeNameToDelete]) {
+                    delete flyerData[storeNameToDelete];
+                    saveFlyerData();
+                }
+                manualStores = manualStores.filter(store => store.name !== storeNameToDelete);
+                saveManualStores();
+                renderAllStores();
+                renderFlyerManagerList();
+            }
+        }
+
+        function openStoreEditModal(event) {
+            const storeNameToEdit = event.target.dataset.storeName;
+            const storeData = manualStores.find(s => s.name === storeNameToEdit);
+            if (storeData) {
+                document.getElementById('originalStoreName').value = storeData.name;
+                document.getElementById('editStoreName').value = storeData.name;
+                document.getElementById('editStoreAddress').value = storeData.address || '';
+                document.getElementById('editStoreWebsite').value = (storeData.website && storeData.website !== '#') ? storeData.website : '';
+                editStoreModal.style.display = 'block';
+            }
+        }
+
+        function closeStoreEditModal() {
+            editStoreModal.style.display = 'none';
+        }
+
+        function handleStoreEditFormSubmit(event) {
+            event.preventDefault();
+            const originalName = document.getElementById('originalStoreName').value;
+            const newName = document.getElementById('editStoreName').value.trim();
+            const newAddress = document.getElementById('editStoreAddress').value.trim();
+            const newWebsite = document.getElementById('editStoreWebsite').value.trim();
+
+            if (!newName) {
+                alert("Le nom du commerce ne peut pas être vide.");
+                return;
+            }
+
+            const storeIndex = manualStores.findIndex(s => s.name === originalName);
+            if (storeIndex === -1) {
+                alert("Erreur: impossible de trouver le commerce original.");
+                return;
+            }
+
+            if (newName.toLowerCase() !== originalName.toLowerCase() && manualStores.some(s => s.name.toLowerCase() === newName.toLowerCase())) {
+                alert("Un commerce avec ce nom existe déjà.");
+                return;
+            }
+
+            manualStores[storeIndex].name = newName;
+            manualStores[storeIndex].address = newAddress;
+            manualStores[storeIndex].website = newWebsite || '#';
+            saveManualStores();
+
+            if (newName !== originalName && flyerData.hasOwnProperty(originalName)) {
+                flyerData[newName] = flyerData[originalName];
+                delete flyerData[originalName];
+                saveFlyerData();
+            }
+
+            closeStoreEditModal();
+            renderAllStores();
+        }
+
+        function copyAiPrompt() {
+            aiPromptTextarea.select();
+            aiPromptTextarea.setSelectionRange(0, 99999);
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    const originalText = copyAiPromptBtn.textContent;
+                    copyAiPromptBtn.textContent = 'Copié !';
+                    setTimeout(() => { copyAiPromptBtn.textContent = originalText; }, 2000);
+                } else {
+                    throw new Error('Copy command failed');
+                }
+            } catch (err) {
+                alert('La copie automatique a échoué. Veuillez copier le texte manuellement (Ctrl+C).');
+            }
+        }
+
+        function extractNameFromUrl(urlString) {
+            try {
+                if (!urlString.startsWith('http')) { urlString = 'https://' + urlString; }
+                const url = new URL(urlString);
+                let hostname = url.hostname.replace(/^www\./i, '');
+                const parts = hostname.split('.');
+                const name = parts[0];
+                return name.charAt(0).toUpperCase() + name.slice(1);
+            } catch (e) {
+                return null;
+            }
+        }
+
+        function addStoreFromUrl(event) {
+            event.preventDefault();
+            const storeUrl = manualStoreUrlInput.value.trim();
+            if (!storeUrl) return;
+
+            const storeName = extractNameFromUrl(storeUrl);
+            if (!storeName) { alert("Veuillez entrer une adresse web valide."); return; }
+
+            const isAlreadyInManual = manualStores.some(s => s.website === storeUrl || s.name.toLowerCase() === storeName.toLowerCase());
+            const isAlreadyInNearby = nearbyStores.some(store => store.name.toLowerCase() === storeName.toLowerCase());
+
+            if (!isAlreadyInManual && !isAlreadyInNearby) {
+                manualStores.push({ name: storeName, website: storeUrl, address: '' });
+                saveManualStores(); renderAllStores(); manualStoreUrlInput.value = '';
+            } else {
+                alert('Ce commerce est déjà dans la liste.');
+            }
+        }
+
+        function deleteManualStore(event) {
+            event.preventDefault(); event.stopPropagation();
+            const nameToDelete = event.target.dataset.storeName;
+            manualStores = manualStores.filter(store => store.name !== nameToDelete);
+            
+            if (flyerData[nameToDelete]) {
+                delete flyerData[nameToDelete];
+                saveFlyerData();
+            }
+            saveManualStores(); renderAllStores();
+        }
+
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371; const dLat = (lat2 - lat1) * Math.PI / 180; const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * c;
+        }
+
+        async function findNearbyStores() {
+            findStoresBtn.disabled = true; sortStoresBtn.style.display = 'none';
+            storesListDisplay.innerHTML = '<p>Recherche des commerces en cours...</p>';
+            
+            const selectedTypes = Array.from(document.querySelectorAll('.store-type-filter:checked')).map(cb => cb.value);
+            if (selectedTypes.length === 0) {
+                storesListDisplay.innerHTML = '<p>Veuillez sélectionner au moins un type de commerce.</p>';
+                findStoresBtn.disabled = false; return;
+            }
+            if (!navigator.geolocation) {
+                storesListDisplay.innerHTML = '<p>La géolocalisation n est pas supportée.</p>';
+                findStoresBtn.disabled = false; return;
+            }
+
+            navigator.geolocation.getCurrentPosition(async position => {
+                const { latitude, longitude } = position.coords;
+                const radius = 2000;
+                const filterMap = {
+                    supermarket: `node["shop"="supermarket"](around:${radius},${latitude},${longitude}); way["shop"="supermarket"](around:${radius},${latitude},${longitude});`,
+                    grocery: `node["shop"="grocery"](around:${radius},${latitude},${longitude}); way["shop"="grocery"](around:${radius},${latitude},${longitude});`,
+                    convenience: `node["shop"="convenience"](around:${radius},${latitude},${longitude}); way["shop"="convenience"](around:${radius},${latitude},${longitude});`,
+                    pharmacy: `node["amenity"="pharmacy"](around:${radius},${latitude},${longitude}); way["amenity"="pharmacy"](around:${radius},${latitude},${longitude});`
+                };
+                const queryParts = selectedTypes.map(type => filterMap[type]).join('\n');
+                const query = `[out:json][timeout:25];(${queryParts}); out center;`;
+                const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`;
+
+                try {
+                    const response = await fetch(url);
+                    if (!response.ok) throw new Error(`Erreur réseau: ${response.statusText}`);
+                    const data = await response.json();
+                    processAndDisplayStores(data.elements, latitude, longitude);
+                } catch (error) {
+                    console.error("Erreur Overpass:", error);
+                    storesListDisplay.innerHTML = '<p>Impossible de récupérer les données des commerces.</p>';
+                } finally {
+                    findStoresBtn.disabled = false;
+                }
+            }, () => {
+                storesListDisplay.innerHTML = '<p>La géolocalisation a été refusée.</p>';
+                findStoresBtn.disabled = false;
+            });
+        }
+        
+        function processAndDisplayStores(places, userLat, userLon) {
+            nearbyStores = [];
+            if (!places || places.length === 0) {
+                renderAllStores(); return;
+            }
+            const uniquePlaces = new Map();
+            places.forEach(place => {
+                if (place.tags && place.tags.name && !uniquePlaces.has(place.tags.name)) {
+                    uniquePlaces.set(place.tags.name, place);
+                }
+            });
+
+            uniquePlaces.forEach(place => {
+                const storeLat = place.type === 'node' ? place.lat : place.center.lat;
+                const storeLon = place.type === 'node' ? place.lon : place.center.lon;
+                const distance = calculateDistance(userLat, userLon, storeLat, storeLon);
+                const website = place.tags.website || place.tags['contact:website'];
+                const addressParts = [ place.tags['addr:housenumber'], place.tags['addr:street'], place.tags['addr:city'], place.tags['addr:postcode'] ].filter(Boolean);
+                const address = addressParts.join(', ') || 'Adresse non disponible';
+                nearbyStores.push({ id: place.id, name: place.tags.name, distance: distance, website: website, address: address, lat: storeLat, lon: storeLon });
+            });
+            renderAllStores();
+            sortStoresBtn.style.display = nearbyStores.length > 0 ? 'inline-block' : 'none';
+        }
+
+        function renderAllStores() {
+            storesListDisplay.innerHTML = '';
+            const allStores = [...manualStores, ...nearbyStores];
+
+            allStores.forEach(store => {
+                const storeElement = document.createElement('div');
+                storeElement.className = 'store-item';
+                const sanitizedId = store.name.replace(/[^a-zA-Z0-9]/g, '');
+                let isManual = manualStores.some(ms => ms.name === store.name);
+                
+                let storeDetailsHtml;
+                if (isManual) {
+                    const manualStoreData = manualStores.find(ms => ms.name === store.name);
+                    let addressHtml = manualStoreData.address && manualStoreData.address !== 'Adresse non fournie' ? `<div class="store-address">${manualStoreData.address}</div>` : '';
+                    let websiteHtml = manualStoreData.website && manualStoreData.website !== '#' ? `<a href="${manualStoreData.website}" target="_blank">Visiter le site web</a>` : `<span>(Ajouté manuellement)</span>`;
+                    storeDetailsHtml = `${addressHtml}<div class="store-details">${websiteHtml}</div>`;
+                } else {
+                    storeDetailsHtml = `<div class="store-address">${store.address}</div><div class="store-details"><span>Distance: ~${store.distance.toFixed(1)} km</span> | <a href="https://www.openstreetmap.org/?mlat=${store.lat}&mlon=${store.lon}#map=18/${store.lat}/${store.lon}" target="_blank">Voir sur la carte</a></div>`;
+                }
+                
+                const hasFlyer = flyerData.hasOwnProperty(store.name);
+                let flyerButtonHtml = '';
+                if (hasFlyer) {
+                    flyerButtonHtml = `<button class="btn btn-view-flyer" data-store-name="${store.name}">Voir la circulaire</button>`;
+                }
+
+                const editButtonHtml = isManual ? `<button class="btn btn-edit-manual btn-small" data-store-name="${store.name}" style="background-color: #f39c12;">Éditer</button>` : '';
+                const deleteButtonHtml = isManual ? `<button class="btn btn-delete-manual btn-small" data-store-name="${store.name}" style="background-color: #c0392b;">X</button>` : '';
+
+                storeElement.innerHTML = `<input type="checkbox" class="store-checkbox" value="${store.name}" id="store-${sanitizedId}" checked><label for="store-${sanitizedId}" style="display: flex; justify-content: space-between; align-items: center; width: 100%;"><div><div class="store-name">${store.name}</div>${storeDetailsHtml}</div><div class="store-actions">${editButtonHtml}${deleteButtonHtml}${flyerButtonHtml}</div></label>`;
+                storesListDisplay.appendChild(storeElement);
+            });
+
+            if (allStores.length === 0) { storesListDisplay.innerHTML = '<p class="placeholder">La liste des commerces apparaîtra ici.</p>'; }
+            
+            document.querySelectorAll('.btn-edit-manual').forEach(button => button.addEventListener('click', openStoreEditModal));
+            document.querySelectorAll('.btn-delete-manual').forEach(button => button.addEventListener('click', deleteManualStore));
+            document.querySelectorAll('.btn-view-flyer').forEach(button => button.addEventListener('click', openFlyerModal));
+        }
+        
+        function sortStoresByDistance() {
+            nearbyStores.sort((a, b) => a.distance - b.distance);
+            renderAllStores();
+        }
+        function normalizeString(str) {
+            return str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        }
+
+        function isFuzzyMatch(shoppingItemName, flyerItemName) {
+            const normalizedShoppingName = normalizeString(shoppingItemName);
+            const normalizedFlyerName = normalizeString(flyerItemName);
+            
+            const searchWords = normalizedShoppingName.split(' ').filter(word => word.length > 1);
+            return searchWords.every(word => normalizedFlyerName.includes(word));
+        }
+
+        // --- FONCTION DE RENDU MODIFIÉE ---
+        function renderOptimizedList() {
+            optimizationDisplay.innerHTML = '';
+            if (optimizedItems.length === 0) {
+                optimizationDisplay.innerHTML = '<p class="placeholder">Votre liste d\'épicerie est vide ou n\'a pas encore été optimisée.</p>';
+                return;
+            }
+
+            let total = 0;
+
+            optimizedItems.forEach((item, itemIndex) => {
+                const itemElement = document.createElement('div');
+                itemElement.className = 'optimized-item';
+                itemElement.setAttribute('draggable', true);
+                itemElement.setAttribute('data-index', itemIndex);
+
+                total += parseFloat(item.selectedPrice) || 0;
+
+                let dealsHtml;
+                if (item.deals && item.deals.length > 0) {
+                    const optionsHtml = item.deals.map((deal, dealIndex) => {
+                        const isSelected = item.selectedDeal && item.selectedDeal.name === deal.name && item.selectedDeal.store === deal.store;
+                        return `<option value="${dealIndex}" ${isSelected ? 'selected' : ''}>${deal.name} - ${deal.store} (${deal.price})</option>`;
+                    }).join('');
+                    dealsHtml = `<select id="deal-${itemIndex}" class="deal-selector" data-item-index="${itemIndex}"><option value="-1">Choisissez une offre (${item.deals.length} trouvée(s))...</option>${optionsHtml}</select>`;
+                } else {
+                    dealsHtml = `<span>Aucun rabais trouvé</span>`;
+                }
+
+                const priceValue = item.selectedPrice !== undefined ? item.selectedPrice : '';
+
+                itemElement.innerHTML = `
+                    <span class="item-name-grid">${item.name} (Qté: ${item.quantity})</span>
+                    <div class="item-deals-grid">${dealsHtml}</div>
+                    <div class="item-price-grid">
+                        <label for="price-${itemIndex}" style="font-size: 0.9em;">Prix Final:</label>
+                        <input type="text" id="price-${itemIndex}" class="item-price-input" data-item-index="${itemIndex}" value="${priceValue}" placeholder="0.00" style="width: 80px; text-align: right; padding: 5px; border: 1px solid #ccc; border-radius: 4px;">
+                    </div>
+                `;
+                optimizationDisplay.appendChild(itemElement);
+            });
+
+            // Ajouter le total à la fin
+            const totalElement = document.createElement('div');
+            totalElement.style.textAlign = 'right';
+            totalElement.style.marginTop = '20px';
+            totalElement.style.paddingTop = '10px';
+            totalElement.style.borderTop = '2px solid #333';
+            totalElement.style.fontSize = '1.2em';
+            totalElement.style.fontWeight = 'bold';
+            totalElement.innerHTML = `Total estimé: <span style="color: #27ae60;">${total.toFixed(2)} $</span>`;
+            optimizationDisplay.appendChild(totalElement);
+        }
+        // --- FIN DE LA FONCTION MODIFIÉE ---
+
+        function saveOptimizedList() {
+            localStorage.setItem('savedOptimizedList', JSON.stringify(optimizedItems));
+        }
+
+        function handleDealSelection(event) {
+            if (event.target.classList.contains('deal-selector')) {
+                const activeElementId = document.activeElement ? document.activeElement.id : null;
+
+                const itemIndex = parseInt(event.target.dataset.itemIndex, 10);
+                const dealIndex = parseInt(event.target.value, 10);
+                if (itemIndex >= 0 && itemIndex < optimizedItems.length) {
+                    const item = optimizedItems[itemIndex];
+                    if (dealIndex >= 0) {
+                        const selectedDeal = item.deals[dealIndex];
+                        item.selectedDeal = selectedDeal;
+                        
+                        const priceString = String(selectedDeal.price);
+                        let priceForTotal = '';
+                        
+                        const singlePriceMatch = priceString.match(/\(([\d\.]+)\)/);
+                        const mainPriceMatch = priceString.match(/^([\d\.\/]+)/);
+
+                        if (singlePriceMatch && singlePriceMatch[1]) {
+                             priceForTotal = singlePriceMatch[1];
+                        } else if (mainPriceMatch && mainPriceMatch[1]) {
+                            const pricePart = mainPriceMatch[1];
+                            if (pricePart.includes('/')) {
+                                const parts = pricePart.split('/');
+                                if (parts.length === 2 && !isNaN(parseFloat(parts[0])) && !isNaN(parseFloat(parts[1]))) {
+                                    priceForTotal = (parseFloat(parts[1]) / parseFloat(parts[0])).toFixed(2);
+                                }
+                            } else {
+                                priceForTotal = pricePart;
+                            }
+                        }
+                        item.selectedPrice = priceForTotal;
+                    } else {
+                        item.selectedDeal = null;
+                        item.selectedPrice = '';
+                    }
+                    saveOptimizedList();
+                    renderOptimizedList();
+
+                    if (activeElementId) {
+                        const newActiveElement = document.getElementById(activeElementId);
+                        if (newActiveElement) newActiveElement.focus();
+                    }
+                }
+            }
+        }
+        
+        function handlePriceChange(event) {
+            if (event.target.classList.contains('item-price-input')) {
+                const itemIndex = parseInt(event.target.dataset.itemIndex, 10);
+                
+                const activeElement = document.activeElement;
+                const activeElementId = activeElement ? activeElement.id : null;
+                const selectionStart = activeElement ? activeElement.selectionStart : null;
+                const selectionEnd = activeElement ? activeElement.selectionEnd : null;
+
+                if (itemIndex >= 0 && itemIndex < optimizedItems.length) {
+                    optimizedItems[itemIndex].selectedPrice = event.target.value;
+                    saveOptimizedList();
+                    renderOptimizedList(); // Re-rendre pour mettre à jour le total
+                }
+
+                if (activeElementId) {
+                    const newActiveElement = document.getElementById(activeElementId);
+                    if (newActiveElement) {
+                        newActiveElement.focus();
+                        if (selectionStart !== null && selectionEnd !== null) {
+                            newActiveElement.setSelectionRange(selectionStart, selectionEnd);
+                        }
+                    }
+                }
+            }
+        }
+
+        function loadSavedOptimizedList() {
+            const savedList = JSON.parse(localStorage.getItem('savedOptimizedList'));
+            if (savedList && Array.isArray(savedList) && savedList.length > 0) {
+                optimizedItems = savedList;
+                renderOptimizedList();
+            }
+        }
+        
+        function printOptimizedList() {
+            if (!optimizedItems || optimizedItems.length === 0) {
+                alert("Veuillez d'abord optimiser votre liste pour pouvoir l'imprimer.");
+                return;
+            }
+
+            const itemsToPrint = optimizedItems;
+            let total = 0;
+            const printWindow = window.open('', '_blank');
+            let printContent = `
+                <html>
+                <head>
+                    <title>Liste d'Épicerie Optimisée</title>
+                    <style>
+                        body { font-family: sans-serif; margin: 20px; }
+                        h1 { color: #2c3e50; border-bottom: 2px solid #ccc; padding-bottom: 10px; margin-top: 0; }
+                        .print-container { }
+                        .print-item { border-bottom: 1px solid #eee; padding: 8px 0; page-break-inside: avoid; }
+                        .item-title { font-weight: bold; font-size: 1.1em; }
+                        .item-deal { color: #27ae60; padding-left: 15px; }
+                        .item-no-deal { color: #7f8c8d; font-style: italic; padding-left: 15px; }
+                        .total-footer { text-align: right; margin-top: 20px; padding-top: 10px; border-top: 2px solid #333; font-size: 1.3em; font-weight: bold; }
+                        @media print { html, body { margin: 10mm; } }
+                    </style>
+                </head>
+                <body>
+                    <h1>Liste d'Épicerie Complète</h1>
+                    <div class="print-container">`;
+            
+            itemsToPrint.forEach(item => {
+                total += parseFloat(item.selectedPrice) || 0;
+                let dealHtml;
+                if (item.selectedDeal) {
+                    const finalPriceText = item.selectedPrice ? `<strong>$${parseFloat(item.selectedPrice).toFixed(2)}</strong>` : `(${item.selectedDeal.price})`;
+                    dealHtml = `<div class="item-deal">↳ <strong>${item.selectedDeal.store}</strong>: ${item.selectedDeal.name} - Prix final: ${finalPriceText}</div>`;
+                } else {
+                     const finalPriceText = item.selectedPrice ? `<strong>$${parseFloat(item.selectedPrice).toFixed(2)}</strong>` : `(aucun prix entré)`;
+                    dealHtml = `<div class="item-no-deal">↳ Aucun rabais sélectionné - Prix manuel: ${finalPriceText}</div>`;
+                }
+
+                printContent += `<div class="print-item"><div class="item-title">${item.name} (Qté: ${item.quantity})</div>${dealHtml}</div>`;
+            });
+
+            printContent += `</div>`;
+            printContent += `<div class="total-footer">Total Estimé: ${total.toFixed(2)} $</div>`;
+            printContent += `</body></html>`;
+
+            printWindow.document.write(printContent);
+            printWindow.document.close();
+            
+            printWindow.focus();
+            setTimeout(() => {
+                printWindow.print();
+            }, 250);
+        }
+
+        function optimizeShoppingList() {
+            const selectedStores = Array.from(document.querySelectorAll('.store-checkbox:checked')).map(node => node.value);
+            if (selectedStores.length === 0) {
+                alert("Sélectionnez au moins un commerce.");
+                return;
+            }
+
+            const shoppingList = JSON.parse(localStorage.getItem('shoppingList')) || [];
+            if (shoppingList.length === 0) {
+                optimizationDisplay.innerHTML = '<p>Votre liste d\'épicerie est vide.</p>';
+                optimizedItems = []; // Assurez-vous de vider la liste optimisée si la liste d'épicerie est vide
+                saveOptimizedList();
+                return;
+            }
+            
+            // Conserve une copie de l'état précédent pour ne pas perdre les sélections
+            const previousOptimizedItems = [...optimizedItems];
+            const newOptimizedItems = []; 
+
+            shoppingList.forEach(shoppingItem => {
+                // Cherche si l'article existait déjà pour conserver les choix de l'utilisateur
+                const existingItem = previousOptimizedItems.find(
+                    oldItem => oldItem.name.trim().toLowerCase() === shoppingItem.name.trim().toLowerCase()
+                );
+
+                // Recherche les rabais pour cet article, qu'il soit nouveau ou non
+                let potentialDeals = [];
+                for (const storeName in flyerData) {
+                    if (selectedStores.some(selected => selected.toLowerCase().includes(storeName.toLowerCase()))) {
+                        flyerData[storeName].forEach(flyerItem => {
+                            if (isFuzzyMatch(shoppingItem.name, flyerItem.name)) {
+                                potentialDeals.push({ store: storeName, name: flyerItem.name, price: flyerItem.price });
+                            }
+                        });
+                    }
+                }
+
+                if (existingItem) {
+                    // L'article existait : on garde les choix faits tout en mettant à jour les données de base
+                    newOptimizedItems.push({
+                        ...shoppingItem, // Met à jour le nom et la quantité depuis la liste d'épicerie
+                        deals: potentialDeals, // Met à jour la liste des rabais disponibles
+                        selectedDeal: existingItem.selectedDeal, // Conserve le rabais déjà sélectionné
+                        selectedPrice: existingItem.selectedPrice, // Conserve le prix manuel déjà entré
+                    });
+                } else {
+                    // C'est un nouvel article : on l'ajoute avec des valeurs par défaut
+                    newOptimizedItems.push({
+                        ...shoppingItem,
+                        deals: potentialDeals,
+                        selectedDeal: null,
+                        selectedPrice: '',
+                    });
+                }
+            });
+            
+            // Remplace l'ancienne liste optimisée par la nouvelle, synchronisée
+            optimizedItems = newOptimizedItems;
+            
+            saveOptimizedList();
+            renderOptimizedList();
+        }
+
+        function generateRoute() {
+            if (optimizedItems.length === 0) {
+                routeDisplay.innerHTML = '<p>Veuillez d\'abord optimiser votre liste.</p>';
+                return;
+            }
+            const storesToVisit = [...new Set(optimizedItems.filter(item => item.selectedDeal && item.selectedDeal.store).map(item => item.selectedDeal.store))];
+
+            if (storesToVisit.length === 0) {
+                routeDisplay.innerHTML = '<p>Aucune offre sélectionnée. Choisissez des articles dans la liste optimisée pour générer un itinéraire.</p>';
+                return;
+            }
+            
+            routeDisplay.innerHTML = '<h3>Magasins à visiter :</h3>';
+            const routeList = document.createElement('ol');
+            routeList.id = 'route-list';
+            storesToVisit.forEach(store => {
+                const li = document.createElement('li');
+                li.textContent = store;
+                routeList.appendChild(li);
+            });
+            routeDisplay.appendChild(routeList);
+        }
+
+        function formatPrice(item) {
+            if (item.member_price) return `${item.member_price} ${item.unit || ''} (Membre)`;
+            if (item.price && typeof item.price === 'string' && item.price.includes('/')) return `${item.price} ${item.unit || ''}${item.single_price ? ` (${item.single_price})` : ''}`;
+            if (item.price) return `${item.price} ${item.unit || ''}`;
+            return "Prix non disponible";
+        }
+
+        function importFlyerData(event) {
+            event.preventDefault();
+            const jsonString = flyerJsonInput.value.trim();
+            if (!jsonString) { alert("Veuillez coller le contenu JSON."); return; }
+            try {
+                const parsedFlyer = JSON.parse(jsonString);
+                if (!parsedFlyer.store || typeof parsedFlyer.store !== 'string' || !Array.isArray(parsedFlyer.categories)) { throw new Error("Format JSON invalide. Il doit contenir 'store' et 'categories'."); }
+                
+                const originalStoreName = parsedFlyer.store;
+                let finalStoreName = originalStoreName;
+                if (flyerData.hasOwnProperty(finalStoreName)) {
+                    let i = 2;
+                    while (flyerData.hasOwnProperty(`${originalStoreName} (${i})`)) { i++; }
+                    finalStoreName = `${originalStoreName} (${i})`;
+                }
+                
+                let allItems = parsedFlyer.categories.flatMap(category => 
+                    (category.items && Array.isArray(category.items)) ? 
+                    category.items.map(item => ({ name: item.name, price: formatPrice(item) })) : []
+                );
+
+                if (allItems.length === 0) { alert("Aucun article trouvé dans cette circulaire."); return; }
+                
+                flyerData[finalStoreName] = allItems;
+                saveFlyerData(); 
+
+                if (!manualStores.some(s => s.name.toLowerCase() === finalStoreName.toLowerCase())) {
+                    manualStores.push({ 
+                        name: finalStoreName, 
+                        website: parsedFlyer.website || '#',
+                        address: parsedFlyer.address || 'Adresse non fournie'
+                    });
+                    saveManualStores();
+                }
+                renderAllStores();
+                alert(`La circulaire pour "${finalStoreName}" a été intégrée.`);
+                flyerJsonInput.value = '';
+            } catch (error) {
+                alert("Erreur lors de l'intégration : " + error.message);
+                console.error("Erreur d'importation JSON:", error);
+            }
+        }
+        
+        function openFlyerModal(event) {
+            const storeName = event.target.dataset.storeName;
+            const items = flyerData[storeName];
+            if (!items) return;
+            
+            modalTitle.textContent = `Circulaire - ${storeName}`;
+            modalBody.innerHTML = '';
+            items.forEach(item => {
+                const itemElement = document.createElement('div');
+                itemElement.className = 'flyer-item';
+                itemElement.innerHTML = `<span class="flyer-item-name">${item.name}</span> <span class="flyer-item-price">${item.price}</span>`;
+                modalBody.appendChild(itemElement);
+            });
+            flyerModal.style.display = 'block';
+        }
+
+        function closeFlyerModal() { flyerModal.style.display = 'none'; }
+        
+        let draggedItemIndex = null;
+        optimizationDisplay.addEventListener('dragstart', (e) => { if (e.target.classList.contains('optimized-item')) { draggedItemIndex = parseInt(e.target.dataset.index, 10); e.target.classList.add('dragging'); } });
+        optimizationDisplay.addEventListener('dragover', (e) => { e.preventDefault(); const target = e.target.closest('.optimized-item'); if (target && parseInt(target.dataset.index, 10) !== draggedItemIndex) { document.querySelectorAll('.optimized-item.drag-over').forEach(el => el.classList.remove('drag-over')); target.classList.add('drag-over'); } });
+        optimizationDisplay.addEventListener('dragleave', (e) => { if (e.target.classList.contains('optimized-item')) { e.target.classList.remove('drag-over'); } });
+        optimizationDisplay.addEventListener('drop', (e) => { e.preventDefault(); const dropTarget = e.target.closest('.optimized-item'); if (dropTarget) { const dropIndex = parseInt(dropTarget.dataset.index, 10); const itemToMove = optimizedItems.splice(draggedItemIndex, 1)[0]; optimizedItems.splice(dropIndex, 0, itemToMove); saveOptimizedList(); renderOptimizedList(); } });
+        optimizationDisplay.addEventListener('dragend', (e) => { document.querySelectorAll('.optimized-item.dragging, .optimized-item.drag-over').forEach(el => el.classList.remove('dragging', 'drag-over')); draggedItemIndex = null; });
+
+        findStoresBtn.addEventListener('click', findNearbyStores);
+        sortStoresBtn.addEventListener('click', sortStoresByDistance);
+        optimizeListBtn.addEventListener('click', optimizeShoppingList);
+        printListBtn.addEventListener('click', printOptimizedList);
+        generateRouteBtn.addEventListener('click', generateRoute);
+        addStoreUrlForm.addEventListener('submit', addStoreFromUrl);
+        importFlyerForm.addEventListener('submit', importFlyerData);
+        optimizationDisplay.addEventListener('change', handleDealSelection);
+        optimizationDisplay.addEventListener('input', handlePriceChange);
+        copyAiPromptBtn.addEventListener('click', copyAiPrompt);
+        closeBtn.addEventListener('click', closeFlyerModal);
+        manageFlyersBtn.addEventListener('click', openFlyerManagerModal);
+        closeBtnManager.addEventListener('click', closeFlyerManagerModal);
+        closeBtnEdit.addEventListener('click', closeStoreEditModal);
+        editStoreForm.addEventListener('submit', handleStoreEditFormSubmit);
+
+        window.addEventListener('click', (event) => { 
+            if (event.target == flyerModal) closeFlyerModal();
+            if (event.target == flyerManagerModal) closeFlyerManagerModal();
+            if (event.target == editStoreModal) closeStoreEditModal();
+        });
+
+        loadFlyerData();
+        loadManualStores();
+        renderAllStores();
+        loadSavedOptimizedList(); 
+    });
+    </script>
+</body>
+</html>
