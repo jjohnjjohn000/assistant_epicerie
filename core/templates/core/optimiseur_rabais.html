@@ -1,3 +1,4 @@
+--- START OF FILE optimiseur_rabais.html ---
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -171,8 +172,11 @@
                         <h4>Besoin d'aide pour convertir une circulaire ?</h4>
                         <p>Utilisez un assistant IA comme Gemini pour transformer automatiquement une circulaire (PDF, image ou site web) en format JSON compatible.</p>
                         <p><strong>Étape 1 :</strong> Copiez l'instruction ci-dessous. <br><strong>Étape 2 :</strong> Ouvrez Gemini, collez l'instruction, puis ajoutez le lien ou le contenu de la circulaire que vous voulez convertir.</p>
+                        
                         <textarea id="ai-prompt-textarea" rows="12" readonly style="width: 100%; box-sizing: border-box; font-family: monospace; padding: 10px; border-radius: 5px; border: 1px solid #ccc; background-color: #f8f9fa;">
 Agis comme un expert en extraction de données de circulaires d'épicerie. Ta tâche est de transformer les informations d'une circulaire que je vais te fournir en un format JSON structuré.
+
+Pour les dates, il est impératif d'utiliser les clés `date_debut` et `date_fin` et de fournir les dates au format `AAAA-MM-JJ`.
 
 Le JSON doit impérativement suivre la structure suivante. Ne fournis aucune explication, commentaire ou texte avant ou après le bloc de code JSON.
 
@@ -182,7 +186,8 @@ Voici la structure exacte à respecter :
   "store": "NomDuMagasin",
   "address": "123 Rue Principale, Ville, QC",
   "website": "https://www.example.com",
-  "flyer_dates": "Dates de validité de la circulaire",
+  "date_debut": "AAAA-MM-JJ",
+  "date_fin": "AAAA-MM-JJ",
   "categories": [
     {
       "category_name": "Nom de la catégorie (ex: Épicerie, Fruits et légumes)",
@@ -207,6 +212,7 @@ Voici la structure exacte à respecter :
 
 Maintenant, analyse la circulaire que je vais te fournir et génère le JSON correspondant.
                         </textarea>
+                                                
                         <div style="margin-top: 10px; display: flex; gap: 10px;">
                             <button id="copy-ai-prompt-btn" class="btn" style="background-color: #27ae60;">Copier l'instruction</button>
                             <a href="https://gemini.google.com/app" target="_blank" class="btn" style="background-color: #8e44ad; text-decoration: none; text-align: center;">Ouvrir Gemini</a>
@@ -341,6 +347,7 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
         let nearbyStores = []; 
         let manualStores = [];
         let flyerData = {}; 
+        let activeDeals = [];
 
         function saveFlyerData() { localStorage.setItem('flyerData', JSON.stringify(flyerData)); }
         function loadFlyerData() { flyerData = JSON.parse(localStorage.getItem('flyerData')) || {}; }
@@ -586,9 +593,16 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
             sortStoresBtn.style.display = nearbyStores.length > 0 ? 'inline-block' : 'none';
         }
 
+        // --- VERSION CORRIGÉE ---
         function renderAllStores() {
             storesListDisplay.innerHTML = '';
             const allStores = [...manualStores, ...nearbyStores];
+            
+            // --- CONSOLE.LOG DE DIAGNOSTIC ---
+            console.log("--- Début de renderAllStores ---");
+            console.log("Commerces manuels:", manualStores.map(s => s.name));
+            console.log("Commerces à proximité:", nearbyStores.map(s => s.name));
+            console.log("Clés disponibles dans flyerData:", Object.keys(flyerData));
 
             allStores.forEach(store => {
                 const storeElement = document.createElement('div');
@@ -606,10 +620,19 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
                     storeDetailsHtml = `<div class="store-address">${store.address}</div><div class="store-details"><span>Distance: ~${store.distance.toFixed(1)} km</span> | <a href="https://www.openstreetmap.org/?mlat=${store.lat}&mlon=${store.lon}#map=18/${store.lat}/${store.lon}" target="_blank">Voir sur la carte</a></div>`;
                 }
                 
-                const hasFlyer = flyerData.hasOwnProperty(store.name);
+                // --- LOGIQUE DE VÉRIFICATION ROBUSTE ---
+                const storeNameTrimmed = store.name.trim();
+                const flyerDataKeys = Object.keys(flyerData);
+                const matchingKey = flyerDataKeys.find(key => key.trim() === storeNameTrimmed);
+                const hasFlyer = !!matchingKey; // Convertit la clé trouvée (ou undefined) en booléen
+                
+                // --- CONSOLE.LOG DE DIAGNOSTIC PAR COMMERCE ---
+                console.log(`Vérification pour "${store.name}" (trim: "${storeNameTrimmed}"): Correspondance trouvée ? -> ${hasFlyer}. Clé correspondante: "${matchingKey}"`);
+
                 let flyerButtonHtml = '';
                 if (hasFlyer) {
-                    flyerButtonHtml = `<button class="btn btn-view-flyer" data-store-name="${store.name}">Voir la circulaire</button>`;
+                    // Important : on utilise la clé originale (matchingKey) pour que la recherche fonctionne plus tard
+                    flyerButtonHtml = `<button class="btn btn-view-flyer" data-store-name="${matchingKey}">Voir la circulaire</button>`;
                 }
 
                 const editButtonHtml = isManual ? `<button class="btn btn-edit-manual btn-small" data-store-name="${store.name}" style="background-color: #f39c12;">Éditer</button>` : '';
@@ -840,66 +863,60 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
         }
 
         function optimizeShoppingList() {
-            const selectedStores = Array.from(document.querySelectorAll('.store-checkbox:checked')).map(node => node.value);
-            if (selectedStores.length === 0) {
-                alert("Sélectionnez au moins un commerce.");
-                return;
-            }
-
+            // Étape 1: Récupérer la liste d'épicerie de l'utilisateur
             const shoppingList = JSON.parse(localStorage.getItem('shoppingList')) || [];
             if (shoppingList.length === 0) {
-                optimizationDisplay.innerHTML = '<p>Votre liste d\'épicerie est vide.</p>';
-                optimizedItems = []; // Assurez-vous de vider la liste optimisée si la liste d'épicerie est vide
-                saveOptimizedList();
+                optimizationDisplay.innerHTML = '<p class="placeholder">Votre liste d\'épicerie est vide. Ajoutez des articles depuis la page principale.</p>';
                 return;
             }
-            
-            // Conserve une copie de l'état précédent pour ne pas perdre les sélections
-            const previousOptimizedItems = [...optimizedItems];
-            const newOptimizedItems = []; 
 
+            // Étape 2: Récupérer les commerces que l'utilisateur a sélectionnés
+            const selectedStores = Array.from(document.querySelectorAll('.store-checkbox:checked')).map(node => node.value);
+            if (selectedStores.length === 0) {
+                alert("Veuillez sélectionner au moins un commerce pour lancer l'optimisation.");
+                return;
+            }
+
+            // On vide la liste optimisée précédente
+            optimizedItems = [];
+
+            // Étape 3: Pour chaque article de la liste, trouver les rabais correspondants
             shoppingList.forEach(shoppingItem => {
-                // Cherche si l'article existait déjà pour conserver les choix de l'utilisateur
-                const existingItem = previousOptimizedItems.find(
-                    oldItem => oldItem.name.trim().toLowerCase() === shoppingItem.name.trim().toLowerCase()
-                );
+                const potentialDeals = [];
+                const shoppingItemNameLower = shoppingItem.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
-                // Recherche les rabais pour cet article, qu'il soit nouveau ou non
-                let potentialDeals = [];
-                for (const storeName in flyerData) {
-                    if (selectedStores.some(selected => selected.toLowerCase().includes(storeName.toLowerCase()))) {
-                        flyerData[storeName].forEach(flyerItem => {
-                            if (isFuzzyMatch(shoppingItem.name, flyerItem.name)) {
-                                potentialDeals.push({ store: storeName, name: flyerItem.name, price: flyerItem.price });
-                            }
-                        });
+                // On cherche dans les rabais actifs chargés au début
+                activeDeals.forEach(deal => {
+                    // On vérifie que le rabais vient d'un magasin sélectionné
+                    const storeIsSelected = selectedStores.some(selectedStore => deal.commerce_nom.includes(selectedStore));
+
+                    if (storeIsSelected) {
+                        const dealNameLower = deal.produit_nom.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                        
+                        // Logique de correspondance simple : le nom de l'article doit être inclus dans le nom du rabais
+                        if (dealNameLower.includes(shoppingItemNameLower)) {
+                            potentialDeals.push({
+                                store: deal.commerce_nom,
+                                name: deal.produit_nom,
+                                price: deal.details_prix || (deal.prix + ' $')
+                            });
+                        }
                     }
-                }
+                });
 
-                if (existingItem) {
-                    // L'article existait : on garde les choix faits tout en mettant à jour les données de base
-                    newOptimizedItems.push({
-                        ...shoppingItem, // Met à jour le nom et la quantité depuis la liste d'épicerie
-                        deals: potentialDeals, // Met à jour la liste des rabais disponibles
-                        selectedDeal: existingItem.selectedDeal, // Conserve le rabais déjà sélectionné
-                        selectedPrice: existingItem.selectedPrice, // Conserve le prix manuel déjà entré
-                    });
-                } else {
-                    // C'est un nouvel article : on l'ajoute avec des valeurs par défaut
-                    newOptimizedItems.push({
-                        ...shoppingItem,
-                        deals: potentialDeals,
-                        selectedDeal: null,
-                        selectedPrice: '',
-                    });
-                }
+                // On ajoute l'article (avec ou sans rabais trouvés) à notre liste finale
+                optimizedItems.push({
+                    name: shoppingItem.name,
+                    quantity: shoppingItem.quantity,
+                    deals: potentialDeals,
+                    selectedDeal: null,  // L'utilisateur choisira plus tard
+                    selectedPrice: '',
+                });
             });
-            
-            // Remplace l'ancienne liste optimisée par la nouvelle, synchronisée
-            optimizedItems = newOptimizedItems;
-            
-            saveOptimizedList();
+
+            // Étape 4: Afficher le résultat
             renderOptimizedList();
+            saveOptimizedList(); // Sauvegarder le résultat pour ne pas le perdre au rafraîchissement
         }
 
         function generateRoute() {
@@ -932,6 +949,62 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
             return "Prix non disponible";
         }
 
+        function chargerCommercesDepuisDB(shouldRender = true) {
+            return fetch('/api/commerces/')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Erreur réseau lors de la récupération des commerces.');
+                    }
+                    return response.json();
+                })
+                .then(commercesFromDB => {
+                    const allStores = new Map();
+                    manualStores.forEach(store => allStores.set(store.name.toLowerCase(), store));
+                    commercesFromDB.forEach(commerce => {
+                        allStores.set(commerce.nom.toLowerCase(), {
+                            name: commerce.nom,
+                            address: commerce.adresse,
+                            website: commerce.site_web
+                        });
+                    });
+                    manualStores = Array.from(allStores.values());
+                    saveManualStores();
+                    if (shouldRender) {
+                        renderAllStores();
+                    }
+                })
+                .catch(error => {
+                    console.error("Erreur lors du chargement des commerces depuis la DB:", error);
+                    if (shouldRender) {
+                        renderAllStores();
+                    }
+                });
+        }
+
+        function chargerDonneesCirculaires(shouldRender = true) {
+            return fetch('/api/circulaires-actives/')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Erreur réseau lors de la récupération des circulaires.');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log("Données de circulaires reçues du serveur:", data); // CONSOLE.LOG
+                    flyerData = data;
+                    saveFlyerData();
+                    if (shouldRender) {
+                        renderAllStores();
+                    }
+                })
+                .catch(error => {
+                    console.error("Erreur lors du chargement des données de circulaires:", error);
+                    if (shouldRender) {
+                        renderAllStores();
+                    }
+                });
+        }
+
         function importFlyerData(event) {
             event.preventDefault();
             const jsonString = flyerJsonInput.value.trim();
@@ -940,36 +1013,31 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
                 return;
             }
 
-            let parsedFlyer;
-            try {
-                parsedFlyer = JSON.parse(jsonString);
-            } catch (error) {
-                alert("Erreur de formatage JSON. Veuillez vérifier le texte collé.");
-                console.error("Erreur de parsing JSON:", error);
-                return;
-            }
-
             const apiUrl = '/api/import-flyer/';
+            
+            const csrftoken = getCookie('csrftoken');
 
             fetch(apiUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRFToken': getCookie('csrftoken')
+                    'X-CSRFToken': csrftoken 
                 },
                 body: jsonString
             })
-            .then(response => {
-                if (!response.ok) {
-                    // Si le serveur renvoie une erreur (4xx, 5xx), on la capture ici
-                    return response.json().then(err => { throw new Error(err.message || 'Erreur serveur') });
-                }
-                return response.json();
-            })
+            .then(response => response.json())
             .then(data => {
                 if (data.status === 'succès') {
                     alert(data.message);
                     flyerJsonInput.value = '';
+                    
+                    Promise.all([
+                        chargerDonneesCirculaires(false),
+                        chargerCommercesDepuisDB(false),
+                        chargerRabaisActifs()
+                    ]).then(() => {
+                        renderAllStores();
+                    });
                 } else {
                     throw new Error(data.message);
                 }
@@ -978,36 +1046,65 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
                 console.error('Erreur lors de l\'importation:', error);
                 alert('Une erreur est survenue : ' + error.message);
             });
-        }
 
-        function getCookie(name) {
-            let cookieValue = null;
-            if (document.cookie && document.cookie !== '') {
-                const cookies = document.cookie.split(';');
-                for (let i = 0; i < cookies.length; i++) {
-                    const cookie = cookies[i].trim();
-                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                        break;
+            function getCookie(name) {
+                let cookieValue = null;
+                if (document.cookie && document.cookie !== '') {
+                    const cookies = document.cookie.split(';');
+                    for (let i = 0; i < cookies.length; i++) {
+                        const cookie = cookies[i].trim();
+                        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                            break;
+                        }
                     }
                 }
+                return cookieValue;
             }
-            return cookieValue;
         }
         
+        // --- VERSION CORRIGÉE ---
         function openFlyerModal(event) {
             const storeName = event.target.dataset.storeName;
-            const items = flyerData[storeName];
-            if (!items) return;
+            const flyerContent = flyerData[storeName];
+
+            // --- CONSOLE.LOG DE DIAGNOSTIC ---
+            console.log(`Ouverture de la circulaire pour: "${storeName}"`);
+            console.log("Contenu trouvé dans flyerData:", flyerContent);
+
+            if (!flyerContent || !Array.isArray(flyerContent.categories)) {
+                console.error("Le contenu de la circulaire est invalide ou manque la clé 'categories'.");
+                return;
+            }
             
             modalTitle.textContent = `Circulaire - ${storeName}`;
             modalBody.innerHTML = '';
-            items.forEach(item => {
-                const itemElement = document.createElement('div');
-                itemElement.className = 'flyer-item';
-                itemElement.innerHTML = `<span class="flyer-item-name">${item.name}</span> <span class="flyer-item-price">${item.price}</span>`;
-                modalBody.appendChild(itemElement);
-            });
+
+            if (flyerContent.categories.length === 0) {
+                 modalBody.innerHTML = '<p class="placeholder">Cette circulaire ne contient aucun article.</p>';
+            } else {
+                flyerContent.categories.forEach(category => {
+                    if(category.category_name) {
+                        const categoryTitle = document.createElement('h4');
+                        categoryTitle.textContent = category.category_name;
+                        categoryTitle.style.marginTop = '15px';
+                        categoryTitle.style.paddingBottom = '5px';
+                        categoryTitle.style.borderBottom = '1px solid #ccc';
+                        modalBody.appendChild(categoryTitle);
+                    }
+
+                    if (category.items && Array.isArray(category.items)) {
+                        category.items.forEach(item => {
+                            const itemElement = document.createElement('div');
+                            itemElement.className = 'flyer-item';
+                            const priceInfo = formatPrice(item);
+                            itemElement.innerHTML = `<span class="flyer-item-name">${item.name}</span> <span class="flyer-item-price">${priceInfo}</span>`;
+                            modalBody.appendChild(itemElement);
+                        });
+                    }
+                });
+            }
+            
             flyerModal.style.display = 'block';
         }
 
@@ -1067,7 +1164,7 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
         }
 
         function chargerRabaisActifs() {
-            fetch('/api/rabais-actifs/')
+            return fetch('/api/rabais-actifs/')
                 .then(response => {
                     if (!response.ok) {
                         throw new Error('Erreur réseau lors de la récupération des rabais.');
@@ -1075,6 +1172,7 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
                     return response.json();
                 })
                 .then(data => {
+                    activeDeals = data; 
                     afficherRabais(data);
                 })
                 .catch(error => {
@@ -1086,10 +1184,16 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
 
         loadFlyerData();
         loadManualStores();
-        renderAllStores();
-        loadSavedOptimizedList(); 
-        chargerRabaisActifs();
-
+        
+        Promise.all([
+            chargerDonneesCirculaires(false),
+            chargerCommercesDepuisDB(false),
+            chargerRabaisActifs()
+        ]).then(() => {
+            renderAllStores();
+        });
+        
+        loadSavedOptimizedList();
 
         if (importFlyerForm) {
             importFlyerForm.addEventListener('submit', importFlyerData);
