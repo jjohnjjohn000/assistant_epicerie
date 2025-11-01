@@ -1,4 +1,3 @@
---- START OF FILE optimiseur_rabais.html ---
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -15,7 +14,7 @@
         .content-wrapper { flex-grow: 1; margin-left: 220px; padding: 20px; display: flex; justify-content: center; }
         .container { width: 100%; max-width: 800px; background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
         h1, h2 { color: #2c3e50; border-bottom: 2px solid #e0e0e0; padding-bottom: 10px; }
-        h2 { display: flex; justify-content: space-between; align-items: center; }
+        h2 { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;}
         h4 { display: flex; justify-content: space-between; align-items: center; }
         .btn { padding: 10px 20px; border: none; border-radius: 5px; color: white; cursor: pointer; font-size: 16px; background-color: #3498db; }
         .btn-small { font-size: 12px; padding: 5px 10px; }
@@ -239,11 +238,36 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
 
             <section id="optimization-section" class="section">
                 <h2>
-                    <span>2. Optimisation de la Liste d'Épicerie</span>
-                    <button id="printListBtn" class="btn btn-small" style="background-color: #16a085;">Imprimer la liste</button>
+                    <span>2. Optimisation</span>
+                    <div>
+                        <button id="findPricesBtn" class="btn btn-small" style="background-color: #f39c12; display: none;">Chercher prix manquants</button>
+                        <button id="printListBtn" class="btn btn-small" style="background-color: #16a085;">Imprimer la liste</button>
+                    </div>
                 </h2>
                 <p>Comparez votre liste d'épicerie avec les rabais des commerces sélectionnés.</p>
                 <button id="optimizeListBtn" class="btn">Optimiser ma liste</button>
+
+                <div id="price-finder-container" style="margin-top: 25px; display: none;">
+                    <hr style="margin-bottom: 25px;">
+                    <h4><span role="img" aria-label="robot">🤖</span> Trouver les Prix Manquants avec l'IA</h4>
+                    <p>Utilisez l'IA pour rechercher le prix régulier des articles sans rabais sélectionné.</p>
+                    
+                    <div id="price-finder-prompt-output" style="display: none; background-color: #e8f4fd; border: 1px solid #d1e9fc; border-radius: 8px; padding: 20px; margin-bottom: 25px;">
+                        <p><strong>Étape 1 :</strong> Copiez l'instruction. <br><strong>Étape 2 :</strong> Collez-la dans Gemini pour obtenir les prix.</p>
+                        <textarea id="price-finder-prompt-textarea" rows="10" readonly style="width: 100%; box-sizing: border-box; font-family: monospace; padding: 10px; border-radius: 5px; border: 1px solid #ccc; background-color: #f8f9fa;"></textarea>
+                        <div style="margin-top: 10px; display: flex; gap: 10px;">
+                            <button id="copy-price-finder-prompt-btn" class="btn" style="background-color: #27ae60;">Copier l'instruction</button>
+                            <a href="https://gemini.google.com/app" target="_blank" class="btn" style="background-color: #8e44ad; text-decoration: none; text-align: center;">Ouvrir Gemini</a>
+                        </div>
+                    </div>
+            
+                    <div id="price-importer-section">
+                         <p><strong>Étape 3 :</strong> Collez le JSON fourni par Gemini ci-dessous.</p>
+                         <textarea id="import-prices-json" placeholder='[{"name": "Nom De L&#39;article", "price": 4.99}, ...]' style="width: 100%; min-height: 80px; box-sizing: border-box; border: 1px solid #ced4da; border-radius: 4px; padding: 10px; font-family: monospace; margin-bottom: 10px;"></textarea>
+                         <button id="importPricesBtn" class="btn" style="background-color: #16a085;">Importer les Prix</button>
+                    </div>
+                </div>
+
                 <div id="optimization-display" style="margin-top: 20px;">
                     <p class="placeholder">Votre liste optimisée apparaîtra ici.</p>
                 </div>
@@ -342,6 +366,16 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
 
         const copyAiPromptBtn = document.getElementById('copy-ai-prompt-btn');
         const aiPromptTextarea = document.getElementById('ai-prompt-textarea');
+        
+        // --- NOUVEAUX ÉLÉMENTS DOM POUR LA RECHERCHE DE PRIX ---
+        const findPricesBtn = document.getElementById('findPricesBtn');
+        const priceFinderContainer = document.getElementById('price-finder-container');
+        const priceFinderPromptOutput = document.getElementById('price-finder-prompt-output');
+        const priceFinderPromptTextarea = document.getElementById('price-finder-prompt-textarea');
+        const copyPriceFinderPromptBtn = document.getElementById('copy-price-finder-prompt-btn');
+        const importPricesJsonTextarea = document.getElementById('import-prices-json');
+        const importPricesBtn = document.getElementById('importPricesBtn');
+
 
         let optimizedItems = [];
         let nearbyStores = []; 
@@ -597,12 +631,6 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
         function renderAllStores() {
             storesListDisplay.innerHTML = '';
             const allStores = [...manualStores, ...nearbyStores];
-            
-            // --- CONSOLE.LOG DE DIAGNOSTIC ---
-            console.log("--- Début de renderAllStores ---");
-            console.log("Commerces manuels:", manualStores.map(s => s.name));
-            console.log("Commerces à proximité:", nearbyStores.map(s => s.name));
-            console.log("Clés disponibles dans flyerData:", Object.keys(flyerData));
 
             allStores.forEach(store => {
                 const storeElement = document.createElement('div');
@@ -620,18 +648,13 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
                     storeDetailsHtml = `<div class="store-address">${store.address}</div><div class="store-details"><span>Distance: ~${store.distance.toFixed(1)} km</span> | <a href="https://www.openstreetmap.org/?mlat=${store.lat}&mlon=${store.lon}#map=18/${store.lat}/${store.lon}" target="_blank">Voir sur la carte</a></div>`;
                 }
                 
-                // --- LOGIQUE DE VÉRIFICATION ROBUSTE ---
                 const storeNameTrimmed = store.name.trim();
                 const flyerDataKeys = Object.keys(flyerData);
                 const matchingKey = flyerDataKeys.find(key => key.trim() === storeNameTrimmed);
-                const hasFlyer = !!matchingKey; // Convertit la clé trouvée (ou undefined) en booléen
+                const hasFlyer = !!matchingKey;
                 
-                // --- CONSOLE.LOG DE DIAGNOSTIC PAR COMMERCE ---
-                console.log(`Vérification pour "${store.name}" (trim: "${storeNameTrimmed}"): Correspondance trouvée ? -> ${hasFlyer}. Clé correspondante: "${matchingKey}"`);
-
                 let flyerButtonHtml = '';
                 if (hasFlyer) {
-                    // Important : on utilise la clé originale (matchingKey) pour que la recherche fonctionne plus tard
                     flyerButtonHtml = `<button class="btn btn-view-flyer" data-store-name="${matchingKey}">Voir la circulaire</button>`;
                 }
 
@@ -670,10 +693,12 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
             optimizationDisplay.innerHTML = '';
             if (optimizedItems.length === 0) {
                 optimizationDisplay.innerHTML = '<p class="placeholder">Votre liste d\'épicerie est vide ou n\'a pas encore été optimisée.</p>';
+                findPricesBtn.style.display = 'none';
                 return;
             }
 
             let total = 0;
+            let hasItemsWithoutPrice = false;
 
             optimizedItems.forEach((item, itemIndex) => {
                 const itemElement = document.createElement('div');
@@ -681,7 +706,12 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
                 itemElement.setAttribute('draggable', true);
                 itemElement.setAttribute('data-index', itemIndex);
 
-                total += parseFloat(item.selectedPrice) || 0;
+                const currentPrice = parseFloat(item.selectedPrice);
+                total += isNaN(currentPrice) ? 0 : currentPrice;
+
+                if (!item.selectedPrice || currentPrice === 0) {
+                    hasItemsWithoutPrice = true;
+                }
 
                 let dealsHtml;
                 if (item.deals && item.deals.length > 0) {
@@ -706,6 +736,9 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
                 `;
                 optimizationDisplay.appendChild(itemElement);
             });
+
+            // Gérer la visibilité du bouton de recherche de prix
+            findPricesBtn.style.display = hasItemsWithoutPrice ? 'inline-block' : 'none';
 
             // Ajouter le total à la fin
             const totalElement = document.createElement('div');
@@ -863,37 +896,29 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
         }
 
         function optimizeShoppingList() {
-            // Étape 1: Récupérer la liste d'épicerie de l'utilisateur
             const shoppingList = JSON.parse(localStorage.getItem('shoppingList')) || [];
             if (shoppingList.length === 0) {
                 optimizationDisplay.innerHTML = '<p class="placeholder">Votre liste d\'épicerie est vide. Ajoutez des articles depuis la page principale.</p>';
                 return;
             }
 
-            // Étape 2: Récupérer les commerces que l'utilisateur a sélectionnés
             const selectedStores = Array.from(document.querySelectorAll('.store-checkbox:checked')).map(node => node.value);
             if (selectedStores.length === 0) {
                 alert("Veuillez sélectionner au moins un commerce pour lancer l'optimisation.");
                 return;
             }
 
-            // On vide la liste optimisée précédente
             optimizedItems = [];
+            priceFinderContainer.style.display = 'none'; // Cacher la section IA au début
 
-            // Étape 3: Pour chaque article de la liste, trouver les rabais correspondants
             shoppingList.forEach(shoppingItem => {
                 const potentialDeals = [];
                 const shoppingItemNameLower = shoppingItem.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
-                // On cherche dans les rabais actifs chargés au début
                 activeDeals.forEach(deal => {
-                    // On vérifie que le rabais vient d'un magasin sélectionné
                     const storeIsSelected = selectedStores.some(selectedStore => deal.commerce_nom.includes(selectedStore));
-
                     if (storeIsSelected) {
                         const dealNameLower = deal.produit_nom.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                        
-                        // Logique de correspondance simple : le nom de l'article doit être inclus dans le nom du rabais
                         if (dealNameLower.includes(shoppingItemNameLower)) {
                             potentialDeals.push({
                                 store: deal.commerce_nom,
@@ -904,19 +929,17 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
                     }
                 });
 
-                // On ajoute l'article (avec ou sans rabais trouvés) à notre liste finale
                 optimizedItems.push({
                     name: shoppingItem.name,
                     quantity: shoppingItem.quantity,
                     deals: potentialDeals,
-                    selectedDeal: null,  // L'utilisateur choisira plus tard
+                    selectedDeal: null,
                     selectedPrice: '',
                 });
             });
 
-            // Étape 4: Afficher le résultat
             renderOptimizedList();
-            saveOptimizedList(); // Sauvegarder le résultat pour ne pas le perdre au rafraîchissement
+            saveOptimizedList();
         }
 
         function generateRoute() {
@@ -990,7 +1013,6 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
                     return response.json();
                 })
                 .then(data => {
-                    console.log("Données de circulaires reçues du serveur:", data); // CONSOLE.LOG
                     flyerData = data;
                     saveFlyerData();
                     if (shouldRender) {
@@ -1063,14 +1085,9 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
             }
         }
         
-        // --- VERSION CORRIGÉE ---
         function openFlyerModal(event) {
             const storeName = event.target.dataset.storeName;
             const flyerContent = flyerData[storeName];
-
-            // --- CONSOLE.LOG DE DIAGNOSTIC ---
-            console.log(`Ouverture de la circulaire pour: "${storeName}"`);
-            console.log("Contenu trouvé dans flyerData:", flyerContent);
 
             if (!flyerContent || !Array.isArray(flyerContent.categories)) {
                 console.error("Le contenu de la circulaire est invalide ou manque la clé 'categories'.");
@@ -1110,6 +1127,96 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
 
         function closeFlyerModal() { flyerModal.style.display = 'none'; }
         
+        // --- NOUVELLES FONCTIONS POUR LA RECHERCHE DE PRIX ---
+        function generatePriceFinderPrompt() {
+            const itemsToPrice = optimizedItems.filter(item => !item.selectedPrice || parseFloat(item.selectedPrice) === 0);
+
+            if (itemsToPrice.length === 0) {
+                priceFinderPromptOutput.style.display = 'none';
+                document.querySelector('#price-importer-section p').textContent = "Tous les articles ont déjà un prix. Aucune recherche n'est nécessaire.";
+                return;
+            }
+
+            const itemNames = itemsToPrice.map(item => `    "${item.name}"`).join(',\n');
+
+            const promptText = `Agis comme un assistant d'épicerie pour le Québec, Canada.
+Ta tâche est de trouver le prix courant et non en solde pour la liste d'articles suivante.
+
+Fournis la réponse uniquement sous la forme d'un tableau JSON. N'inclus aucun texte, explication ou formatage avant ou après le bloc de code JSON.
+
+Chaque objet dans le tableau doit avoir exactement deux clés :
+1. "name" : une chaîne de caractères (string) qui doit correspondre EXACTEMENT au nom de l'article fourni.
+2. "price" : un nombre (number) représentant le prix, par exemple 4.99.
+
+Voici la liste des articles à rechercher :
+[
+${itemNames}
+]
+
+Voici un exemple de la sortie attendue :
+\`\`\`json
+[
+  {
+    "name": "Laitue Iceberg",
+    "price": 2.99
+  },
+  {
+    "name": "Pain blanc en tranches",
+    "price": 3.79
+  }
+]
+\`\`\`
+
+Maintenant, génère le JSON pour la liste que je t'ai fournie.`;
+
+            priceFinderPromptTextarea.value = promptText;
+            priceFinderPromptOutput.style.display = 'block';
+        }
+
+        function importPricesFromJson() {
+            const jsonString = importPricesJsonTextarea.value.trim();
+            if (!jsonString) {
+                alert("Veuillez coller le JSON fourni par l'IA dans la zone de texte.");
+                return;
+            }
+
+            try {
+                const importedPrices = JSON.parse(jsonString);
+                if (!Array.isArray(importedPrices)) {
+                    throw new Error("Le JSON doit être un tableau (une liste) d'articles.");
+                }
+
+                let updatedCount = 0;
+                importedPrices.forEach(importedItem => {
+                    if (importedItem && importedItem.name && typeof importedItem.price === 'number') {
+                        const itemIndex = optimizedItems.findIndex(optItem => 
+                            optItem.name === importedItem.name && 
+                            (!optItem.selectedPrice || parseFloat(optItem.selectedPrice) === 0)
+                        );
+                        
+                        if (itemIndex !== -1) {
+                            optimizedItems[itemIndex].selectedPrice = importedItem.price.toFixed(2);
+                            updatedCount++;
+                        }
+                    }
+                });
+
+                if (updatedCount > 0) {
+                    saveOptimizedList();
+                    renderOptimizedList();
+                    importPricesJsonTextarea.value = '';
+                    priceFinderContainer.style.display = 'none';
+                    alert(`${updatedCount} prix ont été mis à jour avec succès !`);
+                } else {
+                    alert("Aucun prix n'a été mis à jour. Vérifiez que les noms dans le JSON correspondent aux articles sans prix dans votre liste.");
+                }
+
+            } catch (error) {
+                console.error("Erreur d'importation de prix:", error);
+                alert("Erreur lors de l'importation : " + error.message + ". Assurez-vous que le JSON est valide et respecte le format demandé.");
+            }
+        }
+        
         let draggedItemIndex = null;
         optimizationDisplay.addEventListener('dragstart', (e) => { if (e.target.classList.contains('optimized-item')) { draggedItemIndex = parseInt(e.target.dataset.index, 10); e.target.classList.add('dragging'); } });
         optimizationDisplay.addEventListener('dragover', (e) => { e.preventDefault(); const target = e.target.closest('.optimized-item'); if (target && parseInt(target.dataset.index, 10) !== draggedItemIndex) { document.querySelectorAll('.optimized-item.drag-over').forEach(el => el.classList.remove('drag-over')); target.classList.add('drag-over'); } });
@@ -1133,6 +1240,25 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
         closeBtnEdit.addEventListener('click', closeStoreEditModal);
         editStoreForm.addEventListener('submit', handleStoreEditFormSubmit);
 
+        // --- NOUVEAUX ÉVÉNEMENTS POUR LA RECHERCHE DE PRIX ---
+        findPricesBtn.addEventListener('click', () => {
+            const isVisible = priceFinderContainer.style.display === 'block';
+            priceFinderContainer.style.display = isVisible ? 'none' : 'block';
+            if (!isVisible) {
+                generatePriceFinderPrompt();
+            }
+        });
+
+        copyPriceFinderPromptBtn.addEventListener('click', () => {
+             priceFinderPromptTextarea.select();
+             document.execCommand('copy');
+             const originalText = copyPriceFinderPromptBtn.textContent;
+             copyPriceFinderPromptBtn.textContent = 'Copié !';
+             setTimeout(() => { copyPriceFinderPromptBtn.textContent = originalText; }, 2000);
+        });
+
+        importPricesBtn.addEventListener('click', importPricesFromJson);
+
         window.addEventListener('click', (event) => { 
             if (event.target == flyerModal) closeFlyerModal();
             if (event.target == flyerManagerModal) closeFlyerManagerModal();
@@ -1146,7 +1272,7 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
                 return;
             }
 
-            container.innerHTML = ''; // Vider le conteneur
+            container.innerHTML = '';
             const grid = document.createElement('div');
             grid.className = 'rabais-grid';
 

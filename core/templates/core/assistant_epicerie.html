@@ -641,7 +641,7 @@ Maintenant, analyse la recette suivante :
 
                         let liClasses = 'inventory-item';
                         const itemQuantityValue = parseQuantity(item.quantity);
-                        if (item.alertThreshold && itemQuantityValue <= item.alertThreshold) {
+                        if (item.alertThreshold && itemQuantityValue < item.alertThreshold) {
                             liClasses += ' low-quantity-warning';
                         }
                         
@@ -762,7 +762,7 @@ Maintenant, analyse la recette suivante :
             function addLowStockItemsToShoppingList() {
                 const lowStockItems = inventory.filter(item => {
                     const quantity = parseQuantity(item.quantity);
-                    return item.alertThreshold && quantity <= item.alertThreshold;
+                    return item.alertThreshold && quantity < item.alertThreshold;
                 });
 
                 if (lowStockItems.length === 0) {
