@@ -23,6 +23,9 @@ urlpatterns = [
     path('', views.assistant_epicerie, name='assistant_epicerie'),
     path('optimiseur/', views.optimiseur_rabais, name='optimiseur_rabais'),
     
-    # --- LIGNE DE L'API À AJOUTER ---
+    # API pour l'écriture (déjà existante)
     path('api/import-flyer/', views.importer_circulaire, name='api_import_flyer'),
+
+    # --- NOUVELLE LIGNE À AJOUTER POUR LA LECTURE ---
+    path('api/rabais-actifs/', views.get_rabais_actifs, name='api_get_rabais_actifs'),
 ]
