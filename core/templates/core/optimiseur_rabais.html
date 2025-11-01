@@ -97,8 +97,8 @@
     <nav id="toc">
         <h2>Navigation</h2>
         <ul>
-            <li><a href="Assistant Épicerie.html">Inventaire & Listes</a></li>
-            <li><a href="Optimiseur Rabais.html" class="active">Optimiseur de Rabais</a></li>
+            <li><a href="../">Inventaire & Listes</a></li>
+            <li><a href="../" class="active">Optimiseur de Rabais</a></li>
         </ul>
     </nav>
 
@@ -900,44 +900,64 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
         function importFlyerData(event) {
             event.preventDefault();
             const jsonString = flyerJsonInput.value.trim();
-            if (!jsonString) { alert("Veuillez coller le contenu JSON."); return; }
-            try {
-                const parsedFlyer = JSON.parse(jsonString);
-                if (!parsedFlyer.store || typeof parsedFlyer.store !== 'string' || !Array.isArray(parsedFlyer.categories)) { throw new Error("Format JSON invalide. Il doit contenir 'store' et 'categories'."); }
-                
-                const originalStoreName = parsedFlyer.store;
-                let finalStoreName = originalStoreName;
-                if (flyerData.hasOwnProperty(finalStoreName)) {
-                    let i = 2;
-                    while (flyerData.hasOwnProperty(`${originalStoreName} (${i})`)) { i++; }
-                    finalStoreName = `${originalStoreName} (${i})`;
-                }
-                
-                let allItems = parsedFlyer.categories.flatMap(category => 
-                    (category.items && Array.isArray(category.items)) ? 
-                    category.items.map(item => ({ name: item.name, price: formatPrice(item) })) : []
-                );
-
-                if (allItems.length === 0) { alert("Aucun article trouvé dans cette circulaire."); return; }
-                
-                flyerData[finalStoreName] = allItems;
-                saveFlyerData(); 
-
-                if (!manualStores.some(s => s.name.toLowerCase() === finalStoreName.toLowerCase())) {
-                    manualStores.push({ 
-                        name: finalStoreName, 
-                        website: parsedFlyer.website || '#',
-                        address: parsedFlyer.address || 'Adresse non fournie'
-                    });
-                    saveManualStores();
-                }
-                renderAllStores();
-                alert(`La circulaire pour "${finalStoreName}" a été intégrée.`);
-                flyerJsonInput.value = '';
-            } catch (error) {
-                alert("Erreur lors de l'intégration : " + error.message);
-                console.error("Erreur d'importation JSON:", error);
+            if (!jsonString) {
+                alert("Veuillez coller le contenu JSON.");
+                return;
             }
+
+            let parsedFlyer;
+            try {
+                parsedFlyer = JSON.parse(jsonString);
+            } catch (error) {
+                alert("Erreur de formatage JSON. Veuillez vérifier le texte collé.");
+                console.error("Erreur de parsing JSON:", error);
+                return;
+            }
+
+            const apiUrl = '/api/import-flyer/';
+
+            fetch(apiUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: jsonString
+            })
+            .then(response => {
+                if (!response.ok) {
+                    // Si le serveur renvoie une erreur (4xx, 5xx), on la capture ici
+                    return response.json().then(err => { throw new Error(err.message || 'Erreur serveur') });
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.status === 'succès') {
+                    alert(data.message);
+                    flyerJsonInput.value = '';
+                } else {
+                    throw new Error(data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Erreur lors de l\'importation:', error);
+                alert('Une erreur est survenue : ' + error.message);
+            });
+        }
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
         }
         
         function openFlyerModal(event) {
@@ -991,6 +1011,13 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
         loadManualStores();
         renderAllStores();
         loadSavedOptimizedList(); 
+
+        if (importFlyerForm) {
+            importFlyerForm.addEventListener('submit', importFlyerData);
+        } else {
+            console.error("L'élément de formulaire avec l'id 'importFlyerForm' n'a pas été trouvé.");
+        }
+
     });
     </script>
 </body>

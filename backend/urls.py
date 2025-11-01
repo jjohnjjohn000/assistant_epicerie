@@ -13,13 +13,16 @@ Class-based views
 Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
-""
+"""
 from django.contrib import admin
-from django.urls import path, include # Assurez-vous que 'include' est importé
-from core import views # Importez vos vues
+from django.urls import path
+from core import views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', views.assistant_epicerie, name='assistant_epicerie'), # Page d'accueil
+    path('', views.assistant_epicerie, name='assistant_epicerie'),
     path('optimiseur/', views.optimiseur_rabais, name='optimiseur_rabais'),
+    
+    # --- LIGNE DE L'API À AJOUTER ---
+    path('api/import-flyer/', views.importer_circulaire, name='api_import_flyer'),
 ]

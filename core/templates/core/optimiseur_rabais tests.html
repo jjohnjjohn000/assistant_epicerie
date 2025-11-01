@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Test Importation Circulaire</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        textarea { width: 100%; min-height: 150px; margin-bottom: 10px; }
+        button { padding: 10px 20px; font-size: 16px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <h1>Test d'Importation de Circulaire</h1>
+
+    <form id="importFlyerForm">
+        <h3>Ajouter une circulaire (JSON)</h3>
+        <p>Collez ici les données de la circulaire.</p>
+        <textarea id="flyerJsonInput" placeholder='{"store": "NomDuMagasin", ...}'></textarea>
+        <button type="submit">Intégrer la circulaire</button>
+    </form>
+
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log("Le script de la page est chargé."); // Message de débogage n°1
+
+        const importFlyerForm = document.getElementById('importFlyerForm');
+        const flyerJsonInput = document.getElementById('flyerJsonInput');
+
+        if (!importFlyerForm) {
+            console.error("ERREUR CRITIQUE: Le formulaire 'importFlyerForm' est introuvable !");
+        }
+        if (!flyerJsonInput) {
+            console.error("ERREUR CRITIQUE: Le textarea 'flyerJsonInput' est introuvable !");
+        }
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        function importFlyerData(event) {
+            event.preventDefault();
+            console.log("Bouton cliqué. Fonction 'importFlyerData' lancée.");
+
+            const jsonString = flyerJsonInput.value.trim();
+            if (!jsonString) {
+                alert("Veuillez coller le contenu JSON.");
+                return;
+            }
+
+            const apiUrl = '/api/import-flyer/';
+            fetch(apiUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: jsonString
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(err => { throw new Error(err.message || 'Erreur serveur') });
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log("Réponse reçue du serveur :", data);
+                if (data.status === 'succès') {
+                    alert(data.message);
+                    flyerJsonInput.value = '';
+                } else {
+                    throw new Error(data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Erreur finale dans le catch:', error);
+                alert('Une erreur est survenue : ' + error.message);
+            });
+        }
+
+        if (importFlyerForm) {
+            importFlyerForm.addEventListener('submit', importFlyerData);
+            console.log("L'écouteur d'événement a été attaché avec succès.");
+        }
+    });
+    </script>
+
+</body>
+</html>

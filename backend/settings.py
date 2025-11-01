@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-=p=7k$rcl95*^jt@a#=jw68dd@6!x3bx=4m&l_c)z7%pxc_iy-
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['maptool.temis.qc.ca', 'localhost']
 
 
 # Application definition
@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'core',
+    'rest_framework',
 ]
 
 MIDDLEWARE = [

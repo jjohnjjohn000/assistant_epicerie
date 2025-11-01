@@ -1,0 +1,1131 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestion d'Inventaire et Liste d'Épicerie</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            background-color: #f4f7f9;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            display: flex;
+        }
+        #toc {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 220px;
+            height: 100%;
+            background: #2c3e50;
+            color: white;
+            padding: 20px;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+            flex-shrink: 0;
+            overflow-y: auto;
+        }
+        #toc h2 {
+            color: #ecf0f1;
+            border-bottom: 1px solid #34495e;
+            padding-bottom: 10px;
+        }
+        #toc ul {
+            list-style: none;
+            padding: 0;
+        }
+        #toc li a {
+            color: #bdc3c7;
+            text-decoration: none;
+            display: block;
+            padding: 10px 15px;
+            border-radius: 5px;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        #toc li a:hover {
+            background-color: #34495e;
+            color: white;
+        }
+        #toc .submenu {
+            list-style: none;
+            padding-left: 20px;
+            margin: -5px 0 10px;
+        }
+        #toc .submenu a {
+            padding: 6px 15px;
+            font-size: 0.9em;
+            color: #95a5a6;
+        }
+        .content-wrapper {
+            flex-grow: 1;
+            margin-left: 220px; /* Width of TOC */
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        .container {
+            width: 100%;
+            max-width: 800px;
+            background: #fff;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        h1, h2 {
+            color: #2c3e50;
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 10px;
+        }
+        h3.category-title {
+             scroll-margin-top: 20px;
+        }
+        .inventory-section, .shopping-list-section {
+            margin-bottom: 30px;
+        }
+        .category-title {
+            color: #3498db;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+        ul {
+            list-style: none;
+            padding: 0;
+        }
+        li {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #eee;
+        }
+        li:last-child {
+            border-bottom: none;
+        }
+        .shopping-list-item {
+            cursor: grab;
+        }
+        .shopping-list-item.dragging {
+            opacity: 0.5;
+            background-color: #ecf0f1;
+        }
+        .shopping-list-item.drag-over {
+            border-top: 2px solid #3498db;
+        }
+        .inventory-item {
+            cursor: grab;
+        }
+        .inventory-item.dragging {
+            opacity: 0.5;
+            background-color: #ecf0f1;
+        }
+        .inventory-item.drag-over {
+            border-top: 2px solid #3498db;
+        }
+        .low-quantity-warning {
+            background-color: #fcf8e3; /* Jaune pâle */
+            border-left: 4px solid #f39c12; /* Bordure orange */
+            padding-left: 10px; /* Ajouter un peu d'espace */
+            margin-left: -14px; /* Compenser le padding et la bordure */
+        }
+        li.low-quantity-warning {
+             border-bottom: 1px solid #e0d9c3;
+        }
+        .item-details {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-grow: 1; /* Permet aux détails de prendre l'espace */
+        }
+        .item-name {
+            font-weight: 500;
+        }
+        .inventory-item-name {
+             cursor: pointer;
+             font-weight: 500;
+        }
+        .inventory-item-name:hover {
+            text-decoration: underline;
+            color: #3498db;
+        }
+        .item-controls, .shopping-item-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .item-controls input[type="text"] {
+            width: 50px;
+            text-align: center;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 5px;
+        }
+        .btn {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 5px;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+            white-space: nowrap;
+        }
+        .btn-delete { background-color: #e74c3c; }
+        .btn-delete:hover { background-color: #c0392b; }
+        .btn-move { background-color: #3498db; }
+        .btn-move:hover { background-color: #2980b9; }
+        .add-item-form {
+            background-color: #ecf0f1;
+            padding: 20px;
+            border-radius: 8px;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        .add-item-form input, .add-item-form select, .add-item-form button {
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #bdc3c7;
+            font-size: 16px;
+        }
+        .add-item-form input[type="text"] { flex: 2; }
+        .add-item-form input[type="text"], .add-item-form select { min-width: 150px; }
+        .add-item-form button {
+            background-color: #2ecc71;
+            color: white;
+            border: none;
+            cursor: pointer;
+            flex: 1;
+            min-width: 100px;
+        }
+        .add-item-form button:hover { background-color: #27ae60; }
+        .recipe-section {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 2px solid #e0e0e0;
+        }
+        .recipe-options {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+            color: #555;
+        }
+        .btn-recipe {
+            background-color: #8e44ad;
+            color: white;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .btn-recipe:hover { background-color: #9b59b6; }
+        .inventory-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        #prompt-output-section {
+            background-color: #e8f4fd;
+            border: 1px solid #d1e9fc;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 25px;
+        }
+        .import-section {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        .import-section textarea {
+            width: 100%;
+            min-height: 100px;
+            box-sizing: border-box;
+            border: 1px solid #ced4da;
+            border-radius: 5px;
+            padding: 10px;
+            font-family: monospace;
+            margin-bottom: 10px;
+        }
+        .import-section button {
+            width: 100%;
+            background-color: #16a085;
+        }
+        .import-section button:hover {
+            background-color: #117a65;
+        }
+        #recipe-list-display {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 15px;
+        }
+        .recipe-card {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 15px;
+            cursor: pointer;
+            transition: box-shadow 0.3s, transform 0.3s;
+        }
+        .recipe-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            transform: translateY(-3px);
+        }
+        .recipe-card h3 {
+            margin: 0 0 10px 0;
+            color: #34495e;
+            font-size: 1.1em;
+        }
+        .modal {
+            display: none; position: fixed; z-index: 1000; left: 0; top: 0;
+            width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.6);
+            animation: fadeIn 0.3s;
+        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal-content {
+            background-color: #fefefe; margin: 5% auto; padding: 25px;
+            border: 1px solid #888; width: 90%; max-width: 700px; /* Largeur augmentée */
+            border-radius: 10px; box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+            animation: slideIn 0.4s;
+        }
+        @keyframes slideIn { from { transform: translateY(-50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .modal-header {
+            display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 1px solid #ddd; padding-bottom: 15px; margin-bottom: 20px;
+        }
+        .modal-header h2 { margin: 0; color: #2c3e50; border: none; }
+        .close-btn { color: #aaa; font-size: 28px; font-weight: bold; cursor: pointer; }
+        .close-btn:hover { color: black; }
+        .modal-body label { display: block; margin-bottom: 8px; font-weight: 500; color: #555; }
+        .modal-body textarea, .modal-body input {
+            width: 100%; padding: 10px; margin-bottom: 15px; border-radius: 5px;
+            border: 1px solid #ccc; font-size: 1em; box-sizing: border-box;
+        }
+        .modal-body textarea { min-height: 120px; resize: vertical; }
+        .modal-footer { text-align: right; margin-top: 20px; }
+        .recipe-view-content h3 { color: #3498db; margin-top: 15px; }
+        .recipe-view-content pre {
+            background-color: #f4f7f9; padding: 10px; border-radius: 5px;
+            white-space: pre-wrap; word-wrap: break-word; font-family: inherit;
+        }
+        .ai-importer-section {
+            background-color: #e8f4fd;
+            border: 1px solid #d1e9fc;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+        .ai-importer-section h4 {
+            margin-top: 0;
+            color: #2c3e50;
+        }
+        .ai-importer-section textarea {
+            font-family: monospace;
+            background-color: #f8f9fa;
+        }
+        .ai-importer-section .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .json-importer-section {
+             background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+        }
+    </style>
+</head>
+<body>
+
+    <nav id="toc">
+        <h2>Navigation</h2>
+        <ul>
+            <li><a href="#inventory-section">Inventaire</a></li>
+            <li><a href="#add-item-section">Ajouter un article</a></li>
+            <li><a href="#shopping-list-section">Liste d'épicerie</a></li>
+            <li><a href="#recipe-book-section">Livre de recettes</a></li>
+            <li><a href="#ai-shopping-list-generator">Liste d'épicerie IA</a></li>
+            <li><a href="#recipe-section">Trouver une recette</a></li>
+            <li><a href="optimiseur_rabais.html">Optimiseur de Rabais</a></li>
+        </ul>
+    </nav>
+
+    <main class="content-wrapper">
+        <div class="container">
+            <!-- ... sections existantes ... -->
+            <section id="inventory-section">
+                <h1>Inventaire des Denrées</h1>
+                <div class="inventory-controls">
+                    <div>
+                        <input type="checkbox" id="toggleAll" name="toggleAll">
+                        <label for="toggleAll">Cocher/décocher tout</label>
+                    </div>
+                    <button id="addLowStockItemsBtn" class="btn" style="background-color: #e67e22;">Ajouter les articles en pénurie à la liste</button>
+                </div>
+                <div id="inventory-display"></div>
+            </section>
+
+            <section id="add-item-section">
+                <h2>Ajouter un Nouvel Article à l'Inventaire</h2>
+                <form id="addItemForm" class="add-item-form">
+                    <input type="text" id="itemName" placeholder="Nom de l'article" required>
+                    <input type="text" id="itemQuantity" value="1" placeholder="Quantité">
+                    <select id="itemCategory">
+                        <option value="Épicerie">Épicerie</option>
+                        <option value="Produits Frais">Produits Frais</option>
+                        <option value="Viandes et Poissons">Viandes et Poissons</option>
+                        <option value="Conserves">Conserves</option>
+                        <option value="Autre">Autre</option>
+                    </select>
+                    <button type="submit">Ajouter</button>
+                </form>
+            </section>
+
+            <section id="shopping-list-section" class="shopping-list-section">
+                <h2>Liste d'Épicerie</h2>
+                <div id="shopping-list-display"></div>
+                <h3>Ajouter à la liste d'épicerie</h3>
+                <form id="addShoppingItemForm" class="add-item-form">
+                    <input type="text" id="shoppingItemName" placeholder="Nom de l'article" required>
+                    <input type="text" id="shoppingItemQuantity" value="1" placeholder="Quantité">
+                    <button type="submit">Ajouter à la liste</button>
+                </form>
+
+                <div id="import-section" class="import-section">
+                    <h3>Importer une liste depuis Gemini</h3>
+                    <p style="margin-top:0; font-size: 0.9em; color: #555;">Collez ici le JSON fourni par Gemini pour ajouter plusieurs articles à votre liste.</p>
+                    <textarea id="importShoppingListTextarea" placeholder='[{"name": "Oignons", "quantity": "2"}, {"name": "Ail", "quantity": "1 tête"}]'></textarea>
+                    <button id="importShoppingListBtn" class="btn">Importer la liste</button>
+                </div>
+            </section>
+            
+            <section id="recipe-book-section">
+                <h2>Livre de recettes</h2>
+                <button id="show-add-recipe-modal-btn" class="btn" style="background-color: #16a085; margin-bottom: 20px;">Ajouter une recette</button>
+                <div id="recipe-list-display">
+                    <p>Vos recettes sauvegardées apparaîtront ici.</p>
+                </div>
+            </section>
+
+            <section id="ai-shopping-list-generator">
+                <h2>Générer une Liste d'Épicerie avec l'IA</h2>
+                <form id="aiShoppingListForm" class="add-item-form" style="display: block;">
+                    <div style="width: 100%; margin-bottom: 10px; display: flex; align-items: center; gap: 10px;">
+                        <label for="numPeople">Nombre de personnes:</label>
+                        <input type="number" id="numPeople" value="2" min="1" style="width: 80px; padding: 8px;">
+                    </div>
+                    <div style="width: 100%; margin-bottom: 10px;">
+                        <label for="mealsList" style="display: block; margin-bottom: 5px;">Repas à préparer (un par ligne):</label>
+                        <textarea id="mealsList" rows="4" placeholder="Ex: Pâté chinois&#10;Spaghetti bolognaise&#10;Soupe aux légumes" style="width: 100%; padding: 8px; border-radius: 5px; border: 1px solid #bdc3c7; font-size: 16px; box-sizing: border-box;"></textarea>
+                    </div>
+                    <button type="button" id="generateShoppingListBtn" class="btn-recipe" style="width: 100%;">Générer l'instruction pour l'IA</button>
+                </form>
+            </section>
+
+            <section id="recipe-section" class="recipe-section">
+                <h2>Trouver une Recette</h2>
+                <div class="recipe-options" style="margin-bottom: 5px;">
+                    <input type="checkbox" id="includeExtraIngredients" name="includeExtraIngredients">
+                    <label for="includeExtraIngredients">Permettre des ingrédients manquants</label>
+                </div>
+                <div class="recipe-options">
+                    <input type="checkbox" id="useFlyerDeals" name="useFlyerDeals">
+                    <label for="useFlyerDeals">Utiliser les articles en rabais des circulaires</label>
+                </div>
+                
+                <h3 style="color: #34495e; font-size: 1.1em; margin-top: 20px; margin-bottom: 10px; border-top: 1px solid #eee; padding-top: 15px;">Options de cuisson</h3>
+                <div class="recipe-options" style="flex-direction: column; align-items: flex-start; gap: 8px; max-width: 300px; margin-left: auto; margin-right: auto; text-align: left;">
+                    <div>
+                        <input type="checkbox" id="recipeCatNoOven" name="recipeCatNoOven">
+                        <label for="recipeCatNoOven">Pas de four (cuisinière seulement)</label>
+                    </div>
+                    <div>
+                        <input type="checkbox" id="recipeCatNoCook" name="recipeCatNoCook">
+                        <label for="recipeCatNoCook">Pas de cuisson</label>
+                    </div>
+                     <div>
+                        <input type="checkbox" id="recipeCatQuick" name="recipeCatQuick">
+                        <label for="recipeCatQuick">Repas rapide (moins de 30 minutes)</label>
+                    </div>
+                </div>
+
+                <button id="generateRecipeBtn" class="btn-recipe" style="margin-top: 20px;">Générer l'instruction pour l'IA</button>
+            </section>
+
+            <section id="prompt-output-section" style="display: none;">
+                <h3>Votre instruction pour l'IA est prête</h3>
+                <p><strong>Étape 1 :</strong> Copiez le texte ci-dessous. <strong>Étape 2 :</strong> Ouvrez Gemini et collez-le.</p>
+                <textarea id="prompt-output-textarea" rows="10" style="width: 100%; box-sizing: border-box; font-family: monospace; padding: 10px; border-radius: 5px; border: 1px solid #ccc;"></textarea>
+                <div style="margin-top: 10px; display: flex; gap: 10px;">
+                    <button id="copy-prompt-btn" class="btn" style="background-color: #27ae60;">Copier le texte</button>
+                    <a href="https://gemini.google.com/app" target="_blank" class="btn" style="background-color: #8e44ad; text-decoration: none; text-align: center;">Ouvrir Gemini</a>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Modale pour ajouter/éditer une recette -->
+    <div id="recipe-form-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="recipe-modal-title">Ajouter une Nouvelle Recette</h2>
+                <span class="close-btn" id="close-recipe-form-modal">&times;</span>
+            </div>
+            <div class="modal-body">
+
+                <!-- NOUVELLE SECTION D'IMPORTATION IA -->
+                <div class="ai-importer-section">
+                    <h4>Importer une recette avec l'IA</h4>
+                    <p style="margin-top:0; font-size: 0.9em; color: #555;">
+                        <b>Étape 1:</b> Copiez l'instruction. <b>Étape 2:</b> Collez-la dans Gemini, suivie du lien ou du texte de la recette.
+                    </p>
+                    <textarea id="ai-recipe-prompt" rows="8" readonly>
+Agis comme un extracteur de données de recettes. Transforme la recette que je vais fournir en un format JSON.
+Le JSON doit contenir les clés suivantes : "name" (string), "ingredients" (string, avec chaque ingrédient sur une nouvelle ligne), "instructions" (string, avec chaque étape sur une nouvelle ligne), et "comments" (string, pour les notes additionnelles).
+
+Ne fournis AUCUN texte avant ou après le bloc JSON.
+
+Exemple de format :
+{
+  "name": "Crêpes faciles",
+  "ingredients": "1 tasse de farine\n2 oeufs\n1/2 tasse de lait\n1/4 tasse d'eau\n2 c. à soupe de beurre fondu",
+  "instructions": "Mélanger tous les ingrédients.\nFaire cuire dans une poêle chaude.",
+  "comments": "Servir avec du sirop d'érable."
+}
+
+Maintenant, analyse la recette suivante :
+                    </textarea>
+                    <div class="btn-group">
+                        <button type="button" id="copy-recipe-prompt-btn" class="btn" style="background-color: #27ae60;">Copier l'instruction</button>
+                        <a href="https://gemini.google.com/app" target="_blank" class="btn" style="background-color: #8e44ad; text-decoration: none;">Ouvrir Gemini</a>
+                    </div>
+                </div>
+
+                <div class="json-importer-section">
+                    <label for="recipe-json-input"><b>Étape 3:</b> Collez le JSON de Gemini ici</label>
+                    <textarea id="recipe-json-input" rows="4" placeholder='{ "name": "...", "ingredients": "...", ... }'></textarea>
+                    <button type="button" id="import-recipe-json-btn" class="btn" style="background-color: #3498db; width: 100%;">Importer et Remplir les champs</button>
+                </div>
+                <!-- FIN DE LA NOUVELLE SECTION -->
+                
+                <hr style="margin: 30px 0;">
+
+                <form id="recipe-form">
+                    <input type="hidden" id="recipe-id">
+                    <label for="recipe-name">Nom de la recette</label>
+                    <input type="text" id="recipe-name" required>
+                    
+                    <label for="recipe-ingredients">Ingrédients (un par ligne)</label>
+                    <textarea id="recipe-ingredients" placeholder="Ex: 1 tasse de farine&#10;2 oeufs" required></textarea>
+                    
+                    <label for="recipe-instructions">Instructions</label>
+                    <textarea id="recipe-instructions" required></textarea>
+                    
+                    <label for="recipe-comments">Commentaires / Notes</label>
+                    <textarea id="recipe-comments"></textarea>
+                    
+                    <div class="modal-footer">
+                        <button type="submit" class="btn" style="background-color: #2ecc71;">Sauvegarder</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modale pour voir une recette -->
+    <div id="recipe-view-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="recipe-view-title"></h2>
+                <span class="close-btn" id="close-recipe-view-modal">&times;</span>
+            </div>
+            <div class="modal-body recipe-view-content">
+                <h3>Ingrédients</h3>
+                <pre id="recipe-view-ingredients"></pre>
+                
+                <h3>Instructions</h3>
+                <pre id="recipe-view-instructions"></pre>
+                
+                <h3>Commentaires / Notes</h3>
+                <pre id="recipe-view-comments"></pre>
+            </div>
+            <div class="modal-footer" id="recipe-view-footer">
+                <!-- Les boutons seront injectés par le script -->
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // --- INITIAL DATA ---
+            const initialInventory = [
+                { name: 'Maïs en crème', quantity: '1', category: 'Conserves', include: true }, { name: 'Maïs en grains', quantity: '3', category: 'Conserves', include: true }, { name: 'Pois et Carottes', quantity: '1', category: 'Conserves', include: true }, { name: 'Tomates Italiennes', quantity: '1', category: 'Conserves', include: true }, { name: 'Laitue', quantity: '1', category: 'Produits Frais', include: true }, { name: 'Oeufs', quantity: 'x12', category: 'Produits Frais', include: true }, { name: 'Lait', quantity: '3', category: 'Produits Frais', include: true }, { name: 'Poivron', quantity: '5', category: 'Produits Frais', include: true }, { name: 'Concombre', quantity: '2', category: 'Produits Frais', include: true }, { name: 'Tomate', quantity: '2', category: 'Produits Frais', include: true }, { name: 'Boeuf haché', quantity: '2', category: 'Viandes et Poissons', include: true }, { name: 'Charcuterie', quantity: '1', category: 'Viandes et Poissons', include: true }, { name: 'Saucisses à Hot Dog', quantity: '12', category: 'Viandes et Poissons', include: true }, { name: 'Sirop', quantity: '1', category: 'Épicerie', include: true }, { name: 'Mayo', quantity: '1', category: 'Épicerie', include: true }, { name: 'Moutarde', quantity: '1', category: 'Épicerie', include: true }, { name: 'Pain', quantity: '2', category: 'Épicerie', include: true }, { name: 'Pâte de tomates', quantity: 'x2', category: 'Épicerie', include: true }, { name: 'Poivre', quantity: '1', category: 'Épicerie', include: true }, { name: 'Ail', quantity: '3', category: 'Épicerie', include: true }, { name: 'Sucre', quantity: '1', category: 'Épicerie', include: true }, { name: 'Beurre de peanut', quantity: '1', category: 'Épicerie', include: true }, { name: 'Rice Krispies', quantity: '1', category: 'Épicerie', include: true }, { name: 'Pâtes', quantity: '3', category: 'Épicerie', include: true }, { name: 'Riz', quantity: '2', category: 'Épicerie', include: true }, { name: 'Ketchup', quantity: '1', category: 'Épicerie', include: true }, { name: 'Olives Manzanilla', quantity: '1', category: 'Épicerie', include: true }, { name: 'Fromage en Tranche', quantity: '2', category: 'Épicerie', include: true }
+            ];
+
+            let inventory = JSON.parse(localStorage.getItem('inventory')) || initialInventory;
+            let shoppingList = JSON.parse(localStorage.getItem('shoppingList')) || [];
+            let recipes = JSON.parse(localStorage.getItem('recipes')) || [];
+            
+            // MIGRATION: Assurer que chaque item a les propriétés nécessaires
+            inventory.forEach(item => { 
+                if (item.include === undefined) item.include = true;
+                if (item.alertThreshold === undefined) item.alertThreshold = 2;
+            });
+
+            // --- DOM ELEMENTS ---
+            const inventoryDisplay = document.getElementById('inventory-display');
+            const shoppingListDisplay = document.getElementById('shopping-list-display');
+            const addItemForm = document.getElementById('addItemForm');
+            const addShoppingItemForm = document.getElementById('addShoppingItemForm');
+            const generateRecipeBtn = document.getElementById('generateRecipeBtn');
+            const generateShoppingListBtn = document.getElementById('generateShoppingListBtn');
+            const toggleAllCheckbox = document.getElementById('toggleAll');
+            const addLowStockItemsBtn = document.getElementById('addLowStockItemsBtn');
+            const promptOutputSection = document.getElementById('prompt-output-section');
+            const promptOutputTextarea = document.getElementById('prompt-output-textarea');
+            const copyPromptBtn = document.getElementById('copy-prompt-btn');
+            const importShoppingListTextarea = document.getElementById('importShoppingListTextarea');
+            const importShoppingListBtn = document.getElementById('importShoppingListBtn');
+
+            // RECIPE BOOK DOM ELEMENTS
+            const recipeListDisplay = document.getElementById('recipe-list-display');
+            const showAddRecipeBtn = document.getElementById('show-add-recipe-modal-btn');
+            const recipeFormModal = document.getElementById('recipe-form-modal');
+            const recipeViewModal = document.getElementById('recipe-view-modal');
+            const closeRecipeFormBtn = document.getElementById('close-recipe-form-modal');
+            const closeRecipeViewBtn = document.getElementById('close-recipe-view-modal');
+            const recipeForm = document.getElementById('recipe-form');
+            const recipeModalTitle = document.getElementById('recipe-modal-title');
+            const copyRecipePromptBtn = document.getElementById('copy-recipe-prompt-btn');
+            const importRecipeJsonBtn = document.getElementById('import-recipe-json-btn');
+
+            // --- SAVE FUNCTIONS ---
+            function saveInventory() { localStorage.setItem('inventory', JSON.stringify(inventory)); }
+            function saveShoppingList() { localStorage.setItem('shoppingList', JSON.stringify(shoppingList)); }
+            function saveRecipes() { localStorage.setItem('recipes', JSON.stringify(recipes)); }
+
+            function parseQuantity(quantityString) {
+                if (typeof quantityString !== 'string' && typeof quantityString !== 'number') {
+                    return Infinity; // Ne peut pas être comparé, donc jamais bas
+                }
+                const match = String(quantityString).match(/^[xX]?(\d+)/);
+                return match ? parseInt(match[1], 10) : Infinity;
+            }
+
+            // --- RENDER FUNCTIONS ---
+            function renderInventory() {
+                inventoryDisplay.innerHTML = '';
+                const categories = [...new Set(inventory.map(item => item.category))].sort();
+                categories.forEach(category => {
+                    const section = document.createElement('div'); section.className = 'inventory-section';
+                    const title = document.createElement('h3'); title.className = 'category-title'; title.textContent = category;
+                    const categoryId = 'category-' + category.replace(/[^a-zA-Z0-9]/g, '-'); title.id = categoryId;
+                    section.appendChild(title);
+                    const list = document.createElement('ul');
+                    inventory.filter(item => item.category === category).forEach(item => {
+                        const originalIndex = inventory.findIndex(invItem => invItem === item);
+                        const li = document.createElement('li');
+
+                        let liClasses = 'inventory-item';
+                        const itemQuantityValue = parseQuantity(item.quantity);
+                        if (item.alertThreshold && itemQuantityValue <= item.alertThreshold) {
+                            liClasses += ' low-quantity-warning';
+                        }
+                        
+                        li.className = liClasses;
+                        li.draggable = true;
+                        li.dataset.index = originalIndex;
+                        li.dataset.category = category;
+                        li.innerHTML = `
+                            <div class="item-details">
+                                <input type="checkbox" class="include-item" data-index="${originalIndex}" ${item.include ? 'checked' : ''}>
+                                <span class="inventory-item-name" data-index="${originalIndex}" title="Cliquez pour éditer">${item.name}</span>
+                            </div>
+                            <div class="item-controls">
+                                <label for="qty-${originalIndex}" class="sr-only">Quantité</label>
+                                <input type="text" id="qty-${originalIndex}" value="${item.quantity}" data-index="${originalIndex}" class="item-quantity-input" title="Quantité actuelle">
+                                <label for="threshold-${originalIndex}" style="font-size: 0.8em; color: #7f8c8d;">Alerte:</label>
+                                <input type="number" id="threshold-${originalIndex}" value="${item.alertThreshold}" data-index="${originalIndex}" class="item-threshold-input" min="0" style="width: 45px; text-align: center; border: 1px solid #ddd; border-radius: 4px; padding: 5px;" title="Seuil d'alerte pour cet article (0 pour désactiver)">
+                                <button class="btn btn-delete" data-index="${originalIndex}">Supprimer</button>
+                            </div>`;
+                        list.appendChild(li);
+                    });
+                    section.appendChild(list); inventoryDisplay.appendChild(section);
+                });
+                attachInventoryListeners(); updateToggleAllCheckboxState();
+            }
+            
+            function renderShoppingList() {
+                shoppingListDisplay.innerHTML = '';
+                if (shoppingList.length === 0) { shoppingListDisplay.innerHTML = "<p>Votre liste d'épicerie est vide.</p>"; return; }
+                const list = document.createElement('ul');
+                shoppingList.forEach((item, index) => {
+                    const li = document.createElement('li');
+                    li.className = 'shopping-list-item'; li.draggable = true; li.dataset.index = index;
+                    li.innerHTML = `<div class="item-details"><span class="item-name">${item.name} (Qté: ${item.quantity})</span></div><div class="shopping-item-controls"><button class="btn btn-move" data-index="${index}">Ajouter à l'inventaire</button><button class="btn btn-edit-shopping" data-index="${index}" style="background-color: #f39c12;">Éditer</button><button class="btn btn-delete-shopping" data-index="${index}">Supprimer</button></div>`;
+                    list.appendChild(li);
+                });
+                shoppingListDisplay.appendChild(list); attachShoppingListListeners();
+            }
+
+            function renderRecipeBook() {
+                recipeListDisplay.innerHTML = '';
+                if (recipes.length === 0) {
+                    recipeListDisplay.innerHTML = '<p>Aucune recette sauvegardée pour le moment. Ajoutez-en une !</p>';
+                    return;
+                }
+                recipes.forEach((recipe, index) => {
+                    const card = document.createElement('div');
+                    card.className = 'recipe-card';
+                    card.dataset.index = index;
+                    card.innerHTML = `<h3>${recipe.name}</h3>`;
+                    card.addEventListener('click', () => viewRecipe(index));
+                    recipeListDisplay.appendChild(card);
+                });
+            }
+
+            // --- ATTACH LISTENERS ---
+            function attachInventoryListeners() {
+                document.querySelectorAll('.btn-delete').forEach(button => button.addEventListener('click', deleteItem));
+                document.querySelectorAll('.item-quantity-input').forEach(input => input.addEventListener('change', updateQuantity));
+                document.querySelectorAll('.item-threshold-input').forEach(input => input.addEventListener('change', updateItemThreshold));
+                document.querySelectorAll('.include-item').forEach(checkbox => checkbox.addEventListener('change', toggleInclusion));
+                document.querySelectorAll('.inventory-item-name').forEach(span => span.addEventListener('click', startEditInventoryItemName));
+            }
+            
+            function attachShoppingListListeners() {
+                document.querySelectorAll('.btn-delete-shopping').forEach(button => button.addEventListener('click', deleteShoppingItem));
+                document.querySelectorAll('.btn-move').forEach(button => button.addEventListener('click', moveItemToInventory));
+                document.querySelectorAll('.btn-edit-shopping').forEach(button => button.addEventListener('click', editShoppingItem));
+                document.querySelectorAll('.btn-save-shopping').forEach(button => button.addEventListener('click', saveShoppingItemEdit));
+            }
+
+            // --- INVENTORY FUNCTIONS ---
+            function addItem(e) { e.preventDefault(); const itemName = document.getElementById('itemName').value.trim(); const itemQuantity = document.getElementById('itemQuantity').value.trim(); const itemCategory = document.getElementById('itemCategory').value; if (itemName) { inventory.push({ name: itemName, quantity: itemQuantity, category: itemCategory, include: true, alertThreshold: 2 }); saveInventory(); renderInventory(); addItemForm.reset(); document.getElementById('itemQuantity').value = '1'; } }
+            function deleteItem(e) { inventory.splice(e.target.dataset.index, 1); saveInventory(); renderInventory(); }
+            function updateQuantity(e) { inventory[e.target.dataset.index].quantity = e.target.value; saveInventory(); renderInventory(); }
+            function updateItemThreshold(e) { const index = e.target.dataset.index; const newThreshold = parseInt(e.target.value, 10); if (!isNaN(newThreshold) && newThreshold >= 0) { inventory[index].alertThreshold = newThreshold; saveInventory(); renderInventory(); } }
+            function toggleInclusion(e) { inventory[e.target.dataset.index].include = e.target.checked; saveInventory(); updateToggleAllCheckboxState(); }
+            function toggleAll(e) { inventory.forEach(item => item.include = e.target.checked); saveInventory(); renderInventory(); }
+            function updateToggleAllCheckboxState() { toggleAllCheckbox.checked = inventory.length > 0 && inventory.every(item => item.include); }
+            
+            function startEditInventoryItemName(e) {
+                const span = e.target;
+                const index = span.dataset.index;
+                const currentName = inventory[index].name;
+                
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.value = currentName;
+                input.className = 'edit-inventory-name';
+                
+                span.parentElement.replaceChild(input, span);
+                input.focus();
+                
+                const save = () => {
+                    const newName = input.value.trim();
+                    if (newName) {
+                        inventory[index].name = newName;
+                        saveInventory();
+                    }
+                    renderInventory();
+                };
+                
+                input.addEventListener('blur', save);
+                input.addEventListener('keydown', (evt) => {
+                    if (evt.key === 'Enter') {
+                        input.blur();
+                    } else if (evt.key === 'Escape') {
+                        renderInventory(); // Annule l'édition
+                    }
+                });
+            }
+
+            // --- SHOPPING LIST FUNCTIONS ---
+            function addShoppingItem(e) { e.preventDefault(); const itemName = document.getElementById('shoppingItemName').value.trim(); const itemQuantity = document.getElementById('shoppingItemQuantity').value.trim(); if (itemName) { shoppingList.push({ name: itemName, quantity: itemQuantity }); saveShoppingList(); renderShoppingList(); addShoppingItemForm.reset(); document.getElementById('shoppingItemQuantity').value = '1'; } }
+            function deleteShoppingItem(e) { shoppingList.splice(e.target.dataset.index, 1); saveShoppingList(); renderShoppingList(); }
+            function moveItemToInventory(e) { const itemToMove = shoppingList.splice(e.target.dataset.index, 1)[0]; inventory.push({ name: itemToMove.name, quantity: itemToMove.quantity, category: 'Épicerie', include: true, alertThreshold: 2 }); saveShoppingList(); saveInventory(); renderShoppingList(); renderInventory(); }
+
+            function addLowStockItemsToShoppingList() {
+                const lowStockItems = inventory.filter(item => {
+                    const quantity = parseQuantity(item.quantity);
+                    return item.alertThreshold && quantity <= item.alertThreshold;
+                });
+
+                if (lowStockItems.length === 0) {
+                    alert("Aucun article n'est actuellement en pénurie selon vos seuils d'alerte.");
+                    return;
+                }
+
+                let itemsAddedCount = 0;
+                lowStockItems.forEach(lowItem => {
+                    const alreadyInList = shoppingList.some(shopItem => shopItem.name.trim().toLowerCase() === lowItem.name.trim().toLowerCase());
+                    
+                    if (!alreadyInList) {
+                        shoppingList.push({ name: lowItem.name, quantity: '1' });
+                        itemsAddedCount++;
+                    }
+                });
+
+                if (itemsAddedCount > 0) {
+                    saveShoppingList();
+                    renderShoppingList();
+                    alert(`${itemsAddedCount} article(s) en pénurie ont été ajouté(s) à votre liste d'épicerie.`);
+                } else {
+                    alert("Tous les articles en pénurie sont déjà dans votre liste d'épicerie.");
+                }
+            }
+            
+            function editShoppingItem(e) {
+                const index = e.target.dataset.index;
+                const item = shoppingList[index];
+                const li = e.target.closest('li');
+                
+                li.innerHTML = `
+                    <div class="item-details" style="flex-wrap: wrap;">
+                        <input type="text" value="${item.name}" class="edit-shopping-name" style="flex-grow: 1; min-width: 150px; padding: 5px;">
+                        <input type="text" value="${item.quantity}" class="edit-shopping-quantity" style="width: 80px; padding: 5px;">
+                    </div>
+                    <div class="shopping-item-controls">
+                        <button class="btn btn-save-shopping" data-index="${index}" style="background-color: #2ecc71;">Sauvegarder</button>
+                    </div>
+                `;
+                li.querySelector('.edit-shopping-name').focus();
+                attachShoppingListListeners();
+            }
+
+            function saveShoppingItemEdit(e) {
+                const index = e.target.dataset.index;
+                const li = e.target.closest('li');
+                const newName = li.querySelector('.edit-shopping-name').value.trim();
+                const newQuantity = li.querySelector('.edit-shopping-quantity').value.trim();
+                
+                if (newName && newQuantity) {
+                    shoppingList[index] = { name: newName, quantity: newQuantity };
+                    saveShoppingList();
+                }
+                renderShoppingList();
+            }
+
+            // --- RECIPE BOOK FUNCTIONS ---
+            function openRecipeFormModal(recipeIndex = null) {
+                recipeForm.reset();
+                document.getElementById('recipe-json-input').value = '';
+                if (recipeIndex !== null) {
+                    const recipe = recipes[recipeIndex];
+                    recipeModalTitle.textContent = "Éditer la recette";
+                    document.getElementById('recipe-id').value = recipeIndex;
+                    document.getElementById('recipe-name').value = recipe.name;
+                    document.getElementById('recipe-ingredients').value = recipe.ingredients;
+                    document.getElementById('recipe-instructions').value = recipe.instructions;
+                    document.getElementById('recipe-comments').value = recipe.comments;
+                } else {
+                    recipeModalTitle.textContent = "Ajouter une Nouvelle Recette";
+                    document.getElementById('recipe-id').value = '';
+                }
+                recipeFormModal.style.display = 'block';
+            }
+
+            function closeRecipeFormModal() { recipeFormModal.style.display = 'none'; }
+            function closeRecipeViewModal() { recipeViewModal.style.display = 'none'; }
+
+            function handleRecipeFormSubmit(e) {
+                e.preventDefault();
+                const recipe = {
+                    name: document.getElementById('recipe-name').value,
+                    ingredients: document.getElementById('recipe-ingredients').value,
+                    instructions: document.getElementById('recipe-instructions').value,
+                    comments: document.getElementById('recipe-comments').value,
+                };
+                const recipeId = document.getElementById('recipe-id').value;
+
+                if (recipeId) {
+                    recipes[parseInt(recipeId, 10)] = recipe;
+                } else {
+                    recipes.push(recipe);
+                }
+                saveRecipes();
+                renderRecipeBook();
+                closeRecipeFormModal();
+            }
+            
+            function viewRecipe(index) {
+                const recipe = recipes[index];
+                document.getElementById('recipe-view-title').textContent = recipe.name;
+                document.getElementById('recipe-view-ingredients').textContent = recipe.ingredients || "Aucun ingrédient listé.";
+                document.getElementById('recipe-view-instructions').textContent = recipe.instructions || "Aucune instruction listée.";
+                document.getElementById('recipe-view-comments').textContent = recipe.comments || "Aucun commentaire.";
+                
+                const footer = document.getElementById('recipe-view-footer');
+                footer.innerHTML = `
+                    <button class="btn" id="add-ingredients-to-list-btn" style="background-color: #16a085;">Ajouter les ingrédients à la liste</button>
+                    <button class="btn" id="edit-recipe-btn" style="background-color: #f39c12;">Éditer</button>
+                    <button class="btn btn-delete" id="delete-recipe-btn">Supprimer</button>
+                `;
+                
+                footer.querySelector('#add-ingredients-to-list-btn').addEventListener('click', () => addRecipeIngredientsToShoppingList(index));
+                footer.querySelector('#edit-recipe-btn').addEventListener('click', () => { closeRecipeViewModal(); openRecipeFormModal(index); });
+                footer.querySelector('#delete-recipe-btn').addEventListener('click', () => deleteRecipe(index));
+                
+                recipeViewModal.style.display = 'block';
+            }
+
+            function deleteRecipe(index) {
+                if (confirm(`Êtes-vous sûr de vouloir supprimer la recette "${recipes[index].name}" ?`)) {
+                    recipes.splice(index, 1);
+                    saveRecipes();
+                    renderRecipeBook();
+                    closeRecipeViewModal();
+                }
+            }
+
+            function addRecipeIngredientsToShoppingList(index) {
+                const recipe = recipes[index];
+                const ingredients = recipe.ingredients.split('\n').filter(line => line.trim() !== '');
+                let addedCount = 0;
+
+                ingredients.forEach(line => {
+                    const match = line.trim().match(/^([\d\/\.\s-x]+)?\s*(.*)/);
+                    if (match) {
+                        const quantity = (match[1] || '1').trim();
+                        const name = match[2].trim();
+                        if (name) {
+                            shoppingList.push({ name: name, quantity: quantity });
+                            addedCount++;
+                        }
+                    }
+                });
+
+                if (addedCount > 0) {
+                    saveShoppingList();
+                    renderShoppingList();
+                    alert(`${addedCount} ingrédient(s) ajouté(s) à votre liste d'épicerie.`);
+                } else {
+                    alert("Aucun ingrédient n'a pu être ajouté. Vérifiez le format de la liste d'ingrédients.");
+                }
+                closeRecipeViewModal();
+            }
+
+            // --- PROMPT & AI FUNCTIONS ---
+            function copyToClipboard(element, button) {
+                element.select();
+                element.setSelectionRange(0, 99999); 
+                try {
+                    const successful = document.execCommand('copy');
+                    if (successful) {
+                        const originalText = button.textContent;
+                        button.textContent = 'Copié !';
+                        setTimeout(() => { button.textContent = originalText; }, 2000);
+                    } else { throw new Error('Copy command failed'); }
+                } catch (err) { alert('La copie automatique a échoué. Veuillez utiliser Ctrl+C ou le menu contextuel pour copier.'); }
+            }
+
+            function importRecipeDataFromJson() {
+                const jsonString = document.getElementById('recipe-json-input').value.trim();
+                 if (jsonString === '') { alert("Veuillez coller le texte JSON dans la zone prévue."); return; }
+                try {
+                    const recipeData = JSON.parse(jsonString);
+                    const { name, ingredients, instructions, comments } = recipeData;
+                    
+                    if (!name || !ingredients || !instructions) {
+                         throw new Error("Le JSON est incomplet. Les clés 'name', 'ingredients', et 'instructions' sont requises.");
+                    }
+                    
+                    document.getElementById('recipe-name').value = name || '';
+                    document.getElementById('recipe-ingredients').value = ingredients || '';
+                    document.getElementById('recipe-instructions').value = instructions || '';
+                    document.getElementById('recipe-comments').value = comments || '';
+
+                    alert("Les champs ont été remplis avec succès !");
+
+                } catch (error) {
+                    alert("Erreur lors de l'importation : " + error.message);
+                    console.error("Erreur de parsing JSON pour recette:", error);
+                }
+            }
+
+            function displayPrompt(promptText) {
+                promptOutputTextarea.value = promptText;
+                promptOutputSection.style.display = 'block';
+                promptOutputSection.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                promptOutputTextarea.focus();
+                promptOutputTextarea.select();
+            }
+            
+            function generateRecipePrompt() {
+                const includedItems = inventory.filter(item => item.include);
+                const useFlyerDeals = document.getElementById('useFlyerDeals').checked;
+
+                if (includedItems.length === 0 && !useFlyerDeals) {
+                    alert("Veuillez sélectionner au moins un ingrédient de votre inventaire ou cocher l'option pour utiliser les articles en rabais.");
+                    return;
+                }
+
+                const includeExtra = document.getElementById('includeExtraIngredients').checked;
+                const noOven = document.getElementById('recipeCatNoOven').checked;
+                const noCook = document.getElementById('recipeCatNoCook').checked;
+                const quickMeal = document.getElementById('recipeCatQuick').checked;
+                const ingredientNames = includedItems.map(item => item.name).join(', ');
+
+                let promptText = 'Propose-moi une recette simple. ';
+                if(includedItems.length > 0) { promptText += `Voici les ingrédients que je possède : ${ingredientNames}. `; }
+
+                if (useFlyerDeals) {
+                    const flyerData = JSON.parse(localStorage.getItem('flyerData')) || {};
+                    const flyerItems = new Set();
+                    Object.values(flyerData).forEach(itemList => {
+                        itemList.forEach(item => {
+                            const cleanName = item.name.split(/, | \/ | \(/)[0].trim();
+                            if(cleanName) flyerItems.add(cleanName);
+                        });
+                    });
+                    if (flyerItems.size > 0) { promptText += `Je souhaite aussi utiliser des articles en rabais cette semaine. Voici quelques exemples : ${[...flyerItems].join(', ')}. `; }
+                }
+
+                if (includeExtra) { 
+                    promptText += `Tu peux suggérer 1 ou 2 ingrédients de base supplémentaires à acheter pour compléter la recette. `;
+                } else { 
+                    promptText += `Essaie de créer une recette qui utilise UNIQUEMENT les ingrédients mentionnés (ceux de mon inventaire et/ou ceux en rabais). `; 
+                }
+                
+                let cookingConstraints = [];
+                if (noCook) {
+                    cookingConstraints.push("ne nécessite aucune cuisson (pas de four, pas de cuisinière)");
+                } else if (noOven) {
+                    cookingConstraints.push("n'utilise que la cuisinière (les ronds), pas le four");
+                }
+                
+                if (quickMeal) {
+                    cookingConstraints.push("doit pouvoir être préparée en moins de 30 minutes");
+                }
+
+                if (cookingConstraints.length > 0) {
+                    promptText += `La recette doit respecter les contraintes suivantes : ${cookingConstraints.join(' et ')}. `;
+                }
+
+                promptText += "Présente la recette avec la liste complète des ingrédients (en indiquant clairement lesquels je dois acheter) et les instructions.";
+                displayPrompt(promptText);
+            }
+            
+            function generateShoppingListPrompt() {
+                const numPeople = document.getElementById('numPeople').value;
+                const mealsList = document.getElementById('mealsList').value.trim();
+                if (mealsList === '') { alert("Veuillez entrer au moins un repas à préparer."); return; }
+                if (parseInt(numPeople, 10) < 1) { alert("Veuillez entrer un nombre de personnes valide."); return; }
+                const currentInventory = inventory.map(item => `${item.name} (${item.quantity})`).join(', ');
+                const promptText = `Agis comme un assistant de liste d'épicerie. Je veux préparer les repas suivants pour ${numPeople} personne(s) :\n\n${mealsList}\n\nVoici les ingrédients que je possède déjà dans mon inventaire :\n${currentInventory}\n\nCrée une liste d'épicerie qui contient uniquement les ingrédients manquants. Fournis la réponse sous forme de tableau JSON. Chaque objet doit avoir une clé "name" (string) et "quantity" (string). N'ajoute aucun texte avant ou après le tableau JSON.\n\nExemple de format attendu:\n[{"name": "Oignons", "quantity": "2"}, {"name": "Ail", "quantity": "1 tête"}]`;
+                displayPrompt(promptText);
+            }
+
+            function importShoppingListData() {
+                const jsonString = importShoppingListTextarea.value.trim();
+                if (jsonString === '') { alert("Veuillez coller le texte JSON dans la zone prévue."); return; }
+                try {
+                    const itemsToImport = JSON.parse(jsonString);
+                    if (!Array.isArray(itemsToImport)) { throw new Error("Le JSON doit être un tableau (Array)."); }
+                    const validItems = itemsToImport.filter(item => item && typeof item.name === 'string' && typeof item.quantity === 'string');
+                    if (validItems.length !== itemsToImport.length) { alert("Certains objets dans le JSON sont mal formatés. Chaque objet doit avoir des clés 'name' et 'quantity'."); }
+                    shoppingList.push(...validItems);
+                    saveShoppingList(); renderShoppingList();
+                    importShoppingListTextarea.value = '';
+                    alert(`${validItems.length} article(s) importé(s) avec succès !`);
+                } catch (error) {
+                    alert("Erreur lors de l'importation. Veuillez vérifier que le texte est un JSON valide et correspond au format attendu.");
+                    console.error("Erreur de parsing JSON:", error);
+                }
+            }
+            
+            // --- DRAG AND DROP POUR LA LISTE D'ÉPICERIE ---
+            let draggedShoppingItemIndex = null;
+            shoppingListDisplay.addEventListener('dragstart', (e) => { if (e.target.classList.contains('shopping-list-item')) { draggedShoppingItemIndex = parseInt(e.target.dataset.index, 10); setTimeout(() => { e.target.classList.add('dragging'); }, 0); } });
+            shoppingListDisplay.addEventListener('dragover', (e) => { e.preventDefault(); const target = e.target.closest('.shopping-list-item'); if (target && parseInt(target.dataset.index, 10) !== draggedShoppingItemIndex) { document.querySelectorAll('.shopping-list-item.drag-over').forEach(el => el.classList.remove('drag-over')); target.classList.add('drag-over'); } });
+            shoppingListDisplay.addEventListener('dragleave', (e) => { const target = e.target.closest('.shopping-list-item'); if (target) { target.classList.remove('drag-over'); } });
+            shoppingListDisplay.addEventListener('drop', (e) => { e.preventDefault(); const dropTarget = e.target.closest('.shopping-list-item'); if (dropTarget && draggedShoppingItemIndex !== null) { const dropIndex = parseInt(dropTarget.dataset.index, 10); const itemToMove = shoppingList.splice(draggedShoppingItemIndex, 1)[0]; shoppingList.splice(dropIndex, 0, itemToMove); saveShoppingList(); renderShoppingList(); } });
+            shoppingListDisplay.addEventListener('dragend', (e) => { document.querySelectorAll('.shopping-list-item.dragging, .shopping-list-item.drag-over').forEach(el => el.classList.remove('dragging', 'drag-over')); draggedShoppingItemIndex = null; });
+            
+            // --- DRAG AND DROP POUR L'INVENTAIRE ---
+            let draggedInventoryItemIndex = null;
+            inventoryDisplay.addEventListener('dragstart', (e) => {
+                if (e.target.classList.contains('inventory-item')) {
+                    draggedInventoryItemIndex = parseInt(e.target.dataset.index, 10);
+                    setTimeout(() => { e.target.classList.add('dragging'); }, 0);
+                }
+            });
+            inventoryDisplay.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                const target = e.target.closest('.inventory-item');
+                if (target && parseInt(target.dataset.index, 10) !== draggedInventoryItemIndex) {
+                    document.querySelectorAll('.inventory-item.drag-over').forEach(el => el.classList.remove('drag-over'));
+                    target.classList.add('drag-over');
+                }
+            });
+            inventoryDisplay.addEventListener('dragleave', (e) => {
+                const target = e.target.closest('.inventory-item');
+                if (target) { target.classList.remove('drag-over'); }
+            });
+            inventoryDisplay.addEventListener('drop', (e) => {
+                e.preventDefault();
+                const dropTarget = e.target.closest('.inventory-item');
+                if (dropTarget && draggedInventoryItemIndex !== null) {
+                    const dropIndex = parseInt(dropTarget.dataset.index, 10);
+                    if (dropIndex === draggedInventoryItemIndex) return; // Ne rien faire si déposé sur lui-même
+
+                    const dropCategory = dropTarget.dataset.category;
+                    const [itemToMove] = inventory.splice(draggedInventoryItemIndex, 1);
+                    itemToMove.category = dropCategory;
+                    
+                    const newDropIndex = (draggedInventoryItemIndex < dropIndex) ? dropIndex - 1 : dropIndex;
+                    inventory.splice(newDropIndex, 0, itemToMove);
+                    
+                    saveInventory();
+                    renderInventory();
+                }
+            });
+            inventoryDisplay.addEventListener('dragend', () => {
+                document.querySelectorAll('.inventory-item.dragging, .inventory-item.drag-over').forEach(el => el.classList.remove('dragging', 'drag-over'));
+                draggedInventoryItemIndex = null;
+            });
+
+            // --- INITIAL SETUP & EVENT LISTENERS ---
+            addItemForm.addEventListener('submit', addItem);
+            addShoppingItemForm.addEventListener('submit', addShoppingItem);
+            generateRecipeBtn.addEventListener('click', generateRecipePrompt);
+            generateShoppingListBtn.addEventListener('click', generateShoppingListPrompt);
+            toggleAllCheckbox.addEventListener('change', toggleAll);
+            addLowStockItemsBtn.addEventListener('click', addLowStockItemsToShoppingList);
+            importShoppingListBtn.addEventListener('click', importShoppingListData);
+            copyPromptBtn.addEventListener('click', () => copyToClipboard(promptOutputTextarea, copyPromptBtn));
+            
+            // Recipe Book Listeners
+            showAddRecipeBtn.addEventListener('click', () => openRecipeFormModal());
+            closeRecipeFormBtn.addEventListener('click', closeRecipeFormModal);
+            closeRecipeViewBtn.addEventListener('click', closeRecipeViewModal);
+            recipeForm.addEventListener('submit', handleRecipeFormSubmit);
+            copyRecipePromptBtn.addEventListener('click', () => copyToClipboard(document.getElementById('ai-recipe-prompt'), copyRecipePromptBtn));
+            importRecipeJsonBtn.addEventListener('click', importRecipeDataFromJson);
+            window.addEventListener('click', (event) => {
+                if (event.target == recipeFormModal) closeRecipeFormModal();
+                if (event.target == recipeViewModal) closeRecipeViewModal();
+            });
+            
+            // --- INITIALISATION ---
+            renderInventory();
+            renderShoppingList();
+            renderRecipeBook();
+        });
+    </script>
+</body>
+</html>
