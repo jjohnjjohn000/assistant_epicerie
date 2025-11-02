@@ -345,6 +345,66 @@
             border-radius: 8px;
             margin-bottom: 25px;
         }
+        /* --- NOUVEAUX STYLES POUR L'AUTHENTIFICATION --- */
+        #auth-section {
+            background-color: #ecf0f1;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+            border: 1px solid #bdc3c7;
+        }
+        .auth-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        #user-status {
+            font-weight: 500;
+        }
+        #user-status button {
+            margin-left: 10px;
+        }
+        #auth-forms {
+            display: flex;
+            gap: 10px;
+        }
+        #auth-forms input {
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #bdc3c7;
+        }
+        .auth-toggle {
+            margin-top: 10px;
+            font-size: 0.9em;
+        }
+        .auth-toggle a {
+            color: #3498db;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+
+        /* --- STYLES POUR CACHER/AFFICHER LES ÉLÉMENTS --- */
+        .hidden {
+            display: none !important;
+        }
+           
+        /* Styles pour la nouvelle section de gestion */
+        .data-management-section {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 30px;
+        }
+        .data-management-section h3 {
+            margin-top: 0;
+            color: #34495e;
+        }
+        .data-management-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
     </style>
 </head>
 <body>
@@ -365,6 +425,38 @@
     <main class="content-wrapper">
         <div class="container">
             <!-- ... sections existantes ... -->
+
+            <!-- ============================================= -->
+            <!-- ====== NOUVELLE SECTION D'AUTHENTIFICATION ====== -->
+            <!-- ============================================= -->
+            <section id="auth-section">
+                <div id="logged-out-view" class="auth-container">
+                    <!-- Formulaire de Connexion (par défaut) -->
+                    <form id="login-form" class="auth-forms">
+                        <input type="text" id="login-username" placeholder="Nom d'utilisateur" required>
+                        <input type="password" id="login-password" placeholder="Mot de passe" required>
+                        <button type="submit" class="btn" style="background-color: #27ae60;">Connexion</button>
+                    </form>
+                    <!-- Formulaire d'Inscription (caché par défaut) -->
+                    <form id="register-form" class="auth-forms hidden">
+                        <input type="text" id="register-username" placeholder="Nom d'utilisateur" required>
+                        <input type="email" id="register-email" placeholder="Courriel" required>
+                        <input type="password" id="register-password" placeholder="Mot de passe" required>
+                        <button type="submit" class="btn">S'inscrire</button>
+                    </form>
+                    <div class="auth-toggle">
+                        <span id="toggle-to-register">Pas de compte ? <a>Inscrivez-vous</a></span>
+                        <span id="toggle-to-login" class="hidden">Déjà un compte ? <a>Connectez-vous</a></span>
+                    </div>
+                </div>
+
+                <div id="logged-in-view" class="auth-container hidden">
+                    <span id="user-status"></span>
+                    <button id="logout-btn" class="btn btn-delete">Déconnexion</button>
+                </div>
+                <div id="auth-error" style="color: #e74c3c; margin-top: 10px; text-align: center; font-weight: bold;"></div>
+            </section>
+
             <section id="inventory-section">
                 <h1>Inventaire des Denrées</h1>
                 <div class="inventory-controls">
@@ -391,6 +483,18 @@
                     </select>
                     <button type="submit">Ajouter</button>
                 </form>
+            </section>
+
+            <section id="data-management" class="data-management-section">
+                <h3>Gestion des Données d'Inventaire</h3>
+                <p>Utilisez ces outils pour migrer votre ancien inventaire local vers votre compte.</p>
+                <div class="data-management-buttons">
+                    <button id="view-old-inventory-btn" class="btn" style="background-color: #95a5a6;">Voir l'inventaire local</button>
+                    <button id="export-inventory-btn" class="btn" style="background-color: #16a085;">Exporter l'inventaire local</button>
+                    <button id="import-inventory-btn" class="btn" style="background-color: #3498db;">Importer un inventaire</button>
+                    <!-- Input caché pour la sélection de fichier -->
+                    <input type="file" id="inventory-file-input" class="hidden" accept=".json">
+                </div>
             </section>
 
             <section id="shopping-list-section" class="shopping-list-section">
@@ -567,6 +671,18 @@ Maintenant, analyse la recette suivante :
         </div>
     </div>
 
+    <!-- Modale pour voir l'ancien inventaire -->
+    <div id="view-old-data-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Ancien Inventaire (depuis le stockage local)</h2>
+                <span class="close-btn" id="close-old-data-modal">&times;</span>
+            </div>
+            <div class="modal-body" id="old-data-content">
+                <!-- Le contenu sera injecté par le script -->
+            </div>
+        </div>
+    </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
@@ -574,11 +690,12 @@ Maintenant, analyse la recette suivante :
             const initialInventory = [
                 { name: 'Maïs en crème', quantity: '1', category: 'Conserves', include: true }, { name: 'Maïs en grains', quantity: '3', category: 'Conserves', include: true }, { name: 'Pois et Carottes', quantity: '1', category: 'Conserves', include: true }, { name: 'Tomates Italiennes', quantity: '1', category: 'Conserves', include: true }, { name: 'Laitue', quantity: '1', category: 'Produits Frais', include: true }, { name: 'Oeufs', quantity: 'x12', category: 'Produits Frais', include: true }, { name: 'Lait', quantity: '3', category: 'Produits Frais', include: true }, { name: 'Poivron', quantity: '5', category: 'Produits Frais', include: true }, { name: 'Concombre', quantity: '2', category: 'Produits Frais', include: true }, { name: 'Tomate', quantity: '2', category: 'Produits Frais', include: true }, { name: 'Boeuf haché', quantity: '2', category: 'Viandes et Poissons', include: true }, { name: 'Charcuterie', quantity: '1', category: 'Viandes et Poissons', include: true }, { name: 'Saucisses à Hot Dog', quantity: '12', category: 'Viandes et Poissons', include: true }, { name: 'Sirop', quantity: '1', category: 'Épicerie', include: true }, { name: 'Mayo', quantity: '1', category: 'Épicerie', include: true }, { name: 'Moutarde', quantity: '1', category: 'Épicerie', include: true }, { name: 'Pain', quantity: '2', category: 'Épicerie', include: true }, { name: 'Pâte de tomates', quantity: 'x2', category: 'Épicerie', include: true }, { name: 'Poivre', quantity: '1', category: 'Épicerie', include: true }, { name: 'Ail', quantity: '3', category: 'Épicerie', include: true }, { name: 'Sucre', quantity: '1', category: 'Épicerie', include: true }, { name: 'Beurre de peanut', quantity: '1', category: 'Épicerie', include: true }, { name: 'Rice Krispies', quantity: '1', category: 'Épicerie', include: true }, { name: 'Pâtes', quantity: '3', category: 'Épicerie', include: true }, { name: 'Riz', quantity: '2', category: 'Épicerie', include: true }, { name: 'Ketchup', quantity: '1', category: 'Épicerie', include: true }, { name: 'Olives Manzanilla', quantity: '1', category: 'Épicerie', include: true }, { name: 'Fromage en Tranche', quantity: '2', category: 'Épicerie', include: true }
             ];
-
-            let inventory = JSON.parse(localStorage.getItem('inventory')) || initialInventory;
-            let shoppingList = JSON.parse(localStorage.getItem('shoppingList')) || [];
-            let recipes = JSON.parse(localStorage.getItem('recipes')) || [];
             
+            // --- VARIABLES GLOBALES DE DONNÉES (modifiées) ---
+            let inventory = [];
+            let shoppingList = []; // Ne vient plus de localStorage
+            let recipes = []; // Ne vient plus de localStorage
+
             // MIGRATION: Assurer que chaque item a les propriétés nécessaires
             inventory.forEach(item => { 
                 if (item.include === undefined) item.include = true;
@@ -600,6 +717,18 @@ Maintenant, analyse la recette suivante :
             const importShoppingListTextarea = document.getElementById('importShoppingListTextarea');
             const importShoppingListBtn = document.getElementById('importShoppingListBtn');
 
+            // --- NOUVEAUX ÉLÉMENTS DOM POUR L'AUTHENTIFICATION ---
+            const authSection = document.getElementById('auth-section');
+            const loggedOutView = document.getElementById('logged-out-view');
+            const loggedInView = document.getElementById('logged-in-view');
+            const loginForm = document.getElementById('login-form');
+            const registerForm = document.getElementById('register-form');
+            const userStatus = document.getElementById('user-status');
+            const logoutBtn = document.getElementById('logout-btn');
+            const authError = document.getElementById('auth-error');
+            const toggleToRegister = document.getElementById('toggle-to-register');
+            const toggleToLogin = document.getElementById('toggle-to-login');
+
             // RECIPE BOOK DOM ELEMENTS
             const recipeListDisplay = document.getElementById('recipe-list-display');
             const showAddRecipeBtn = document.getElementById('show-add-recipe-modal-btn');
@@ -612,8 +741,195 @@ Maintenant, analyse la recette suivante :
             const copyRecipePromptBtn = document.getElementById('copy-recipe-prompt-btn');
             const importRecipeJsonBtn = document.getElementById('import-recipe-json-btn');
 
-            // --- SAVE FUNCTIONS ---
-            function saveInventory() { localStorage.setItem('inventory', JSON.stringify(inventory)); }
+            // OLD INVENTORY DOM ELEMENTS
+            const viewOldInventoryBtn = document.getElementById('view-old-inventory-btn');
+            const exportInventoryBtn = document.getElementById('export-inventory-btn');
+            const importInventoryBtn = document.getElementById('import-inventory-btn');
+            const inventoryFileInput = document.getElementById('inventory-file-input');
+            const viewOldDataModal = document.getElementById('view-old-data-modal');
+            const closeOldDataModalBtn = document.getElementById('close-old-data-modal');
+            const oldDataContent = document.getElementById('old-data-content');
+
+
+            // --- NOUVELLES FONCTIONS D'AUTHENTIFICATION ---
+
+            // Fonction générique pour les appels API
+            async function apiCall(endpoint, method, body = null) {
+                const headers = {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken') // Important pour la sécurité Django
+                };
+                const token = localStorage.getItem('authToken');
+                if (token) {
+                    headers['Authorization'] = `Token ${token}`;
+                }
+
+                const options = {
+                    method: method,
+                    headers: headers,
+                };
+
+                if (body) {
+                    options.body = JSON.stringify(body);
+                }
+
+                try {
+                    const response = await fetch(`/api/${endpoint}/`, options);
+                    if (!response.ok) {
+                        // Tente de lire l'erreur du backend
+                        const errorData = await response.json();
+                        throw new Error(errorData.error || `Erreur ${response.status}`);
+                    }
+                    // Si la réponse n'a pas de contenu (ex: logout)
+                    if (response.status === 204 || response.status === 200 && response.headers.get('content-length') === '0') {
+                        return null;
+                    }
+                    return response.json();
+                } catch (error) {
+                    console.error('Erreur API:', error);
+                    throw error; // Propage l'erreur pour la gérer plus loin
+                }
+            }
+
+            // Gère le processus d'inscription
+            async function handleRegister(e) {
+                e.preventDefault();
+                authError.textContent = '';
+                const username = document.getElementById('register-username').value;
+                const email = document.getElementById('register-email').value;
+                const password = document.getElementById('register-password').value;
+                try {
+                    const data = await apiCall('register', 'POST', { username, email, password });
+                    localStorage.setItem('authToken', data.token);
+                    localStorage.setItem('username', data.username);
+                    updateAuthUI();
+                } catch (error) {
+                    authError.textContent = error.message;
+                }
+            }
+
+            // Gère le processus de connexion
+            async function handleLogin(e) {
+                e.preventDefault();
+                authError.textContent = '';
+                const username = document.getElementById('login-username').value;
+                const password = document.getElementById('login-password').value;
+                try {
+                    const data = await apiCall('login', 'POST', { username, password });
+                    localStorage.setItem('authToken', data.token);
+                    localStorage.setItem('username', data.username);
+                    updateAuthUI();
+                } catch (error) {
+                    authError.textContent = error.message;
+                }
+            }
+
+            // Gère la déconnexion
+            async function handleLogout() {
+                try {
+                    await apiCall('logout', 'POST');
+                } catch (error) {
+                    console.error("Erreur lors de la déconnexion:", error);
+                    // On continue même si l'API échoue, pour ne pas bloquer l'utilisateur
+                } finally {
+                    localStorage.removeItem('authToken');
+                    localStorage.removeItem('username');
+                    updateAuthUI();
+                }
+            }
+
+            // Met à jour l'interface en fonction de l'état de connexion
+            function updateAuthUI() {
+                const token = localStorage.getItem('authToken');
+                const username = localStorage.getItem('username');
+
+                if (token && username) {
+                    // L'utilisateur est connecté
+                    loggedInView.classList.remove('hidden');
+                    loggedOutView.classList.add('hidden');
+                    userStatus.textContent = `Connecté en tant que : ${username}`;
+                    authError.textContent = '';
+                    loadServerData();
+                } else {
+                    // L'utilisateur est déconnecté
+                    loggedInView.classList.add('hidden');
+                    loggedOutView.classList.remove('hidden');
+                    userStatus.textContent = '';
+                    inventory = [];
+                    shoppingList = []; // Vider les données
+                    recipes = []; // Vider les données
+                    renderInventory();
+                    renderShoppingList(); // Mettre à jour l'affichage
+                    renderRecipeBook(); // Mettre à jour l'affichage
+                }
+            }
+            
+            // Fonction pour récupérer le cookie CSRF (essentiel pour Django)
+            function getCookie(name) {
+                let cookieValue = null;
+                if (document.cookie && document.cookie !== '') {
+                    const cookies = document.cookie.split(';');
+                    for (let i = 0; i < cookies.length; i++) {
+                        const cookie = cookies[i].trim();
+                        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                            break;
+                        }
+                    }
+                }
+                return cookieValue;
+            }
+
+            // --- NOUVELLE LOGIQUE DE MISE À JOUR DE L'UI ---
+            function updateAuthUI() {
+                const token = localStorage.getItem('authToken');
+                const username = localStorage.getItem('username');
+
+                if (token && username) {
+                    loggedInView.classList.remove('hidden');
+                    loggedOutView.classList.add('hidden');
+                    userStatus.textContent = `Connecté : ${username}`;
+                    authError.textContent = '';
+                    // Quand l'utilisateur est connecté, on charge ses données depuis le serveur
+                    loadServerData();
+                } else {
+                    loggedInView.classList.add('hidden');
+                    loggedOutView.classList.remove('hidden');
+                    userStatus.textContent = '';
+                    // Quand l'utilisateur est déconnecté, on vide les données et on rafraîchit l'affichage
+                    inventory = [];
+                    renderInventory();
+                    // (Plus tard, on fera pareil pour la liste d'épicerie, etc.)
+                }
+            }
+
+            // --- NOUVELLE FONCTION POUR CHARGER LES DONNÉES DU SERVEUR (modifiée) ---
+            async function loadServerData() {
+                try {
+                    // Promise.all est plus efficace, il lance les 3 requêtes en parallèle
+                    const [inv, sl, rec] = await Promise.all([
+                        apiCall('inventory', 'GET'),
+                        apiCall('shopping-list', 'GET'),
+                        apiCall('recipes', 'GET')
+                    ]);
+                    // Ajoute la propriété 'include' côté client pour la gestion de l'UI
+                    inventory = inv.map(item => ({ ...item, include: true }));
+                    shoppingList = sl;
+                    recipes = rec;
+                    
+                    // On rafraîchit tous les affichages une fois les données reçues
+                    renderInventory();
+                    renderShoppingList();
+                    renderRecipeBook();
+                } catch (error) {
+                    console.error("Impossible de charger les données du serveur:", error);
+                    authError.textContent = "Erreur de chargement des données."
+                }
+            }
+
+            // --- FONCTIONS DE SAUVEGARDE (modifiées ou supprimées) ---
+            // Cette fonction est maintenant OBSOLÈTE pour l'inventaire
+            // function saveInventory() { localStorage.setItem('inventory', JSON.stringify(inventory)); }
             function saveShoppingList() { localStorage.setItem('shoppingList', JSON.stringify(shoppingList)); }
             function saveRecipes() { localStorage.setItem('recipes', JSON.stringify(recipes)); }
 
@@ -625,60 +941,85 @@ Maintenant, analyse la recette suivante :
                 return match ? parseInt(match[1], 10) : Infinity;
             }
 
-            // --- RENDER FUNCTIONS ---
+            // --- FONCTIONS DE RENDU (modifiées) ---
             function renderInventory() {
                 inventoryDisplay.innerHTML = '';
+                if (!localStorage.getItem('authToken')) {
+                    inventoryDisplay.innerHTML = "<p>Veuillez vous connecter pour voir votre inventaire.</p>";
+                    return;
+                }
                 const categories = [...new Set(inventory.map(item => item.category))].sort();
                 categories.forEach(category => {
-                    const section = document.createElement('div'); section.className = 'inventory-section';
-                    const title = document.createElement('h3'); title.className = 'category-title'; title.textContent = category;
-                    const categoryId = 'category-' + category.replace(/[^a-zA-Z0-9]/g, '-'); title.id = categoryId;
+                    const section = document.createElement('div');
+                    section.className = 'inventory-section';
+                    const title = document.createElement('h3');
+                    title.className = 'category-title';
+                    title.textContent = category;
                     section.appendChild(title);
                     const list = document.createElement('ul');
-                    inventory.filter(item => item.category === category).forEach(item => {
-                        const originalIndex = inventory.findIndex(invItem => invItem === item);
-                        const li = document.createElement('li');
 
-                        let liClasses = 'inventory-item';
-                        const itemQuantityValue = parseQuantity(item.quantity);
-                        if (item.alertThreshold && itemQuantityValue < item.alertThreshold) {
-                            liClasses += ' low-quantity-warning';
+                    inventory.forEach((item, index) => {
+                        if (item.category === category) {
+                            const li = document.createElement('li');
+                            li.dataset.itemId = item.id;
+                            li.dataset.index = index;
+
+                            let liClasses = 'inventory-item';
+                             const quantityValue = parseQuantity(item.quantity);
+                            if (item.alert_threshold && quantityValue < item.alert_threshold) {
+                                liClasses += ' low-quantity-warning';
+                            }
+                            
+                            li.className = liClasses;
+                            li.innerHTML = `
+                                <div class="item-details">
+                                    <input type="checkbox" class="include-item" data-index="${index}" ${item.include ? 'checked' : ''} style="margin-right: 10px; transform: scale(1.2);">
+                                    <span class="inventory-item-name">${item.name}</span>
+                                </div>
+                                <div class="item-controls">
+                                    <input type="text" value="${item.quantity}" data-item-id="${item.id}" class="item-quantity-input">
+                                    <label style="font-size: 0.8em; color: #7f8c8d;">Alerte:</label>
+                                    <input type="number" value="${item.alert_threshold}" data-item-id="${item.id}" class="item-threshold-input" min="0" style="width: 45px;">
+                                    <button class="btn btn-delete" data-item-id="${item.id}">Supprimer</button>
+                                </div>`;
+                            list.appendChild(li);
                         }
-                        
-                        li.className = liClasses;
-                        li.draggable = true;
-                        li.dataset.index = originalIndex;
-                        li.dataset.category = category;
-                        li.innerHTML = `
-                            <div class="item-details">
-                                <input type="checkbox" class="include-item" data-index="${originalIndex}" ${item.include ? 'checked' : ''}>
-                                <span class="inventory-item-name" data-index="${originalIndex}" title="Cliquez pour éditer">${item.name}</span>
-                            </div>
-                            <div class="item-controls">
-                                <label for="qty-${originalIndex}" class="sr-only">Quantité</label>
-                                <input type="text" id="qty-${originalIndex}" value="${item.quantity}" data-index="${originalIndex}" class="item-quantity-input" title="Quantité actuelle">
-                                <label for="threshold-${originalIndex}" style="font-size: 0.8em; color: #7f8c8d;">Alerte:</label>
-                                <input type="number" id="threshold-${originalIndex}" value="${item.alertThreshold}" data-index="${originalIndex}" class="item-threshold-input" min="0" style="width: 45px; text-align: center; border: 1px solid #ddd; border-radius: 4px; padding: 5px;" title="Seuil d'alerte pour cet article (0 pour désactiver)">
-                                <button class="btn btn-delete" data-index="${originalIndex}">Supprimer</button>
-                            </div>`;
-                        list.appendChild(li);
                     });
-                    section.appendChild(list); inventoryDisplay.appendChild(section);
+                    section.appendChild(list);
+                    inventoryDisplay.appendChild(section);
                 });
-                attachInventoryListeners(); updateToggleAllCheckboxState();
+                attachInventoryListeners();
+                updateToggleAllCheckboxState();
             }
             
             function renderShoppingList() {
                 shoppingListDisplay.innerHTML = '';
-                if (shoppingList.length === 0) { shoppingListDisplay.innerHTML = "<p>Votre liste d'épicerie est vide.</p>"; return; }
+                if (!localStorage.getItem('authToken')) {
+                    shoppingListDisplay.innerHTML = "<p>Connectez-vous pour gérer votre liste d'épicerie.</p>";
+                    return;
+                }
+                if (shoppingList.length === 0) {
+                    shoppingListDisplay.innerHTML = "<p>Votre liste d'épicerie est vide.</p>";
+                    return;
+                }
                 const list = document.createElement('ul');
-                shoppingList.forEach((item, index) => {
+                // On n'a plus besoin de 'index'
+                shoppingList.forEach((item) => {
                     const li = document.createElement('li');
-                    li.className = 'shopping-list-item'; li.draggable = true; li.dataset.index = index;
-                    li.innerHTML = `<div class="item-details"><span class="item-name">${item.name} (Qté: ${item.quantity})</span></div><div class="shopping-item-controls"><button class="btn btn-move" data-index="${index}">Ajouter à l'inventaire</button><button class="btn btn-edit-shopping" data-index="${index}" style="background-color: #f39c12;">Éditer</button><button class="btn btn-delete-shopping" data-index="${index}">Supprimer</button></div>`;
+                    li.className = 'shopping-list-item';
+                    li.dataset.itemId = item.id; // <-- On stocke l'ID de la base de données
+
+                    // On met à jour tous les boutons pour qu'ils contiennent aussi data-item-id
+                    li.innerHTML = `
+                        <div class="item-details"><span class="item-name">${item.name} (Qté: ${item.quantity})</span></div>
+                        <div class="shopping-item-controls">
+                            <button class="btn btn-move" data-item-id="${item.id}">Ajouter à l'inventaire</button>
+                            <button class="btn btn-delete-shopping" data-item-id="${item.id}">Supprimer</button>
+                        </div>`;
                     list.appendChild(li);
                 });
-                shoppingListDisplay.appendChild(list); attachShoppingListListeners();
+                shoppingListDisplay.appendChild(list);
+                attachShoppingListListeners(); // Cette fonction est toujours nécessaire pour attacher les événements
             }
 
             function renderRecipeBook() {
@@ -695,6 +1036,88 @@ Maintenant, analyse la recette suivante :
                     card.addEventListener('click', () => viewRecipe(index));
                     recipeListDisplay.appendChild(card);
                 });
+            }
+   
+            // --- NOUVELLES FONCTIONS DE GESTION DES DONNÉES ---
+
+            /**
+             * Lit les données de l'ancien inventaire depuis localStorage et les affiche dans une modale.
+             */
+            function viewOldInventory() {
+                // La clé 'inventory' est celle que nous utilisions avant la migration
+                const oldInventoryData = JSON.parse(localStorage.getItem('inventory'));
+                
+                if (!oldInventoryData || oldInventoryData.length === 0) {
+                    oldDataContent.innerHTML = "<p>Aucune donnée d'inventaire local n'a été trouvée.</p>";
+                } else {
+                    let html = '<ul>';
+                    oldInventoryData.forEach(item => {
+                        html += `<li><strong>${item.name}</strong> (Quantité: ${item.quantity}, Catégorie: ${item.category})</li>`;
+                    });
+                    html += '</ul>';
+                    oldDataContent.innerHTML = html;
+                }
+                viewOldDataModal.style.display = 'block';
+            }
+
+            /**
+             * Lit l'ancien inventaire depuis localStorage et le télécharge sous forme de fichier JSON.
+             */
+            function exportOldInventory() {
+                const oldInventoryData = localStorage.getItem('inventory');
+                if (!oldInventoryData) {
+                    alert("Aucune donnée d'inventaire local à exporter.");
+                    return;
+                }
+                
+                const blob = new Blob([oldInventoryData], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'inventaire_local_backup.json';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                alert("Votre fichier d'inventaire local a été téléchargé !");
+            }
+            
+            /**
+             * Déclenchée lors de la sélection d'un fichier. Lit le fichier et l'envoie à l'API.
+             */
+            async function handleFileImport(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    try {
+                        const itemsToImport = JSON.parse(e.target.result);
+                        if(!Array.isArray(itemsToImport)) {
+                            throw new Error("Le fichier JSON doit contenir un tableau (une liste) d'articles.");
+                        }
+                        
+                        // On vérifie si l'utilisateur est connecté
+                        if (!localStorage.getItem('authToken')) {
+                            alert("Veuillez vous connecter avant d'importer un inventaire.");
+                            return;
+                        }
+
+                        // On appelle la nouvelle API
+                        const result = await apiCall('inventory/import', 'POST', itemsToImport);
+                        alert(`${result.message}\n- ${result.articles_ajoutes} article(s) ajouté(s)\n- ${result.articles_mis_a_jour} article(s) mis à jour`);
+                        
+                        // On rafraîchit la liste de l'inventaire pour voir les changements
+                        loadServerData(); 
+                    } catch (error) {
+                        alert("Erreur lors de l'importation : " + error.message);
+                        console.error(error);
+                    } finally {
+                        // Réinitialise l'input pour pouvoir réimporter le même fichier si besoin
+                        inventoryFileInput.value = '';
+                    }
+                };
+                reader.readAsText(file);
             }
 
             // --- ATTACH LISTENERS ---
@@ -713,14 +1136,85 @@ Maintenant, analyse la recette suivante :
                 document.querySelectorAll('.btn-save-shopping').forEach(button => button.addEventListener('click', saveShoppingItemEdit));
             }
 
-            // --- INVENTORY FUNCTIONS ---
-            function addItem(e) { e.preventDefault(); const itemName = document.getElementById('itemName').value.trim(); const itemQuantity = document.getElementById('itemQuantity').value.trim(); const itemCategory = document.getElementById('itemCategory').value; if (itemName) { inventory.push({ name: itemName, quantity: itemQuantity, category: itemCategory, include: true, alertThreshold: 2 }); saveInventory(); renderInventory(); addItemForm.reset(); document.getElementById('itemQuantity').value = '1'; } }
-            function deleteItem(e) { inventory.splice(e.target.dataset.index, 1); saveInventory(); renderInventory(); }
-            function updateQuantity(e) { inventory[e.target.dataset.index].quantity = e.target.value; saveInventory(); renderInventory(); }
-            function updateItemThreshold(e) { const index = e.target.dataset.index; const newThreshold = parseInt(e.target.value, 10); if (!isNaN(newThreshold) && newThreshold >= 0) { inventory[index].alertThreshold = newThreshold; saveInventory(); renderInventory(); } }
-            function toggleInclusion(e) { inventory[e.target.dataset.index].include = e.target.checked; saveInventory(); updateToggleAllCheckboxState(); }
-            function toggleAll(e) { inventory.forEach(item => item.include = e.target.checked); saveInventory(); renderInventory(); }
-            function updateToggleAllCheckboxState() { toggleAllCheckbox.checked = inventory.length > 0 && inventory.every(item => item.include); }
+            // --- GESTIONNAIRES D'ÉVÉNEMENTS (modifiés) ---
+
+            // La logique de ces fonctions est maintenant asynchrone et appelle l'API
+            async function addItem(e) {
+                e.preventDefault();
+                const newItem = {
+                    name: document.getElementById('itemName').value.trim(),
+                    quantity: document.getElementById('itemQuantity').value.trim(),
+                    category: document.getElementById('itemCategory').value,
+                    alert_threshold: 2 // Valeur par défaut
+                };
+                if (!newItem.name) return;
+
+                try {
+                    const addedItem = await apiCall('inventory', 'POST', newItem);
+                    inventory.push(addedItem); // Ajoute la réponse du serveur (avec l'ID) à notre état local
+                    renderInventory();
+                    addItemForm.reset();
+                } catch (error) {
+                    console.error("Erreur d'ajout:", error);
+                    authError.textContent = "Cet article existe déjà ou une erreur est survenue.";
+                }
+            }
+
+            async function deleteItem(e) {
+                const itemId = e.target.dataset.itemId;
+                if (!itemId) return;
+                
+                try {
+                    await apiCall(`inventory/${itemId}`, 'DELETE');
+                    inventory = inventory.filter(item => item.id != itemId); // Met à jour l'état local
+                    renderInventory();
+                } catch(error) {
+                    console.error("Erreur de suppression:", error);
+                }
+            }
+
+            async function updateItem(itemId, dataToUpdate) {
+                try {
+                    const updatedItem = await apiCall(`inventory/${itemId}`, 'PUT', dataToUpdate);
+                    // Met à jour l'élément dans notre état local
+                    const index = inventory.findIndex(item => item.id == updatedItem.id);
+                    if (index !== -1) inventory[index] = updatedItem;
+                    renderInventory(); // Rafraîchit l'affichage pour montrer les changements et recalculer les alertes
+                } catch(error) {
+                    console.error("Erreur de mise à jour:", error);
+                }
+            }
+
+            function updateQuantity(e) {
+                const itemId = e.target.dataset.itemId;
+                const newQuantity = e.target.value;
+                updateItem(itemId, { quantity: newQuantity });
+            }
+            
+            function updateItemThreshold(e) {
+                const itemId = e.target.dataset.itemId;
+                const newThreshold = parseInt(e.target.value, 10);
+                if (!isNaN(newThreshold)) {
+                    updateItem(itemId, { alert_threshold: newThreshold });
+                }
+            }
+
+            function toggleInclusion(e) {
+                const index = e.target.dataset.index;
+                if (inventory[index]) {
+                    inventory[index].include = e.target.checked;
+                    updateToggleAllCheckboxState();
+                }
+            }
+
+            function toggleAll(e) {
+                inventory.forEach(item => item.include = e.target.checked);
+                renderInventory();
+            }
+
+            function updateToggleAllCheckboxState() {
+                toggleAllCheckbox.checked = inventory.length > 0 && inventory.every(item => item.include);
+            }
             
             function startEditInventoryItemName(e) {
                 const span = e.target;
@@ -754,15 +1248,11 @@ Maintenant, analyse la recette suivante :
                 });
             }
 
-            // --- SHOPPING LIST FUNCTIONS ---
-            function addShoppingItem(e) { e.preventDefault(); const itemName = document.getElementById('shoppingItemName').value.trim(); const itemQuantity = document.getElementById('shoppingItemQuantity').value.trim(); if (itemName) { shoppingList.push({ name: itemName, quantity: itemQuantity }); saveShoppingList(); renderShoppingList(); addShoppingItemForm.reset(); document.getElementById('shoppingItemQuantity').value = '1'; } }
-            function deleteShoppingItem(e) { shoppingList.splice(e.target.dataset.index, 1); saveShoppingList(); renderShoppingList(); }
-            function moveItemToInventory(e) { const itemToMove = shoppingList.splice(e.target.dataset.index, 1)[0]; inventory.push({ name: itemToMove.name, quantity: itemToMove.quantity, category: 'Épicerie', include: true, alertThreshold: 2 }); saveShoppingList(); saveInventory(); renderShoppingList(); renderInventory(); }
-
             function addLowStockItemsToShoppingList() {
                 const lowStockItems = inventory.filter(item => {
                     const quantity = parseQuantity(item.quantity);
-                    return item.alertThreshold && quantity < item.alertThreshold;
+                    // Assurez-vous d'utiliser le bon nom de champ de l'API: alert_threshold
+                    return item.alert_threshold && quantity < item.alert_threshold;
                 });
 
                 if (lowStockItems.length === 0) {
@@ -770,68 +1260,142 @@ Maintenant, analyse la recette suivante :
                     return;
                 }
 
-                let itemsAddedCount = 0;
+                let itemsToAddPromises = [];
+                let itemsSkippedCount = 0;
+
                 lowStockItems.forEach(lowItem => {
+                    // Vérifie si l'article est déjà dans la liste d'épicerie (côté client)
                     const alreadyInList = shoppingList.some(shopItem => shopItem.name.trim().toLowerCase() === lowItem.name.trim().toLowerCase());
                     
                     if (!alreadyInList) {
-                        shoppingList.push({ name: lowItem.name, quantity: '1' });
-                        itemsAddedCount++;
+                        const newItem = {
+                            name: lowItem.name,
+                            quantity: '1' // Quantité par défaut à ajouter
+                        };
+                        // On prépare l'appel API mais on ne l'attend pas encore
+                        itemsToAddPromises.push(apiCall('shopping-list', 'POST', newItem));
+                    } else {
+                        itemsSkippedCount++;
                     }
                 });
 
-                if (itemsAddedCount > 0) {
-                    saveShoppingList();
-                    renderShoppingList();
-                    alert(`${itemsAddedCount} article(s) en pénurie ont été ajouté(s) à votre liste d'épicerie.`);
-                } else {
+                if (itemsToAddPromises.length === 0) {
                     alert("Tous les articles en pénurie sont déjà dans votre liste d'épicerie.");
+                    return;
+                }
+
+                // On exécute tous les appels API en parallèle
+                Promise.all(itemsToAddPromises)
+                    .then(results => {
+                        alert(`${results.length} article(s) en pénurie ont été ajouté(s) à votre liste d'épicerie.`);
+                        // On recharge les données du serveur pour être sûr que tout est à jour
+                        loadServerData();
+                    })
+                    .catch(error => {
+                        console.error("Erreur lors de l'ajout d'articles en pénurie:", error);
+                        alert("Une erreur est survenue lors de l'ajout des articles.");
+                    });
+            }
+
+            // --- SHOPPING LIST FUNCTIONS (modifiées) ---
+            async function addShoppingItem(e) {
+                e.preventDefault();
+                const newItem = {
+                    name: document.getElementById('shoppingItemName').value.trim(),
+                    quantity: document.getElementById('shoppingItemQuantity').value.trim()
+                };
+                if (!newItem.name) return;
+
+                try {
+                    const addedItem = await apiCall('shopping-list', 'POST', newItem);
+                    shoppingList.push(addedItem);
+                    renderShoppingList();
+                    addShoppingItemForm.reset();
+                } catch (error) {
+                    console.error("Erreur ajout liste épicerie:", error);
                 }
             }
-            
-            function editShoppingItem(e) {
-                const index = e.target.dataset.index;
-                const item = shoppingList[index];
-                const li = e.target.closest('li');
-                
-                li.innerHTML = `
-                    <div class="item-details" style="flex-wrap: wrap;">
-                        <input type="text" value="${item.name}" class="edit-shopping-name" style="flex-grow: 1; min-width: 150px; padding: 5px;">
-                        <input type="text" value="${item.quantity}" class="edit-shopping-quantity" style="width: 80px; padding: 5px;">
-                    </div>
-                    <div class="shopping-item-controls">
-                        <button class="btn btn-save-shopping" data-index="${index}" style="background-color: #2ecc71;">Sauvegarder</button>
-                    </div>
-                `;
-                li.querySelector('.edit-shopping-name').focus();
+
+            async function deleteShoppingItem(e) {
+                const itemId = e.target.dataset.itemId; // On va utiliser data-item-id
+                if (!itemId) return;
+
+                try {
+                    await apiCall(`shopping-list/${itemId}`, 'DELETE');
+                    shoppingList = shoppingList.filter(item => item.id != itemId);
+                    renderShoppingList();
+                } catch (error) {
+                    console.error("Erreur suppression liste épicerie:", error);
+                }
+            }
+
+            async function moveItemToInventory(e) {
+                const itemId = e.target.dataset.itemId;
+                const itemToMove = shoppingList.find(item => item.id == itemId);
+                if (!itemToMove) return;
+
+                // 1. Ajouter à l'inventaire via l'API
+                try {
+                    const inventoryItem = {
+                        name: itemToMove.name,
+                        quantity: itemToMove.quantity,
+                        category: 'Épicerie' // Catégorie par défaut
+                    };
+                    await apiCall('inventory', 'POST', inventoryItem);
+
+                    // 2. Si succès, supprimer de la liste d'épicerie via l'API
+                    await apiCall(`shopping-list/${itemId}`, 'DELETE');
+                    
+                    // 3. Recharger toutes les données pour être sûr de la synchronisation
+                    loadServerData(); 
+                } catch (error) {
+                    console.error("Erreur lors du déplacement vers l'inventaire:", error);
+                    alert("Erreur: L'article est peut-être déjà dans votre inventaire.");
+                }
+            }
+
+            // Il faudra aussi modifier le rendu pour utiliser `data-item-id`
+            function renderShoppingList() {
+                shoppingListDisplay.innerHTML = '';
+                if (!localStorage.getItem('authToken')) {
+                    shoppingListDisplay.innerHTML = "<p>Connectez-vous pour gérer votre liste d'épicerie.</p>";
+                    return;
+                }
+                if (shoppingList.length === 0) {
+                    shoppingListDisplay.innerHTML = "<p>Votre liste d'épicerie est vide.</p>";
+                    return;
+                }
+                const list = document.createElement('ul');
+                shoppingList.forEach((item) => {
+                    const li = document.createElement('li');
+                    li.dataset.itemId = item.id;
+                    li.innerHTML = `
+                        <div class="item-details"><span class="item-name">${item.name} (Qté: ${item.quantity})</span></div>
+                        <div class="shopping-item-controls">
+                            <button class="btn btn-move" data-item-id="${item.id}">Ajouter à l'inventaire</button>
+                            <button class="btn btn-delete-shopping" data-item-id="${item.id}">Supprimer</button>
+                        </div>`;
+                    list.appendChild(li);
+                });
+                shoppingListDisplay.appendChild(list);
                 attachShoppingListListeners();
             }
 
-            function saveShoppingItemEdit(e) {
-                const index = e.target.dataset.index;
-                const li = e.target.closest('li');
-                const newName = li.querySelector('.edit-shopping-name').value.trim();
-                const newQuantity = li.querySelector('.edit-shopping-quantity').value.trim();
-                
-                if (newName && newQuantity) {
-                    shoppingList[index] = { name: newName, quantity: newQuantity };
-                    saveShoppingList();
-                }
-                renderShoppingList();
-            }
+            // --- RECIPE BOOK FUNCTIONS (modifiées) ---
 
-            // --- RECIPE BOOK FUNCTIONS ---
-            function openRecipeFormModal(recipeIndex = null) {
+            function openRecipeFormModal(recipeId = null) {
                 recipeForm.reset();
                 document.getElementById('recipe-json-input').value = '';
-                if (recipeIndex !== null) {
-                    const recipe = recipes[recipeIndex];
-                    recipeModalTitle.textContent = "Éditer la recette";
-                    document.getElementById('recipe-id').value = recipeIndex;
-                    document.getElementById('recipe-name').value = recipe.name;
-                    document.getElementById('recipe-ingredients').value = recipe.ingredients;
-                    document.getElementById('recipe-instructions').value = recipe.instructions;
-                    document.getElementById('recipe-comments').value = recipe.comments;
+                if (recipeId !== null) {
+                    const recipe = recipes.find(r => r.id == recipeId);
+                    if (recipe) {
+                        recipeModalTitle.textContent = "Éditer la recette";
+                        document.getElementById('recipe-id').value = recipe.id;
+                        document.getElementById('recipe-name').value = recipe.name;
+                        document.getElementById('recipe-ingredients').value = recipe.ingredients;
+                        document.getElementById('recipe-instructions').value = recipe.instructions;
+                        document.getElementById('recipe-comments').value = recipe.comments;
+                    }
                 } else {
                     recipeModalTitle.textContent = "Ajouter une Nouvelle Recette";
                     document.getElementById('recipe-id').value = '';
@@ -839,31 +1403,19 @@ Maintenant, analyse la recette suivante :
                 recipeFormModal.style.display = 'block';
             }
 
-            function closeRecipeFormModal() { recipeFormModal.style.display = 'none'; }
-            function closeRecipeViewModal() { recipeViewModal.style.display = 'none'; }
-
-            function handleRecipeFormSubmit(e) {
-                e.preventDefault();
-                const recipe = {
-                    name: document.getElementById('recipe-name').value,
-                    ingredients: document.getElementById('recipe-ingredients').value,
-                    instructions: document.getElementById('recipe-instructions').value,
-                    comments: document.getElementById('recipe-comments').value,
-                };
-                const recipeId = document.getElementById('recipe-id').value;
-
-                if (recipeId) {
-                    recipes[parseInt(recipeId, 10)] = recipe;
-                } else {
-                    recipes.push(recipe);
-                }
-                saveRecipes();
-                renderRecipeBook();
-                closeRecipeFormModal();
+            // --- AJOUTEZ CES TROIS FONCTIONS ---
+            function closeRecipeFormModal() {
+                recipeFormModal.style.display = 'none';
             }
-            
-            function viewRecipe(index) {
-                const recipe = recipes[index];
+
+            function closeRecipeViewModal() {
+                recipeViewModal.style.display = 'none';
+            }
+
+            function viewRecipe(recipeId) {
+                const recipe = recipes.find(r => r.id == recipeId);
+                if (!recipe) return;
+                
                 document.getElementById('recipe-view-title').textContent = recipe.name;
                 document.getElementById('recipe-view-ingredients').textContent = recipe.ingredients || "Aucun ingrédient listé.";
                 document.getElementById('recipe-view-instructions').textContent = recipe.instructions || "Aucune instruction listée.";
@@ -876,47 +1428,97 @@ Maintenant, analyse la recette suivante :
                     <button class="btn btn-delete" id="delete-recipe-btn">Supprimer</button>
                 `;
                 
-                footer.querySelector('#add-ingredients-to-list-btn').addEventListener('click', () => addRecipeIngredientsToShoppingList(index));
-                footer.querySelector('#edit-recipe-btn').addEventListener('click', () => { closeRecipeViewModal(); openRecipeFormModal(index); });
-                footer.querySelector('#delete-recipe-btn').addEventListener('click', () => deleteRecipe(index));
+                // Les écouteurs d'événements utilisent maintenant l'ID
+                // Note: La logique d'ajout d'ingrédients doit aussi être mise à jour
+                // footer.querySelector('#add-ingredients-to-list-btn').addEventListener('click', () => addRecipeIngredientsToShoppingList(recipe.id));
+                footer.querySelector('#edit-recipe-btn').addEventListener('click', () => { closeRecipeViewModal(); openRecipeFormModal(recipe.id); });
+                footer.querySelector('#delete-recipe-btn').addEventListener('click', () => deleteRecipe(recipe.id));
                 
                 recipeViewModal.style.display = 'block';
             }
 
-            function deleteRecipe(index) {
-                if (confirm(`Êtes-vous sûr de vouloir supprimer la recette "${recipes[index].name}" ?`)) {
-                    recipes.splice(index, 1);
-                    saveRecipes();
-                    renderRecipeBook();
-                    closeRecipeViewModal();
+            async function handleRecipeFormSubmit(e) {
+                e.preventDefault();
+                const recipeData = {
+                    name: document.getElementById('recipe-name').value,
+                    ingredients: document.getElementById('recipe-ingredients').value,
+                    instructions: document.getElementById('recipe-instructions').value,
+                    comments: document.getElementById('recipe-comments').value,
+                };
+                const recipeId = document.getElementById('recipe-id').value;
+
+                try {
+                    if (recipeId) {
+                        // Mise à jour d'une recette existante
+                        await apiCall(`recipes/${recipeId}`, 'PUT', recipeData);
+                    } else {
+                        // Création d'une nouvelle recette
+                        await apiCall('recipes', 'POST', recipeData);
+                    }
+                    closeRecipeFormModal();
+                    loadServerData(); // Recharger pour voir les changements
+                } catch (error) {
+                    console.error("Erreur sauvegarde recette:", error);
                 }
             }
 
-            function addRecipeIngredientsToShoppingList(index) {
-                const recipe = recipes[index];
-                const ingredients = recipe.ingredients.split('\n').filter(line => line.trim() !== '');
-                let addedCount = 0;
-
-                ingredients.forEach(line => {
-                    const match = line.trim().match(/^([\d\/\.\s-x]+)?\s*(.*)/);
-                    if (match) {
-                        const quantity = (match[1] || '1').trim();
-                        const name = match[2].trim();
-                        if (name) {
-                            shoppingList.push({ name: name, quantity: quantity });
-                            addedCount++;
-                        }
+            async function deleteRecipe(recipeId) { // On passe l'ID directement
+                if (confirm(`Êtes-vous sûr de vouloir supprimer cette recette ?`)) {
+                    try {
+                        await apiCall(`recipes/${recipeId}`, 'DELETE');
+                        closeRecipeViewModal();
+                        loadServerData();
+                    } catch(error) {
+                        console.error("Erreur suppression recette:", error);
                     }
-                });
-
-                if (addedCount > 0) {
-                    saveShoppingList();
-                    renderShoppingList();
-                    alert(`${addedCount} ingrédient(s) ajouté(s) à votre liste d'épicerie.`);
-                } else {
-                    alert("Aucun ingrédient n'a pu être ajouté. Vérifiez le format de la liste d'ingrédients.");
                 }
-                closeRecipeViewModal();
+            }
+
+            // Il faut modifier légèrement le rendu et les appels
+            function renderRecipeBook() {
+                recipeListDisplay.innerHTML = '';
+                if (!localStorage.getItem('authToken')) {
+                    recipeListDisplay.innerHTML = "<p>Connectez-vous pour voir votre livre de recettes.</p>";
+                    return;
+                }
+                // ... reste de la logique de rendu ...
+                recipes.forEach((recipe) => {
+                    const card = document.createElement('div');
+                    card.className = 'recipe-card';
+                    card.dataset.recipeId = recipe.id; // Utiliser l'ID
+                    card.innerHTML = `<h3>${recipe.name}</h3>`;
+                    // Passer l'ID à la fonction viewRecipe
+                    card.addEventListener('click', () => viewRecipe(recipe.id)); 
+                    recipeListDisplay.appendChild(card);
+                });
+            }
+
+            function viewRecipe(recipeId) {
+                const recipe = recipes.find(r => r.id == recipeId);
+                if (!recipe) return;
+                
+                // ... la logique pour remplir la modale reste la même ...
+                
+                const footer = document.getElementById('recipe-view-footer');
+                footer.innerHTML = `...`; // Le HTML reste le même
+                
+                // Les écouteurs d'événements utilisent maintenant l'ID
+                footer.querySelector('#edit-recipe-btn').addEventListener('click', () => { closeRecipeViewModal(); openRecipeFormModal(recipe.id); });
+                footer.querySelector('#delete-recipe-btn').addEventListener('click', () => deleteRecipe(recipe.id));
+                
+                recipeViewModal.style.display = 'block';
+            }
+
+            function openRecipeFormModal(recipeId = null) {
+                // ...
+                if (recipeId !== null) {
+                    const recipe = recipes.find(r => r.id == recipeId);
+                    // ... remplir les champs
+                    document.getElementById('recipe-id').value = recipe.id;
+                } else {
+                    // ...
+                }
+                recipeFormModal.style.display = 'block';
             }
 
             // --- PROMPT & AI FUNCTIONS ---
@@ -1120,9 +1722,46 @@ Maintenant, analyse la recette suivante :
                 if (event.target == recipeFormModal) closeRecipeFormModal();
                 if (event.target == recipeViewModal) closeRecipeViewModal();
             });
+
+
+            // --- NOUVEAUX ÉCOUTEURS D'ÉVÉNEMENTS POUR L'AUTH ---
+            loginForm.addEventListener('submit', handleLogin);
+            registerForm.addEventListener('submit', handleRegister);
+            logoutBtn.addEventListener('click', handleLogout);
+            
+            toggleToRegister.addEventListener('click', () => {
+                loginForm.classList.add('hidden');
+                toggleToRegister.classList.add('hidden');
+                registerForm.classList.remove('hidden');
+                toggleToLogin.classList.remove('hidden');
+                authError.textContent = '';
+            });
+            
+            toggleToLogin.addEventListener('click', () => {
+                registerForm.classList.add('hidden');
+                toggleToLogin.classList.add('hidden');
+                loginForm.classList.remove('hidden');
+                toggleToRegister.classList.remove('hidden');
+                authError.textContent = '';
+            });
+
+            viewOldInventoryBtn.addEventListener('click', viewOldInventory);
+            exportInventoryBtn.addEventListener('click', exportOldInventory);
+            importInventoryBtn.addEventListener('click', () => inventoryFileInput.click()); // Ouvre la fenêtre de fichier
+            inventoryFileInput.addEventListener('change', handleFileImport);
+            closeOldDataModalBtn.addEventListener('click', () => viewOldDataModal.style.display = 'none');
+            
+            // Fermer la modale si on clique à l'extérieur
+            window.addEventListener('click', (event) => {
+                if (event.target == viewOldDataModal) {
+                    viewOldDataModal.style.display = 'none';
+                }
+                // ... (votre code existant pour fermer les autres modales)
+            });
             
             // --- INITIALISATION ---
-            renderInventory();
+            updateAuthUI(); // Vérifie l'état de connexion au chargement de la page
+            //renderInventory();
             renderShoppingList();
             renderRecipeBook();
         });
