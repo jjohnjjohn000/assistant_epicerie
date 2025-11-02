@@ -118,6 +118,54 @@
             color: #27ae60;
             text-align: right;
         }
+        /* --- NOUVEAUX STYLES POUR L'ACCORDÉON DE RABAIS --- */
+        .store-rabais-group {
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            background-color: #fff;
+            overflow: hidden; /* Empêche le contenu de déborder lors de l'animation */
+            transition: all 0.3s ease-in-out;
+        }
+        .store-rabais-summary {
+            padding: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            color: #34495e;
+            font-size: 1.1em;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            list-style: none; /* Cache le marqueur par défaut */
+        }
+        .store-rabais-summary::-webkit-details-marker { display: none; } /* Cache le marqueur sur Chrome/Safari */
+        .store-rabais-summary::before { /* Marqueur personnalisé */
+            content: '▶';
+            margin-right: 10px;
+            font-size: 0.8em;
+            color: #3498db;
+            transition: transform 0.2s ease-in-out;
+        }
+        .store-rabais-group[open] > .store-rabais-summary::before {
+             transform: rotate(90deg);
+        }
+        .store-rabais-summary:hover {
+            background-color: #f8f9fa;
+        }
+        .deal-count {
+            font-size: 0.9em;
+            font-weight: normal;
+            color: #7f8c8d;
+            background-color: #e9ecef;
+            padding: 3px 8px;
+            border-radius: 12px;
+        }
+        .store-rabais-group[open] > .store-rabais-summary {
+            border-bottom: 1px solid #e9ecef;
+        }
+        .store-rabais-group .rabais-grid {
+            padding: 15px;
+        }
     </style>
 </head>
 <body>
@@ -137,6 +185,7 @@
 
             <section id="flyer-deals-section" class="section">
                 <h2>Rabais Actifs des Circulaires</h2>
+                <input type="search" id="search-rabais-input" placeholder="Filtrer les rabais par nom de produit..." style="width: 100%; padding: 10px; margin-bottom: 15px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 5px; font-size: 1em;">
                 <div id="rabais-actifs-display">
                     <p class="placeholder">Chargement des rabais en cours...</p>
                 </div>
@@ -196,6 +245,7 @@ Voici la structure exacte à respecter :
           "brand": "Marque (si disponible)",
           "description": "Description additionnelle",
           "price": "Prix affiché (ex: 5.99, 2/4.00)",
+          "quantity": "Quantité ou poids (ex: 500g, Paquet de 2)",
           "unit": "$/lb, l'unité, pour 2, etc.",
           "member_price": "Prix membre (si différent)",
           "regular_price": "Prix régulier (si un rabais est indiqué)",
@@ -839,6 +889,7 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
             }
         }
         
+        // --- NOUVELLE FONCTION D'IMPRESSION ROBUSTE ---
         function printOptimizedList() {
             if (!optimizedItems || optimizedItems.length === 0) {
                 alert("Veuillez d'abord optimiser votre liste pour pouvoir l'imprimer.");
@@ -847,26 +898,95 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
 
             const itemsToPrint = optimizedItems;
             let total = 0;
+            const itemCount = itemsToPrint.length;
+
+            // 1. Classification de la liste
+            let bodyClass = 'liste-courte';
+            if (itemCount > 70) {
+                bodyClass = 'liste-tres-longue-2col';
+            } else if (itemCount > 48) {
+                bodyClass = 'liste-longue-2col';
+            } else if (itemCount > 28) {
+                bodyClass = 'liste-moyenne';
+            }
+
             const printWindow = window.open('', '_blank');
             let printContent = `
                 <html>
                 <head>
                     <title>Liste d'Épicerie Optimisée</title>
                     <style>
-                        body { font-family: sans-serif; margin: 20px; }
-                        h1 { color: #2c3e50; border-bottom: 2px solid #ccc; padding-bottom: 10px; margin-top: 0; }
-                        .print-container { }
-                        .print-item { border-bottom: 1px solid #eee; padding: 8px 0; page-break-inside: avoid; }
-                        .item-title { font-weight: bold; font-size: 1.1em; }
-                        .item-deal { color: #27ae60; padding-left: 15px; }
-                        .item-no-deal { color: #7f8c8d; font-style: italic; padding-left: 15px; }
-                        .total-footer { text-align: right; margin-top: 20px; padding-top: 10px; border-top: 2px solid #333; font-size: 1.3em; font-weight: bold; }
-                        @media print { html, body { margin: 10mm; } }
+                        /* Styles de base pour la structure */
+                        body { 
+                            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+                            margin: 0;
+                        }
+                        .print-body {
+                            display: flex;
+                            flex-direction: column;
+                            height: 100%;
+                            padding: 5mm; /* Marges gérées par le padding */
+                            box-sizing: border-box;
+                        }
+                        h1 { 
+                            color: #2c3e50; 
+                            border-bottom: 2px solid #ccc; 
+                            padding-bottom: 5px; 
+                            margin: 0 0 5px 0;
+                        }
+                        .print-container {
+                            flex-grow: 1; /* Prend tout l'espace disponible */
+                            overflow: hidden; /* Empêche le débordement du conteneur lui-même */
+                        }
+                        .print-item {
+                            border-bottom: 1px solid #eee;
+                            word-wrap: break-word;
+                        }
+                        .item-title { font-weight: bold; font-size: 1.05em; }
+                        .item-deal, .item-no-deal { font-size: 0.9em; padding-left: 10px; }
+                        .item-deal { color: #27ae60; }
+                        .item-no-deal { color: #7f8c8d; font-style: italic; }
+                        .total-footer {
+                            text-align: right;
+                            padding-top: 5px;
+                            border-top: 2px solid #333;
+                            font-weight: bold;
+                            flex-shrink: 0; /* Empêche le pied de page de rétrécir */
+                        }
+                        
+                        /* Styles spécifiques aux classes de liste */
+                        .liste-courte { font-size: 11pt; line-height: 1.4; }
+                        .liste-courte .print-item { padding: 3px 0; }
+                        
+                        .liste-moyenne { font-size: 9.5pt; line-height: 1.3; }
+                        .liste-moyenne .print-item { padding: 2px 0; }
+
+                        .liste-longue-2col { font-size: 8.5pt; line-height: 1.25; }
+                        .liste-longue-2col .print-item { padding: 1px 0; }
+                        .liste-longue-2col .print-container { column-count: 2; column-gap: 12px; }
+                        .liste-longue-2col .print-item { break-inside: avoid; }
+
+                        .liste-tres-longue-2col { font-size: 7.5pt; line-height: 1.2; }
+                        .liste-tres-longue-2col .print-item { padding: 1px 0; }
+                        .liste-tres-longue-2col .print-container { column-count: 2; column-gap: 12px; }
+                        .liste-tres-longue-2col .print-item { break-inside: avoid; }
+
+                        @media print {
+                            @page {
+                                size: letter portrait;
+                                margin: 0; /* Les marges sont gérées par le padding du .print-body */
+                            }
+                             html, body {
+                                -webkit-print-color-adjust: exact;
+                                print-color-adjust: exact;
+                            }
+                        }
                     </style>
                 </head>
-                <body>
-                    <h1>Liste d'Épicerie Complète</h1>
-                    <div class="print-container">`;
+                <body class="${bodyClass}">
+                    <div class="print-body">
+                        <h1>Liste d'Épicerie Complète</h1>
+                        <div class="print-container">`;
             
             itemsToPrint.forEach(item => {
                 total += parseFloat(item.selectedPrice) || 0;
@@ -878,13 +998,12 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
                      const finalPriceText = item.selectedPrice ? `<strong>$${parseFloat(item.selectedPrice).toFixed(2)}</strong>` : `(aucun prix entré)`;
                     dealHtml = `<div class="item-no-deal">↳ Aucun rabais sélectionné - Prix manuel: ${finalPriceText}</div>`;
                 }
-
                 printContent += `<div class="print-item"><div class="item-title">${item.name} (Qté: ${item.quantity})</div>${dealHtml}</div>`;
             });
 
-            printContent += `</div>`;
+            printContent += `</div>`; // .print-container
             printContent += `<div class="total-footer">Total Estimé: ${total.toFixed(2)} $</div>`;
-            printContent += `</body></html>`;
+            printContent += `</div></body></html>`; // .print-body
 
             printWindow.document.write(printContent);
             printWindow.document.close();
@@ -892,7 +1011,7 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
             printWindow.focus();
             setTimeout(() => {
                 printWindow.print();
-            }, 250);
+            }, 500);
         }
 
         function optimizeShoppingList() {
@@ -1265,28 +1384,56 @@ Maintenant, génère le JSON pour la liste que je t'ai fournie.`;
             if (event.target == editStoreModal) closeStoreEditModal();
         });
 
-        function afficherRabais(rabais) {
+        // --- MISE À JOUR DE LA FONCTION DE RENDU DES RABAIS ---
+        function renderRabaisGrid(rabais) {
             const container = document.getElementById('rabais-actifs-display');
             if (rabais.length === 0) {
-                container.innerHTML = '<p class="placeholder">Aucun rabais actif trouvé dans les circulaires importées.</p>';
+                container.innerHTML = '<p class="placeholder">Aucun rabais actif trouvé dans les circulaires importées ou correspondant à votre recherche.</p>';
                 return;
             }
-
             container.innerHTML = '';
-            const grid = document.createElement('div');
-            grid.className = 'rabais-grid';
 
-            rabais.forEach(item => {
-                const itemHtml = `
-                    <div class="rabais-item">
-                        <span class="produit-nom">${item.produit_nom}</span>
-                        <span class="commerce-nom">${item.commerce_nom}</span>
-                        <div class="prix-info">${item.details_prix || item.prix + ' $'}</div>
-                    </div>
-                `;
-                grid.innerHTML += itemHtml;
+            // 1. Regrouper les rabais par commerce
+            const rabaisParCommerce = rabais.reduce((acc, item) => {
+                const store = item.commerce_nom;
+                if (!acc[store]) {
+                    acc[store] = [];
+                }
+                acc[store].push(item);
+                return acc;
+            }, {});
+
+            const sortedStores = Object.keys(rabaisParCommerce).sort();
+
+            // 2. Créer un accordéon pour chaque commerce
+            sortedStores.forEach(storeName => {
+                const items = rabaisParCommerce[storeName];
+                
+                const details = document.createElement('details');
+                details.className = 'store-rabais-group';
+
+                const summary = document.createElement('summary');
+                summary.className = 'store-rabais-summary';
+                summary.innerHTML = `${storeName} <span class="deal-count">${items.length} rabais</span>`;
+                
+                const grid = document.createElement('div');
+                grid.className = 'rabais-grid';
+
+                items.forEach(item => {
+                    const itemHtml = `
+                        <div class="rabais-item">
+                            <span class="produit-nom">${item.produit_nom}</span>
+                            <span class="commerce-nom">${item.commerce_nom}</span>
+                            <div class="prix-info">${item.details_prix || item.prix + ' $'}</div>
+                        </div>
+                    `;
+                    grid.innerHTML += itemHtml;
+                });
+                
+                details.appendChild(summary);
+                details.appendChild(grid);
+                container.appendChild(details);
             });
-            container.appendChild(grid);
         }
 
         function chargerRabaisActifs() {
@@ -1299,7 +1446,7 @@ Maintenant, génère le JSON pour la liste que je t'ai fournie.`;
                 })
                 .then(data => {
                     activeDeals = data; 
-                    afficherRabais(data);
+                    renderRabaisGrid(data);
                 })
                 .catch(error => {
                     console.error("Erreur:", error);
@@ -1326,6 +1473,25 @@ Maintenant, génère le JSON pour la liste que je t'ai fournie.`;
         } else {
             console.error("L'élément de formulaire avec l'id 'importFlyerForm' n'a pas été trouvé.");
         }
+        
+        // --- MISE À JOUR DE LA LOGIQUE DE RECHERCHE ---
+        const searchRabaisInput = document.getElementById('search-rabais-input');
+        searchRabaisInput.addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            
+            const filteredDeals = activeDeals.filter(deal => 
+                deal.produit_nom.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes(searchTerm)
+            );
+            
+            renderRabaisGrid(filteredDeals);
+
+            // Si un terme de recherche est actif, déplier tous les accordéons
+            if (searchTerm.length > 1) {
+                document.querySelectorAll('#rabais-actifs-display .store-rabais-group').forEach(details => {
+                    details.open = true;
+                });
+            }
+        });
 
     });
     </script>
