@@ -834,6 +834,18 @@ Maintenant, analyse la recette suivante :
                 } finally {
                     localStorage.removeItem('authToken');
                     localStorage.removeItem('username');
+                    
+                    // On nettoie les listes du stockage local
+                    localStorage.removeItem('shoppingList');
+                    localStorage.removeItem('savedOptimizedList');
+
+                    // --- DEBUT DE LA CORRECTION ---
+                    // On vide la variable de la liste d'épicerie en mémoire
+                    shoppingList = [];
+                    // On rafraîchit immédiatement l'affichage de la liste pour qu'elle disparaisse
+                    renderShoppingList();
+                    // --- FIN DE LA CORRECTION ---
+
                     updateAuthUI();
                 }
             }
@@ -855,12 +867,15 @@ Maintenant, analyse la recette suivante :
                     loggedInView.classList.add('hidden');
                     loggedOutView.classList.remove('hidden');
                     userStatus.textContent = '';
+                    // On vide toutes les données en mémoire
                     inventory = [];
-                    shoppingList = []; // Vider les données
-                    recipes = []; // Vider les données
+                    shoppingList = [];
+                    recipes = [];
+                    
+                    // On rafraîchit tous les affichages pour qu'ils montrent l'état "vide" ou "déconnecté"
                     renderInventory();
-                    renderShoppingList(); // Mettre à jour l'affichage
-                    renderRecipeBook(); // Mettre à jour l'affichage
+                    renderShoppingList();
+                    renderRecipeBook();
                 }
             }
             
@@ -917,6 +932,9 @@ Maintenant, analyse la recette suivante :
                     shoppingList = sl;
                     recipes = rec;
                     
+                    // LA CORRECTION EST ICI: On sauvegarde la liste pour qu'elle soit accessible par l'optimiseur
+                    saveShoppingList();
+
                     // On rafraîchit tous les affichages une fois les données reçues
                     renderInventory();
                     renderShoppingList();

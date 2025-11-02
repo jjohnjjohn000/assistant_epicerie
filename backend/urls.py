@@ -15,20 +15,23 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include
 from core import views
-from core import views
+from django.conf import settings
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('accounts/', include('django.contrib.auth.urls')),
     path('', views.assistant_epicerie, name='assistant_epicerie'),
     path('optimiseur/', views.optimiseur_rabais, name='optimiseur_rabais'),
     
     # --- URLS DE L'API EXISTANTE ---
     path('api/import-flyer/', views.importer_circulaire, name='api_import_flyer'),
     path('api/rabais-actifs/', views.get_rabais_actifs, name='api_get_rabais_actifs'),
+    path('api/community-prices/', views.get_community_prices, name='api_get_community_prices'),
     path('api/commerces/', views.get_commerces, name='api_get_commerces'),
     path('api/circulaires-actives/', views.get_circulaires_actives, name='api_get_circulaires_actives'),
+
         
     # --- NOUVELLES URLS POUR L'INVENTAIRE ---
     path('api/inventory/', views.InventoryView.as_view(), name='inventory_list'),
@@ -54,3 +57,9 @@ urlpatterns = [
     path('api/recipes/', views.RecipeView.as_view(), name='recipe_list'),
     path('api/recipes/<int:recipe_id>/', views.RecipeDetailView.as_view(), name='recipe_detail'),
 ]
+
+if settings.DEBUG:
+    import debug_toolbar
+    urlpatterns = [
+        path('__debug__/', include(debug_toolbar.urls)),
+    ] + urlpatterns

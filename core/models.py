@@ -19,6 +19,15 @@ class Commerce(models.Model):
         verbose_name = "Commerce"
         verbose_name_plural = "Commerces"
 
+class Categorie(models.Model):
+    nom = models.CharField(max_length=100, unique=True)
+
+    def __str__(self):
+        return self.nom
+
+    class Meta:
+        verbose_name = "Catégorie"
+        verbose_name_plural = "Catégories"
 
 class Produit(models.Model):
     """
@@ -27,7 +36,7 @@ class Produit(models.Model):
     nom = models.CharField(max_length=255, help_text="Nom complet du produit (ex: Lait 2% Natrel)")
     marque = models.CharField(max_length=100, blank=True, null=True, help_text="La marque du produit (ex: Natrel)")
     # Plus tard, on pourrait faire de 'catégorie' son propre modèle avec une clé étrangère
-    categorie = models.CharField(max_length=100, blank=True, null=True, help_text="Catégorie du produit (ex: Produits Laitiers, Fruits et Légumes)")
+    categorie = models.ForeignKey(Categorie, on_delete=models.SET_NULL, null=True, blank=True, help_text="Catégorie du produit")
     code_barres = models.CharField(max_length=50, blank=True, null=True, unique=True, help_text="Le code-barres UPC du produit")
 
     def __str__(self):

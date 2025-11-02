@@ -8,7 +8,7 @@ from rest_framework.permissions import IsAuthenticated # Import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from datetime import datetime
-from .models import Commerce, Produit, Circulaire, Prix
+from .models import Commerce, Produit, Circulaire, Prix, Categorie
 from django.db.models import Prefetch
 from collections import defaultdict
 from django.contrib.auth.models import User
@@ -17,6 +17,7 @@ from rest_framework.authtoken.models import Token
 from rest_framework.views import APIView
 from .models import InventoryItem, ShoppingListItem, Recipe
 from .serializers import InventoryItemSerializer, ShoppingListItemSerializer, RecipeSerializer, ProduitSerializer, PrixSubmissionSerializer
+from datetime import timedelta
 
 # ... (les autres vues comme assistant_epicerie, optimiseur_rabais) ...
 def assistant_epicerie(request):
@@ -44,8 +45,7 @@ def importer_circulaire(request):
             commerce_obj.site_web = data.get("website", commerce_obj.site_web)
             commerce_obj.save()
 
-        # Le code lira maintenant les clés fournies par le nouveau prompt
-        date_debut_str = data.get("date_debut") # Pas de valeur par défaut pour voir l'erreur si absente
+        date_debut_str = data.get("date_debut")
         date_fin_str = data.get("date_fin")
         
         if not date_debut_str or not date_fin_str:
@@ -58,14 +58,29 @@ def importer_circulaire(request):
         )
         items_ajoutes = 0
         for categorie in data.get("categories", []):
+            # --- CORRECTION N°1 : Gérer l'objet Catégorie ---
+            categorie_nom = categorie.get("category_name", "Divers")
+            if not categorie_nom:
+                categorie_nom = "Divers"
+            
+            # On récupère ou on crée l'OBJET Categorie, pas juste le nom.
+            categorie_obj, _ = Categorie.objects.get_or_create(nom=categorie_nom)
+
             for item in categorie.get("items", []):
+                # On utilise l'objet 'categorie_obj' pour créer le produit.
                 produit_obj, created_produit = Produit.objects.get_or_create(
                     nom=item["name"],
                     defaults={
                         "marque": item.get("brand", ""),
-                        "categorie": categorie.get("category_name", "Divers"),
+                        "categorie": categorie_obj, # On assigne l'objet Categorie
                     },
                 )
+                
+                # Bonus : Mettre à jour la catégorie si le produit existait déjà
+                if not created_produit and produit_obj.categorie != categorie_obj:
+                    produit_obj.categorie = categorie_obj
+                    produit_obj.save()
+                
                 prix_value = item.get("single_price")
                 if prix_value is None or prix_value == '':
                     prix_value = 0.00
@@ -73,7 +88,7 @@ def importer_circulaire(request):
                     produit=produit_obj,
                     commerce=commerce_obj,
                     circulaire=circulaire_obj,
-                    prix=prix_value,
+                    prix=float(prix_value), # Assurer que le prix est un nombre
                     details_prix=item.get("price", ""),
                 )
                 items_ajoutes += 1
@@ -84,48 +99,36 @@ def importer_circulaire(request):
         )
 
     except Exception as e:
+        # Affiche une erreur plus détaillée pour le débogage
+        import traceback
+        traceback.print_exc()
         return Response(
             {"status": "erreur", "message": str(e)}, status=status.HTTP_400_BAD_REQUEST
         )
 
-# ... (les vues get_rabais_actifs et get_commerces restent les mêmes) ...
-def get_rabais_actifs(request):
-    today = timezone.now().date()
-    prix_en_rabais = Prix.objects.filter(
-        circulaire__isnull=False,
-        circulaire__date_debut__lte=today,
-        circulaire__date_fin__gte=today,
-    ).select_related("produit", "commerce")
-    data = []
-    for prix_obj in prix_en_rabais:
-        data.append({
-            "produit_nom": prix_obj.produit.nom,
-            "produit_marque": prix_obj.produit.marque,
-            "commerce_nom": prix_obj.commerce.nom,
-            "prix": str(prix_obj.prix),
-            "details_prix": prix_obj.details_prix,
-        })
-    return JsonResponse(data, safe=False)
-
-def get_commerces(request):
-    commerces = Commerce.objects.all().values('nom', 'adresse', 'site_web')
-    data = list(commerces)
-    return JsonResponse(data, safe=False)
+# ... (les autres vues comme get_rabais_actifs) ...
 
 def get_circulaires_actives(request):
     today = timezone.now().date()
+    # On optimise la requête en préchargeant aussi la catégorie du produit
     circulaires_actives = Circulaire.objects.filter(
         date_debut__lte=today,
         date_fin__gte=today
     ).prefetch_related(
-        Prefetch('prix', queryset=Prix.objects.select_related('produit'))
+        Prefetch('prix', queryset=Prix.objects.select_related('produit', 'produit__categorie'))
     ).select_related('commerce')
+    
     data = {}
     for circulaire in circulaires_actives:
         commerce_nom = circulaire.commerce.nom
         items_par_categorie = defaultdict(list)
         for prix_obj in circulaire.prix.all():
-            categorie_nom = prix_obj.produit.categorie or "Divers"
+            # --- CORRECTION N°2 : Lire le nom de l'objet Catégorie ---
+            if prix_obj.produit.categorie:
+                categorie_nom = prix_obj.produit.categorie.nom
+            else:
+                categorie_nom = "Divers"
+                
             items_par_categorie[categorie_nom].append({
                 "name": prix_obj.produit.nom,
                 "brand": prix_obj.produit.marque,
@@ -139,7 +142,53 @@ def get_circulaires_actives(request):
             ]
         }
     return JsonResponse(data)
-    
+
+# VUE ORIGINALE, LÉGÈREMENT AJUSTÉE (elle reste dédiée aux rabais)
+@api_view(['GET'])
+def get_rabais_actifs(request):
+    today = timezone.now().date()
+    prix_en_rabais = Prix.objects.select_related("produit", "commerce").filter(
+        circulaire__isnull=False,
+        circulaire__date_debut__lte=today,
+        circulaire__date_fin__gte=today,
+    )
+    data = []
+    for prix_obj in prix_en_rabais:
+        data.append({
+            "produit_nom": prix_obj.produit.nom,
+            "commerce_nom": prix_obj.commerce.nom,
+            # On garde un formatage propre ici pour l'affichage
+            "details_prix": f"🔥 {prix_obj.details_prix or str(prix_obj.prix) + ' $'}",
+            "prix": str(prix_obj.prix) # On garde le prix numérique pour le tri/calcul
+        })
+    return JsonResponse(data, safe=False)
+
+
+# NOUVELLE VUE DÉDIÉE AUX PRIX COMMUNAUTAIRES
+@api_view(['GET'])
+def get_community_prices(request):
+    one_week_ago = timezone.now() - timedelta(days=7)
+    prix_communautaires = Prix.objects.select_related("produit", "commerce").filter(
+        circulaire__isnull=True,
+        date_mise_a_jour__gte=one_week_ago
+    ).order_by('produit_id', 'commerce_id', '-date_mise_a_jour').distinct('produit_id', 'commerce_id')
+    # .distinct(...) ne fonctionne que sur PostgreSQL. Il garantit de ne prendre que le plus récent.
+
+    data = []
+    for prix_obj in prix_communautaires:
+        data.append({
+            "produit_nom": prix_obj.produit.nom,
+            "commerce_nom": prix_obj.commerce.nom,
+            "details_prix": f"👥 {str(prix_obj.prix)} $ (vu récemment)",
+            "prix": str(prix_obj.prix)
+        })
+    return Response(data) # Utiliser Response de DRF car c'est une vue @api_view
+
+def get_commerces(request):
+    # Changer .values(...) pour inclure 'id'
+    commerces = Commerce.objects.all().values('id', 'nom', 'adresse', 'site_web')
+    data = list(commerces)
+    return JsonResponse(data, safe=False)
 
 @api_view(['POST'])
 def register_user(request):

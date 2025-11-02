@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Connexion</title>
+    <style>
+        body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background-color: #f4f7f9; }
+        .login-container { background: white; padding: 2em; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        #error-message { color: #e74c3c; font-weight: bold; margin-bottom: 1em; text-align: center; }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <h2>Connexion</h2>
+        <div id="error-message" style="display: none;"></div>
+        
+        <!-- Le formulaire n'a plus besoin de l'attribut 'action' -->
+        <form id="api-login-form">
+            <!-- Nous n'avons plus besoin de {% csrf_token %} car l'API gère le CSRF différemment -->
+            
+            <div>
+                <label for="username">Nom d'utilisateur:</label><br>
+                <input type="text" id="username" name="username" required>
+            </div>
+            <div style="margin-top: 1em;">
+                <label for="password">Mot de passe:</label><br>
+                <input type="password" id="password" name="password" required>
+            </div>
+            
+            <div style="margin-top: 1.5em;">
+                <button type="submit">Se connecter</button>
+            </div>
+        </form>
+        
+        <p style="margin-top: 1em; text-align: center;">
+            <a href="{% url 'password_reset' %}">Mot de passe oublié ?</a>
+        </p>
+    </div>
+
+    <script>
+        // Fonction utilitaire pour lire la valeur d'un cookie
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    // Est-ce que ce cookie correspond au nom que nous cherchons ?
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        document.getElementById('api-login-form').addEventListener('submit', async function(event) {
+            event.preventDefault(); 
+            
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const errorMessageDiv = document.getElementById('error-message');
+            // --- DÉBUT DE LA MODIFICATION ---
+            const csrftoken = getCookie('csrftoken'); // Récupère le jeton CSRF
+            // --- FIN DE LA MODIFICATION ---
+
+            try {
+                const response = await fetch('/api/login/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        // --- DÉBUT DE LA MODIFICATION ---
+                        // Ajoute le jeton CSRF à l'en-tête de la requête
+                        'X-CSRFToken': csrftoken
+                        // --- FIN DE LA MODIFICATION ---
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Une erreur est survenue.');
+                }
+                
+                localStorage.setItem('authToken', data.token);
+                localStorage.setItem('username', data.username);
+                
+                window.location.href = '/'; 
+
+            } catch (error) {
+                errorMessageDiv.textContent = error.message;
+                errorMessageDiv.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>

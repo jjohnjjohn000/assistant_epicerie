@@ -384,6 +384,46 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
         </div>
     </div>
 
+    <div id="submit-price-modal" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2>Soumettre un Prix Régulier</h2>
+                <span id="close-price-modal-btn" class="close-btn">&times;</span>
+            </div>
+            <div id="modal-price-body">
+                <p>
+                    Vous soumettez un prix pour le produit : 
+                    <strong id="modal-product-name"></strong>
+                </p>
+
+                <form id="submit-price-form">
+                    <!-- Champ caché pour garder en mémoire le nom du produit -->
+                    <input type="hidden" id="hidden-product-name">
+
+                    <div style="margin-bottom: 15px;">
+                        <label for="modal-store-select" style="display: block; margin-bottom: 5px; font-weight: bold;">
+                            Dans quel commerce avez-vous vu ce prix ?
+                        </label>
+                        <select id="modal-store-select" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+                            <option value="">-- Choisissez un commerce --</option>
+                            <!-- Les commerces seront ajoutés ici par JavaScript -->
+                        </select>
+                    </div>
+
+                    <div style="margin-bottom: 20px;">
+                        <label for="modal-price-input" style="display: block; margin-bottom: 5px; font-weight: bold;">
+                            Quel est le prix ?
+                        </label>
+                        <input type="number" id="modal-price-input" step="0.01" min="0" required placeholder="Ex: 4.99" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+                    </div>
+
+                    <div style="text-align: right;">
+                        <button type="submit" class="btn" style="background-color: #2ecc71;">Soumettre</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 
     <script>
     document.addEventListener('DOMContentLoaded', function() {
@@ -426,8 +466,17 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
         const importPricesJsonTextarea = document.getElementById('import-prices-json');
         const importPricesBtn = document.getElementById('importPricesBtn');
 
+        // --- NOUVEAUX SÉLECTEURS POUR LA MODALE DE PRIX ---
+        const priceModal = document.getElementById('submit-price-modal');
+        const closePriceModalBtn = document.getElementById('close-price-modal-btn');
+        const submitPriceForm = document.getElementById('submit-price-form');
+        const modalProductName = document.getElementById('modal-product-name');
+        const hiddenProductNameInput = document.getElementById('hidden-product-name');
+        const storeSelect = document.getElementById('modal-store-select');
+        const priceInput = document.getElementById('modal-price-input');
 
         let optimizedItems = [];
+        let allStores = []; // Pour garder la liste des commerces en mémoire
         let nearbyStores = []; 
         let manualStores = [];
         let flyerData = {}; 
@@ -738,6 +787,120 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
             return searchWords.every(word => normalizedFlyerName.includes(word));
         }
 
+        // Nécessaire pour les requêtes POST sécurisées avec Django
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        // --- NOUVELLE FONCTION : CHARGER LES COMMERCES DANS LA MODALE ---
+        async function loadStoresIntoModal() {
+            try {
+                const response = await fetch('/api/commerces/');
+                if (!response.ok) throw new Error('Impossible de charger les commerces.');
+                
+                const stores = await response.json();
+                allStores = stores; // Sauvegarde pour un accès futur
+                
+                storeSelect.innerHTML = '<option value="">-- Choisissez un commerce --</option>'; // Réinitialise la liste
+                stores.forEach(store => {
+                    const option = document.createElement('option');
+                    // On suppose que votre API /commerces/ retourne un 'id' pour chaque commerce
+                    // Si ce n'est pas le cas, nous devrons adapter l'API
+                    option.value = store.id; // L'API doit retourner l'ID
+                    option.textContent = store.nom;
+                    storeSelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error("Erreur de chargement des commerces:", error);
+                storeSelect.innerHTML = '<option value="">Erreur de chargement</option>';
+            }
+        }
+
+        // --- NOUVELLE LOGIQUE D'OUVERTURE DE LA MODALE (AVEC DÉLÉGATION D'ÉVÉNEMENT) ---
+        optimizationDisplay.addEventListener('click', function(event) {
+            // On vérifie si l'élément cliqué est bien notre bouton
+            if (event.target.classList.contains('btn-submit-price')) {
+                const productName = event.target.dataset.itemName;
+                
+                // On remplit les champs de la modale
+                modalProductName.textContent = productName;
+                hiddenProductNameInput.value = productName;
+                
+                // On affiche la modale
+                priceModal.style.display = 'block';
+            }
+        });
+
+        // --- NOUVELLE LOGIQUE DE FERMETURE DE LA MODALE ---
+        function closePriceModal() {
+            priceModal.style.display = 'none';
+            submitPriceForm.reset(); // Vide le formulaire
+        }
+        closePriceModalBtn.addEventListener('click', closePriceModal);
+        
+        // --- NOUVELLE LOGIQUE DE SOUMISSION DU PRIX ---
+        submitPriceForm.addEventListener('submit', async function(event) {
+            event.preventDefault();
+            
+            const productName = hiddenProductNameInput.value;
+            const commerceId = storeSelect.value;
+            const price = priceInput.value;
+
+            // Étape 1: Trouver l'ID du produit à partir de son nom
+            let productId = null;
+            try {
+                const searchResponse = await fetch(`/api/products/search/?q=${encodeURIComponent(productName)}`);
+                const products = await searchResponse.json();
+                
+                // Stratégie simple : on prend le premier résultat exact ou partiel
+                if (products.length > 0) {
+                    productId = products[0].id; 
+                } else {
+                    alert("Ce produit n'a pas été trouvé dans notre catalogue. La fonctionnalité pour l'ajouter arrive bientôt !");
+                    return;
+                }
+
+                // Étape 2: Soumettre le prix avec les IDs
+                const token = localStorage.getItem('authToken');
+                const submissionResponse = await fetch('/api/prices/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken'),
+                        'Authorization': `Token ${token}` // IMPORTANT pour l'authentification
+                    },
+                    body: JSON.stringify({
+                        produit_id: productId,
+                        commerce_id: parseInt(commerceId),
+                        prix: price
+                    })
+                });
+
+                if (!submissionResponse.ok) {
+                    const errorData = await submissionResponse.json();
+                    throw new Error(errorData.detail || 'Erreur lors de la soumission du prix.');
+                }
+
+                alert('Merci ! Votre prix a été soumis avec succès.');
+                closePriceModal();
+
+            } catch (error) {
+                console.error("Erreur lors de la soumission :", error);
+                alert(error.message);
+            }
+        });
+
         // --- FONCTION DE RENDU MODIFIÉE ---
         function renderOptimizedList() {
             optimizationDisplay.innerHTML = '';
@@ -765,20 +928,40 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
 
                 let dealsHtml;
                 if (item.deals && item.deals.length > 0) {
+                    // Trier les offres: les rabais en premier, puis les prix communautaires
+                    item.deals.sort((a, b) => {
+                        if (a.type === 'rabais' && b.type !== 'rabais') return -1;
+                        if (a.type !== 'rabais' && b.type === 'rabais') return 1;
+                        return 0;
+                    });
+
                     const optionsHtml = item.deals.map((deal, dealIndex) => {
                         const isSelected = item.selectedDeal && item.selectedDeal.name === deal.name && item.selectedDeal.store === deal.store;
-                        return `<option value="${dealIndex}" ${isSelected ? 'selected' : ''}>${deal.name} - ${deal.store} (${deal.price})</option>`;
+                        // On utilise 'details' qui contient déjà le formatage (emoji + prix)
+                        return `<option value="${dealIndex}" ${isSelected ? 'selected' : ''}>${deal.details} - ${deal.store}</option>`;
                     }).join('');
                     dealsHtml = `<select id="deal-${itemIndex}" class="deal-selector" data-item-index="${itemIndex}"><option value="-1">Choisissez une offre (${item.deals.length} trouvée(s))...</option>${optionsHtml}</select>`;
                 } else {
-                    dealsHtml = `<span>Aucun rabais trouvé</span>`;
+                    dealsHtml = `<span>Aucun rabais ou prix communautaire trouvé</span>`;
                 }
 
                 const priceValue = item.selectedPrice !== undefined ? item.selectedPrice : '';
 
                 itemElement.innerHTML = `
                     <span class="item-name-grid">${item.name} (Qté: ${item.quantity})</span>
-                    <div class="item-deals-grid">${dealsHtml}</div>
+                    <div class="item-deals-grid">
+                        ${dealsHtml}
+                        
+                        <!-- ================== LIGNE AJOUTÉE ================== -->
+                        <button 
+                            class="btn btn-small btn-submit-price" 
+                            data-item-name="${item.name}" 
+                            style="background-color: #16a085; margin-top: 8px;">
+                            Soumettre un prix régulier
+                        </button>
+                        <!-- =================================================== -->
+
+                    </div>
                     <div class="item-price-grid">
                         <label for="price-${itemIndex}" style="font-size: 0.9em;">Prix Final:</label>
                         <input type="text" id="price-${itemIndex}" class="item-price-input" data-item-index="${itemIndex}" value="${priceValue}" placeholder="0.00" style="width: 80px; text-align: right; padding: 5px; border: 1px solid #ccc; border-radius: 4px;">
@@ -1014,7 +1197,7 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
             }, 500);
         }
 
-        function optimizeShoppingList() {
+        async function optimizeShoppingList() {
             const shoppingList = JSON.parse(localStorage.getItem('shoppingList')) || [];
             if (shoppingList.length === 0) {
                 optimizationDisplay.innerHTML = '<p class="placeholder">Votre liste d\'épicerie est vide. Ajoutez des articles depuis la page principale.</p>';
@@ -1027,22 +1210,39 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
                 return;
             }
 
-            optimizedItems = [];
-            priceFinderContainer.style.display = 'none'; // Cacher la section IA au début
+            // On charge les deux sources de prix en parallèle pour plus de rapidité
+            const [flyerDealsResponse, communityPricesResponse] = await Promise.all([
+                fetch('/api/rabais-actifs/'),
+                fetch('/api/community-prices/')
+            ]);
+            
+            const flyerDeals = await flyerDealsResponse.json();
+            const communityPrices = await communityPricesResponse.json();
 
+            // On fusionne les deux listes en une seule
+            const allAvailablePrices = [
+                ...flyerDeals.map(d => ({ ...d, type: 'rabais' })), // On ajoute le type 'rabais'
+                ...communityPrices.map(p => ({ ...p, type: 'communautaire' })) // On ajoute le type 'communautaire'
+            ];
+            // --- FIN DE LA NOUVELLE LOGIQUE ---
+
+            optimizedItems = [];
             shoppingList.forEach(shoppingItem => {
                 const potentialDeals = [];
-                const shoppingItemNameLower = shoppingItem.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                const shoppingItemNameLower = shoppingItem.name.toLowerCase().normalize("NFD").replace(/[\u00-[\u036f]/g, "");
 
-                activeDeals.forEach(deal => {
+                // On cherche dans la liste fusionnée
+                allAvailablePrices.forEach(deal => {
                     const storeIsSelected = selectedStores.some(selectedStore => deal.commerce_nom.includes(selectedStore));
                     if (storeIsSelected) {
-                        const dealNameLower = deal.produit_nom.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                        const dealNameLower = deal.produit_nom.toLowerCase().normalize("NFD").replace(/[\u00-[\u036f]/g, "");
                         if (dealNameLower.includes(shoppingItemNameLower)) {
                             potentialDeals.push({
+                                type: deal.type,
                                 store: deal.commerce_nom,
                                 name: deal.produit_nom,
-                                price: deal.details_prix || (deal.prix + ' $')
+                                price: deal.prix, // Utiliser le prix numérique brut
+                                details: deal.details_prix // Garder les détails formatés
                             });
                         }
                     }
@@ -1123,6 +1323,49 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
                 });
         }
 
+        // Fonction pour charger les commerces (depuis la DB et le localStorage)
+        function chargerCommerces() {
+            // On charge d'abord ceux qui sont sauvegardés localement
+            loadManualStores(); 
+            // Ensuite, on met à jour avec ceux de la base de données
+            return fetch('/api/commerces/')
+                .then(response => response.json())
+                .then(commercesFromDB => {
+                    const allStoresMap = new Map();
+                    manualStores.forEach(store => allStoresMap.set(store.name.toLowerCase(), store));
+                    commercesFromDB.forEach(commerce => {
+                        allStoresMap.set(commerce.nom.toLowerCase(), {
+                            name: commerce.nom,
+                            address: commerce.adresse,
+                            website: commerce.site_web
+                        });
+                    });
+                    manualStores = Array.from(allStoresMap.values());
+                    saveManualStores();
+                });
+        }
+
+        // Fonction pour charger les données des circulaires actives
+        function chargerCirculairesActives() {
+            return fetch('/api/circulaires-actives/')
+                .then(response => response.json())
+                .then(data => {
+                    flyerData = data;
+                    // Sauvegarder dans localStorage pour la page d'inventaire
+                    localStorage.setItem('flyerData', JSON.stringify(flyerData)); 
+                });
+        }
+
+        // Fonction pour charger les rabais (pour la section "Rabais Actifs")
+        function chargerRabaisActifs() {
+            return fetch('/api/rabais-actifs/')
+                .then(response => response.json())
+                .then(data => {
+                    activeDeals = data;
+                    renderRabaisGrid(data); // Met à jour l'affichage de cette section
+                });
+        }
+
         function chargerDonneesCirculaires(shouldRender = true) {
             return fetch('/api/circulaires-actives/')
                 .then(response => {
@@ -1173,8 +1416,8 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
                     flyerJsonInput.value = '';
                     
                     Promise.all([
-                        chargerDonneesCirculaires(false),
-                        chargerCommercesDepuisDB(false),
+                        chargerCommerces(),
+                        chargerCirculairesActives(),
                         chargerRabaisActifs()
                     ]).then(() => {
                         renderAllStores();
@@ -1437,10 +1680,22 @@ Maintenant, génère le JSON pour la liste que je t'ai fournie.`;
         }
 
         function chargerRabaisActifs() {
-            return fetch('/api/rabais-actifs/')
+            return fetch('/api/rabais-actifs/') // On appelle l'API des rabais
+                .then(response => response.json())
+                .then(data => {
+                    activeDeals = data; 
+                    renderRabaisGrid(data); // Met à jour la section "Rabais Actifs"
+                })
+                .catch(error => {
+                    console.error("Erreur chargement rabais:", error);
+                });
+        }
+
+        function chargerPrixActifs() {
+            return fetch('/api/active-prices/')
                 .then(response => {
                     if (!response.ok) {
-                        throw new Error('Erreur réseau lors de la récupération des rabais.');
+                        throw new Error('Erreur réseau lors de la récupération des prix.');
                     }
                     return response.json();
                 })
@@ -1451,7 +1706,7 @@ Maintenant, génère le JSON pour la liste que je t'ai fournie.`;
                 .catch(error => {
                     console.error("Erreur:", error);
                     const container = document.getElementById('rabais-actifs-display');
-                    container.innerHTML = '<p class="placeholder" style="color: red;">Impossible de charger les rabais pour le moment.</p>';
+                    container.innerHTML = '<p class="placeholder" style="color: red;">Impossible de charger les prix pour le moment.</p>';
                 });
         }
 
@@ -1459,14 +1714,19 @@ Maintenant, génère le JSON pour la liste que je t'ai fournie.`;
         loadManualStores();
         
         Promise.all([
-            chargerDonneesCirculaires(false),
-            chargerCommercesDepuisDB(false),
+            chargerCommerces(),
+            chargerCirculairesActives(),
             chargerRabaisActifs()
         ]).then(() => {
-            renderAllStores();
+            // Cette fonction ne sera exécutée que lorsque les 3 chargements sont terminés.
+            console.log("Toutes les données sont chargées. Affichage des commerces.");
+            renderAllStores(); // Maintenant, cette fonction a accès à `flyerData` et peut afficher les boutons.
+        }).catch(error => {
+            console.error("Une erreur est survenue lors du chargement initial des données:", error);
         });
         
         loadSavedOptimizedList();
+        loadStoresIntoModal(); // On charge les commerces au chargement de la page
 
         if (importFlyerForm) {
             importFlyerForm.addEventListener('submit', importFlyerData);
