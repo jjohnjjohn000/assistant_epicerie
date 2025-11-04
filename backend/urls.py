@@ -49,6 +49,12 @@ urlpatterns = [
     path('api/products/', views.ProductView.as_view(), name='product_create'),
     path('api/prices/', views.PriceSubmissionView.as_view(), name='price_submit'),
     
+    path('api/submit-deal/', views.submit_deal, name='api_submit_deal'),
+    
+    # --- NOUVELLE URL POUR LA CONFIRMATION DE PRIX ---
+    path('api/prices/<int:price_id>/confirm/', views.confirm_price, name='price_confirm'),
+    path('api/prices/', views.PriceSubmissionView.as_view(), name='price_submit'),
+    
     # --- URLS POUR LA LISTE D'ÉPICERIE ---
     path('api/shopping-list/', views.ShoppingListView.as_view(), name='shopping_list'),
     path('api/shopping-list/<int:item_id>/', views.ShoppingListItemView.as_view(), name='shopping_list_item'),

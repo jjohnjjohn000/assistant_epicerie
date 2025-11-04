@@ -74,9 +74,11 @@ class Prix(models.Model):
     prix = models.DecimalField(max_digits=10, decimal_places=2, help_text="Le prix de l'article")
     details_prix = models.CharField(max_length=100, blank=True, null=True, help_text="Détails additionnels (ex: '2 pour 5.00$', 'par livre')")
     
-    # --- NOUVEAU CHAMP ---
-    # Enregistre l'utilisateur qui a soumis ce prix. SET_NULL pour ne pas supprimer le prix si l'utilisateur est effacé.
     submitted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="submitted_prices")
+    
+    # --- NOUVEAU CHAMP POUR LES CONFIRMATIONS ---
+    # `related_name` permet de retrouver facilement les prix qu'un utilisateur a confirmés.
+    confirmations = models.ManyToManyField(User, related_name="confirmed_prices", blank=True)
     
     date_mise_a_jour = models.DateTimeField(auto_now=True)
 

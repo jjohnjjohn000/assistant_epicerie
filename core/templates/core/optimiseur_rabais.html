@@ -214,6 +214,12 @@
                         <button type="submit" class="btn" style="background-color: #27ae60;">Ajouter</button>
                     </form>
                 </div>
+
+                <div id="community-add-section" style="margin-top: 25px;">
+                    <h4>Contribution Communautaire</h4>
+                    <button id="add-deal-btn" class="btn" style="background-color: #e67e22;">Soumettre un rabais</button>
+                    <p style="font-size: 0.9em; color: #555;">Aidez la communauté en ajoutant un rabais que vous avez vu en magasin ou sur une circulaire.</p>
+                </div>
                 
                 <div id="flyer-import-section" style="margin-top: 25px;">
                     <div id="ai-converter-helper" style="background-color: #e8f4fd; border: 1px solid #d1e9fc; border-radius: 8px; padding: 20px; margin-bottom: 25px;">
@@ -425,6 +431,83 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
         </div>
     </div>
 
+    <!-- ============================================= -->
+    <!-- ====== DÉBUT DES NOUVELLES MODALES ====== -->
+    <!-- ============================================= -->
+
+    <div id="add-product-modal" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2>Ajouter un Nouveau Produit au Catalogue</h2>
+                <span id="close-add-product-modal-btn" class="close-btn">&times;</span>
+            </div>
+            <div id="modal-add-product-body">
+                <p>Le produit "<strong id="new-product-name-display"></strong>" n'a pas été trouvé. Veuillez fournir quelques détails pour l'ajouter.</p>
+                <form id="add-product-form">
+                    <input type="hidden" id="hidden-new-product-name">
+                    <div style="margin-bottom: 15px;">
+                        <label for="new-product-brand" style="display: block; margin-bottom: 5px; font-weight: bold;">Marque (facultatif)</label>
+                        <input type="text" id="new-product-brand" placeholder="Ex: Kraft, St-Méthode" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+                    </div>
+                    <!-- On pourrait ajouter une sélection de catégorie ici plus tard -->
+                    <div style="text-align: right;">
+                        <button type="submit" class="btn" style="background-color: #2ecc71;">Ajouter le Produit</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div id="submit-deal-modal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2>Soumettre un Rabais de Circulaire</h2>
+                <span id="close-deal-modal-btn" class="close-btn">&times;</span>
+            </div>
+            <div id="modal-deal-body">
+                <form id="submit-deal-form">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div>
+                            <label for="deal-product-name" style="font-weight: bold;">Nom du Produit *</label>
+                            <input type="text" id="deal-product-name" required placeholder="Ex: Beurre d'arachide">
+                        </div>
+                        <div>
+                            <label for="deal-product-brand" style="font-weight: bold;">Marque</label>
+                            <input type="text" id="deal-product-brand" placeholder="Ex: Kraft">
+                        </div>
+                        <div>
+                            <label for="deal-store-select" style="font-weight: bold;">Commerce *</label>
+                            <select id="deal-store-select" required></select>
+                        </div>
+                        <div>
+                            <label for="deal-price-details" style="font-weight: bold;">Prix Affiché *</label>
+                            <input type="text" id="deal-price-details" required placeholder="Ex: 2 pour 5.00$">
+                        </div>
+                         <div>
+                            <label for="deal-single-price" style="font-weight: bold;">Prix Unitaire Calculé *</label>
+                            <input type="number" id="deal-single-price" step="0.01" min="0" required placeholder="Ex: 2.50">
+                        </div>
+                        <div>
+                            <label for="deal-date-debut" style="font-weight: bold;">Date de Début du Rabais *</label>
+                            <input type="date" id="deal-date-debut" required>
+                        </div>
+                         <div>
+                            <label for="deal-date-fin" style="font-weight: bold;">Date de Fin du Rabais *</label>
+                            <input type="date" id="deal-date-fin" required>
+                        </div>
+                    </div>
+                    <style> #submit-deal-form input, #submit-deal-form select { width: 100%; padding: 8px; box-sizing: border-box; margin-top: 5px;} </style>
+                    <div style="text-align: right; margin-top: 20px;">
+                        <button type="submit" class="btn" style="background-color: #2ecc71;">Soumettre le Rabais</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <!-- ============================================= -->
+    <!-- ====== FIN DES NOUVELLES MODALES ====== -->
+    <!-- ============================================= -->
+
     <script>
     document.addEventListener('DOMContentLoaded', function() {
         const findStoresBtn = document.getElementById('findStoresBtn');
@@ -474,6 +557,17 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
         const hiddenProductNameInput = document.getElementById('hidden-product-name');
         const storeSelect = document.getElementById('modal-store-select');
         const priceInput = document.getElementById('modal-price-input');
+
+        const addProductModal = document.getElementById('add-product-modal');
+        const closeAddProductModalBtn = document.getElementById('close-add-product-modal-btn');
+        const addProductForm = document.getElementById('add-product-form');
+        const newProductNameDisplay = document.getElementById('new-product-name-display');
+        const hiddenNewProductNameInput = document.getElementById('hidden-new-product-name');
+
+        const addDealBtn = document.getElementById('add-deal-btn');
+        const submitDealModal = document.getElementById('submit-deal-modal');
+        const closeDealModalBtn = document.getElementById('close-deal-modal-btn');
+        const submitDealForm = document.getElementById('submit-deal-form');
 
         let optimizedItems = [];
         let allStores = []; // Pour garder la liste des commerces en mémoire
@@ -803,7 +897,7 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
             return cookieValue;
         }
 
-        // --- NOUVELLE FONCTION : CHARGER LES COMMERCES DANS LA MODALE ---
+        // MODIFIER la fonction loadStoresIntoModal pour qu'elle s'occupe de TOUTES les listes déroulantes
         async function loadStoresIntoModal() {
             try {
                 const response = await fetch('/api/commerces/');
@@ -812,18 +906,31 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
                 const stores = await response.json();
                 allStores = stores; // Sauvegarde pour un accès futur
                 
-                storeSelect.innerHTML = '<option value="">-- Choisissez un commerce --</option>'; // Réinitialise la liste
-                stores.forEach(store => {
+                // --- DEBUT DE LA MODIFICATION ---
+                const priceModalStoreSelect = document.getElementById('modal-store-select');
+                const dealModalStoreSelect = document.getElementById('deal-store-select');
+
+                // On réinitialise les deux listes
+                priceModalStoreSelect.innerHTML = '<option value="">-- Choisissez un commerce --</option>'; 
+                dealModalStoreSelect.innerHTML = '<option value="">-- Choisissez un commerce --</option>';
+
+                const sortedStores = [...allStores].sort((a, b) => a.nom.localeCompare(b.nom));
+
+                sortedStores.forEach(store => {
                     const option = document.createElement('option');
-                    // On suppose que votre API /commerces/ retourne un 'id' pour chaque commerce
-                    // Si ce n'est pas le cas, nous devrons adapter l'API
-                    option.value = store.id; // L'API doit retourner l'ID
+                    option.value = store.id;
                     option.textContent = store.nom;
-                    storeSelect.appendChild(option);
+                    // On ajoute l'option clonée aux deux listes
+                    priceModalStoreSelect.appendChild(option.cloneNode(true));
+                    dealModalStoreSelect.appendChild(option.cloneNode(true));
                 });
+                // --- FIN DE LA MODIFICATION ---
+
             } catch (error) {
                 console.error("Erreur de chargement des commerces:", error);
-                storeSelect.innerHTML = '<option value="">Erreur de chargement</option>';
+                // Gérer l'erreur dans les deux listes
+                document.getElementById('modal-store-select').innerHTML = '<option value="">Erreur</option>';
+                document.getElementById('deal-store-select').innerHTML = '<option value="">Erreur</option>';
             }
         }
 
@@ -856,50 +963,159 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
             const productName = hiddenProductNameInput.value;
             const commerceId = storeSelect.value;
             const price = priceInput.value;
+            const token = localStorage.getItem('authToken');
 
-            // Étape 1: Trouver l'ID du produit à partir de son nom
-            let productId = null;
+            if (!token) {
+                alert("Veuillez vous connecter pour soumettre un prix.");
+                return;
+            }
+
             try {
                 const searchResponse = await fetch(`/api/products/search/?q=${encodeURIComponent(productName)}`);
                 const products = await searchResponse.json();
                 
-                // Stratégie simple : on prend le premier résultat exact ou partiel
+                let productId = null;
                 if (products.length > 0) {
-                    productId = products[0].id; 
+                    // On prend le premier résultat qui correspond exactement (insensible à la casse)
+                    const exactMatch = products.find(p => p.nom.toLowerCase() === productName.toLowerCase());
+                    productId = exactMatch ? exactMatch.id : products[0].id;
+                }
+
+                // --- DEBUT DE LA LOGIQUE MODIFIÉE ---
+                if (productId) {
+                    // Si le produit existe, on soumet le prix comme avant
+                    await submitPrice(productId, commerceId, price, token);
+                    alert('Merci ! Votre prix a été soumis avec succès.');
+                    closePriceModal();
                 } else {
-                    alert("Ce produit n'a pas été trouvé dans notre catalogue. La fonctionnalité pour l'ajouter arrive bientôt !");
-                    return;
+                    // Si le produit n'existe PAS, on ouvre la modale pour l'ajouter
+                    newProductNameDisplay.textContent = productName;
+                    hiddenNewProductNameInput.value = productName;
+                    addProductModal.style.display = 'block';
                 }
-
-                // Étape 2: Soumettre le prix avec les IDs
-                const token = localStorage.getItem('authToken');
-                const submissionResponse = await fetch('/api/prices/', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': getCookie('csrftoken'),
-                        'Authorization': `Token ${token}` // IMPORTANT pour l'authentification
-                    },
-                    body: JSON.stringify({
-                        produit_id: productId,
-                        commerce_id: parseInt(commerceId),
-                        prix: price
-                    })
-                });
-
-                if (!submissionResponse.ok) {
-                    const errorData = await submissionResponse.json();
-                    throw new Error(errorData.detail || 'Erreur lors de la soumission du prix.');
-                }
-
-                alert('Merci ! Votre prix a été soumis avec succès.');
-                closePriceModal();
+                // --- FIN DE LA LOGIQUE MODIFIÉE ---
 
             } catch (error) {
                 console.error("Erreur lors de la soumission :", error);
                 alert(error.message);
             }
         });
+
+        // Fonction séparée pour la soumission de prix, pour la réutiliser
+        async function submitPrice(productId, commerceId, price, token) {
+            const submissionResponse = await fetch('/api/prices/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    'Authorization': `Token ${token}`
+                },
+                body: JSON.stringify({
+                    produit_id: productId,
+                    commerce_id: parseInt(commerceId),
+                    prix: price
+                })
+            });
+            if (!submissionResponse.ok) {
+                const errorData = await submissionResponse.json();
+                throw new Error(errorData.detail || 'Erreur lors de la soumission du prix.');
+            }
+        }
+        
+        // --- DEBUT DES NOUVELLES FONCTIONS ---
+
+        // Gère la soumission du formulaire d'ajout de produit
+        addProductForm.addEventListener('submit', async function(event) {
+            event.preventDefault();
+            const token = localStorage.getItem('authToken');
+            const productName = hiddenNewProductNameInput.value;
+            const brand = document.getElementById('new-product-brand').value;
+
+            try {
+                // Étape 1 : Créer le nouveau produit via l'API
+                const createResponse = await fetch('/api/products/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken'),
+                        'Authorization': `Token ${token}`
+                    },
+                    body: JSON.stringify({ nom: productName, marque: brand })
+                });
+
+                if (!createResponse.ok) {
+                    const errorData = await createResponse.json();
+                    throw new Error(errorData.error || 'Erreur lors de la création du produit.');
+                }
+                
+                const newProduct = await createResponse.json();
+                const newProductId = newProduct.id;
+
+                // Étape 2 : Soumettre le prix avec le nouvel ID de produit
+                const commerceId = storeSelect.value;
+                const price = priceInput.value;
+                await submitPrice(newProductId, commerceId, price, token);
+                
+                alert('Produit ajouté et prix soumis avec succès !');
+                addProductModal.style.display = 'none';
+                closePriceModal();
+
+            } catch (error) {
+                alert(error.message);
+            }
+        });
+        
+        // Gère la soumission du formulaire de rabais simple
+        submitDealForm.addEventListener('submit', async function(event) {
+            event.preventDefault();
+            const token = localStorage.getItem('authToken');
+            if (!token) {
+                alert("Veuillez vous connecter pour soumettre un rabais.");
+                return;
+            }
+
+            const dealData = {
+                product_name: document.getElementById('deal-product-name').value,
+                brand: document.getElementById('deal-product-brand').value,
+                commerce_id: document.getElementById('deal-store-select').value,
+                price_details: document.getElementById('deal-price-details').value,
+                single_price: document.getElementById('deal-single-price').value,
+                date_debut: document.getElementById('deal-date-debut').value,
+                date_fin: document.getElementById('deal-date-fin').value,
+            };
+
+            try {
+                const response = await fetch('/api/submit-deal/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken'),
+                        'Authorization': `Token ${token}`
+                    },
+                    body: JSON.stringify(dealData)
+                });
+
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.error || 'Une erreur est survenue.');
+
+                alert(result.message);
+                submitDealModal.style.display = 'none';
+                submitDealForm.reset();
+                // Rafraîchir la liste des rabais pour voir le nouveau
+                chargerRabaisActifs();
+
+            } catch (error) {
+                alert(error.message);
+            }
+        });
+       
+        // Événements pour ouvrir/fermer les nouvelles modales
+        addDealBtn.addEventListener('click', () => {
+            submitDealModal.style.display = 'block';
+        });
+        closeAddProductModalBtn.addEventListener('click', () => addProductModal.style.display = 'none');
+        closeDealModalBtn.addEventListener('click', () => submitDealModal.style.display = 'none');
+        
 
         // --- FONCTION DE RENDU MODIFIÉE ---
         function renderOptimizedList() {
@@ -937,10 +1153,28 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
 
                     const optionsHtml = item.deals.map((deal, dealIndex) => {
                         const isSelected = item.selectedDeal && item.selectedDeal.name === deal.name && item.selectedDeal.store === deal.store;
-                        // On utilise 'details' qui contient déjà le formatage (emoji + prix)
-                        return `<option value="${dealIndex}" ${isSelected ? 'selected' : ''}>${deal.details} - ${deal.store}</option>`;
+                        // Si c'est un prix communautaire, on ajoute le bouton "Confirmer"
+                        let confirmButtonHtml = '';
+                        if (deal.type === 'communautaire' && deal.price_id) {
+                            confirmButtonHtml = `<button class="btn btn-small btn-confirm-price" data-price-id="${deal.price_id}" style="background-color: #27ae60; margin-left: 10px;">Confirmer</button>`;
+                        }
+
+                        // On retourne une structure plus complexe qu'un simple <option>
+                        return `
+                            <div style="display: flex; align-items: center; padding: 5px 0;">
+                                <input type="radio" name="deal-radio-${itemIndex}" id="deal-${itemIndex}-${dealIndex}" class="deal-selector-radio" data-item-index="${itemIndex}" data-deal-index="${dealIndex}" ${isSelected ? 'checked' : ''}>
+                                <label for="deal-${itemIndex}-${dealIndex}" style="flex-grow: 1; margin-left: 5px;">${deal.details} - ${deal.store}</label>
+                                ${confirmButtonHtml}
+                            </div>
+                        `;
                     }).join('');
-                    dealsHtml = `<select id="deal-${itemIndex}" class="deal-selector" data-item-index="${itemIndex}"><option value="-1">Choisissez une offre (${item.deals.length} trouvée(s))...</option>${optionsHtml}</select>`;
+
+                    // On n'utilise plus de <select>, mais une série de boutons radio
+                    dealsHtml = `
+                        <div class="deal-selector-group" data-item-index="${itemIndex}">
+                            <p style="margin-top:0; margin-bottom: 5px; font-weight: bold;">Offres trouvées :</p>
+                            ${optionsHtml}
+                        </div>`;
                 } else {
                     dealsHtml = `<span>Aucun rabais ou prix communautaire trouvé</span>`;
                 }
@@ -984,7 +1218,54 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
             totalElement.innerHTML = `Total estimé: <span style="color: #27ae60;">${total.toFixed(2)} $</span>`;
             optimizationDisplay.appendChild(totalElement);
         }
-        // --- FIN DE LA FONCTION MODIFIÉE ---
+
+        async function handleConfirmPrice(event) {
+            if (!event.target.classList.contains('btn-confirm-price')) {
+                return; // Ne fait rien si ce n'est pas le bon bouton
+            }
+
+            const button = event.target;
+            const priceId = button.dataset.priceId;
+            const token = localStorage.getItem('authToken');
+
+            if (!token) {
+                alert("Veuillez vous connecter pour confirmer un prix.");
+                return;
+            }
+
+            button.disabled = true;
+            button.textContent = '...';
+
+            try {
+                const response = await fetch(`/api/prices/${priceId}/confirm/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken'),
+                        'Authorization': `Token ${token}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Une erreur est survenue.');
+                }
+                
+                button.textContent = 'Confirmé ✓';
+                button.style.backgroundColor = '#7f8c8d';
+
+                // Optionnel mais recommandé : rafraîchir la liste pour voir le nombre de confirmations augmenter.
+                optimizeShoppingList();
+
+            } catch (error) {
+                alert(error.message);
+                button.disabled = false;
+                button.textContent = 'Confirmer'; // Réinitialiser le bouton en cas d'erreur
+            }
+        }
+
+        optimizationDisplay.addEventListener('click', handleConfirmPrice);
 
         function saveOptimizedList() {
             localStorage.setItem('savedOptimizedList', JSON.stringify(optimizedItems));
@@ -1245,6 +1526,25 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
                                 details: deal.details_prix // Garder les détails formatés
                             });
                         }
+                    }
+                    if (deal.type === 'communautaire') {
+                        potentialDeals.push({
+                            type: deal.type,
+                            price_id: deal.price_id, // <-- AJOUT IMPORTANT
+                            store: deal.commerce_nom,
+                            name: deal.produit_nom,
+                            price: deal.prix,
+                            details: deal.details_prix
+                        });
+                    } else { // C'est un rabais de circulaire
+                        potentialDeals.push({
+                            type: deal.type,
+                            price_id: null, // Pas d'ID de confirmation pour les rabais de circulaire
+                            store: deal.commerce_nom,
+                            name: deal.produit_nom,
+                            price: deal.prix,
+                            details: deal.details_prix
+                        });
                     }
                 });
 
@@ -1710,23 +2010,39 @@ Maintenant, génère le JSON pour la liste que je t'ai fournie.`;
                 });
         }
 
-        loadFlyerData();
-        loadManualStores();
-        
-        Promise.all([
-            chargerCommerces(),
-            chargerCirculairesActives(),
-            chargerRabaisActifs()
-        ]).then(() => {
-            // Cette fonction ne sera exécutée que lorsque les 3 chargements sont terminés.
-            console.log("Toutes les données sont chargées. Affichage des commerces.");
-            renderAllStores(); // Maintenant, cette fonction a accès à `flyerData` et peut afficher les boutons.
-        }).catch(error => {
-            console.error("Une erreur est survenue lors du chargement initial des données:", error);
-        });
-        
-        loadSavedOptimizedList();
-        loadStoresIntoModal(); // On charge les commerces au chargement de la page
+        async function initializePage() {
+            // Charger les données qui ne dépendent de rien
+            loadFlyerData();
+            loadManualStores();
+            loadSavedOptimizedList();
+
+            // 1. Charger les commerces et attendre la fin. Cela remplit `allStores` et les listes déroulantes.
+            await loadStoresIntoModal();
+
+            // 2. Maintenant que les commerces sont chargés, charger les circulaires et les rabais.
+            Promise.all([
+                chargerCirculairesActives(),
+                chargerRabaisActifs()
+            ]).then(() => {
+                console.log("Données de circulaires et rabais chargées.");
+                // 3. Enfin, afficher la liste principale des commerces, qui dépend des circulaires.
+                renderAllStores(); 
+            }).catch(error => {
+                console.error("Une erreur est survenue lors du chargement des circulaires/rabais:", error);
+            });
+
+            // Lier les formulaires et les filtres
+            if (importFlyerForm) {
+                importFlyerForm.addEventListener('submit', importFlyerData);
+            } else {
+                console.error("L'élément de formulaire avec l'id 'importFlyerForm' n'a pas été trouvé.");
+            }
+            
+            const searchRabaisInput = document.getElementById('search-rabais-input');
+            searchRabaisInput.addEventListener('input', (e) => {
+                // ... (logique de recherche existante) ...
+            });
+        }
 
         if (importFlyerForm) {
             importFlyerForm.addEventListener('submit', importFlyerData);
@@ -1753,6 +2069,8 @@ Maintenant, génère le JSON pour la liste que je t'ai fournie.`;
             }
         });
 
+        // Démarrer toute l'application avec un seul appel
+        initializePage();
     });
     </script>
 </body>

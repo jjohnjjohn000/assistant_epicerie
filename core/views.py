@@ -1,6 +1,6 @@
 # Fichier : core/views.py
 
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse
 from django.utils import timezone
 from rest_framework.decorators import api_view, permission_classes # Import 'permission_classes'
@@ -9,7 +9,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from datetime import datetime
 from .models import Commerce, Produit, Circulaire, Prix, Categorie
-from django.db.models import Prefetch
+from django.db.models import Prefetch, Count
 from collections import defaultdict
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
@@ -17,7 +17,7 @@ from rest_framework.authtoken.models import Token
 from rest_framework.views import APIView
 from .models import InventoryItem, ShoppingListItem, Recipe
 from .serializers import InventoryItemSerializer, ShoppingListItemSerializer, RecipeSerializer, ProduitSerializer, PrixSubmissionSerializer
-from datetime import timedelta
+from datetime import timedelta, date
 
 # ... (les autres vues comme assistant_epicerie, optimiseur_rabais) ...
 def assistant_epicerie(request):
@@ -142,6 +142,22 @@ def get_circulaires_actives(request):
             ]
         }
     return JsonResponse(data)
+    
+@api_view(['GET'])
+def get_commerces(request):
+    """
+    Retourne la liste de tous les commerces avec leur ID, nom, adresse et site web.
+    """
+    # On récupère tous les objets Commerce et on sélectionne les champs qu'on veut retourner.
+    # .values() est efficace car il ne récupère que les données nécessaires.
+    commerces = Commerce.objects.all().values('id', 'nom', 'adresse', 'site_web')
+    
+    # On convertit le résultat en une liste.
+    data = list(commerces)
+    
+    # On retourne la liste sous forme de réponse JSON.
+    # `safe=False` est nécessaire pour permettre de retourner une liste en JSON.
+    return JsonResponse(data, safe=False)
 
 # VUE ORIGINALE, LÉGÈREMENT AJUSTÉE (elle reste dédiée aux rabais)
 @api_view(['GET'])
@@ -168,27 +184,44 @@ def get_rabais_actifs(request):
 @api_view(['GET'])
 def get_community_prices(request):
     one_week_ago = timezone.now() - timedelta(days=7)
-    prix_communautaires = Prix.objects.select_related("produit", "commerce").filter(
-        circulaire__isnull=True,
+    
+    # --- NOUVELLE LOGIQUE AMÉLIORÉE ---
+    prix_communautaires = Prix.objects.filter(
+        circulaire__isnull=True, # On ne prend que les prix soumis par la communauté
         date_mise_a_jour__gte=one_week_ago
-    ).order_by('produit_id', 'commerce_id', '-date_mise_a_jour').distinct('produit_id', 'commerce_id')
-    # .distinct(...) ne fonctionne que sur PostgreSQL. Il garantit de ne prendre que le plus récent.
+    ).annotate(
+        # On crée un nouveau champ 'confirmations_count' qui compte le nombre de confirmations
+        confirmations_count=Count('confirmations')
+    ).select_related("produit", "commerce").order_by(
+        'produit_id', 
+        'commerce_id', 
+        '-confirmations_count', # On trie par le plus grand nombre de confirmations en premier
+        '-date_mise_a_jour' # Puis par le plus récent
+    )
+    
+    # Pour éviter les doublons (plusieurs soumissions pour le même produit/commerce),
+    # on garde seulement le premier résultat pour chaque paire (qui sera le meilleur grâce au tri).
+    # NOTE: .distinct('produit_id', 'commerce_id') est idéal mais ne fonctionne que sur PostgreSQL.
+    # Voici une alternative qui fonctionne partout :
+    
+    processed_prices = {}
+    for prix_obj in prix_communautaires:
+        key = (prix_obj.produit_id, prix_obj.commerce_id)
+        if key not in processed_prices:
+            processed_prices[key] = prix_obj
 
     data = []
-    for prix_obj in prix_communautaires:
+    for prix_obj in processed_prices.values():
+        confirmation_text = f"({prix_obj.confirmations_count} ✓)" if prix_obj.confirmations_count > 0 else ""
         data.append({
+            "price_id": prix_obj.id, # <-- On ajoute l'ID pour le frontend !
             "produit_nom": prix_obj.produit.nom,
             "commerce_nom": prix_obj.commerce.nom,
-            "details_prix": f"👥 {str(prix_obj.prix)} $ (vu récemment)",
+            "details_prix": f"👥 {str(prix_obj.prix)} $ {confirmation_text}",
             "prix": str(prix_obj.prix)
         })
-    return Response(data) # Utiliser Response de DRF car c'est une vue @api_view
-
-def get_commerces(request):
-    # Changer .values(...) pour inclure 'id'
-    commerces = Commerce.objects.all().values('id', 'nom', 'adresse', 'site_web')
-    data = list(commerces)
-    return JsonResponse(data, safe=False)
+        
+    return Response(data) # Utiliser Response de DRF
 
 @api_view(['POST'])
 def register_user(request):
@@ -473,3 +506,94 @@ class PriceSubmissionView(APIView):
             serializer.save()
             return Response({'message': 'Prix soumis avec succès !'}, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def submit_deal(request):
+    """
+    Permet à un utilisateur de soumettre un seul rabais via un formulaire simple.
+    La vue gère la création du produit et de la circulaire si nécessaire.
+    """
+    data = request.data
+    
+    # --- Validation des données requises ---
+    required_fields = ['product_name', 'commerce_id', 'price_details', 'single_price', 'date_debut', 'date_fin']
+    if not all(field in data for field in required_fields):
+        return Response({'error': 'Tous les champs sont requis.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        # --- 1. Gérer le Produit ---
+        product_name = data['product_name'].strip()
+        brand = data.get('brand', '').strip()
+        
+        # On cherche le produit. S'il n'existe pas, on le crée.
+        produit_obj, _ = Produit.objects.get_or_create(
+            nom__iexact=product_name, 
+            marque__iexact=brand,
+            defaults={'nom': product_name, 'marque': brand}
+        )
+
+        # --- 2. Gérer le Commerce ---
+        commerce_id = data['commerce_id']
+        commerce_obj = get_object_or_404(Commerce, id=commerce_id)
+
+        # --- 3. Gérer la Circulaire ---
+        date_debut = datetime.strptime(data['date_debut'], '%Y-%m-%d').date()
+        date_fin = datetime.strptime(data['date_fin'], '%Y-%m-%d').date()
+
+        # On cherche une circulaire pour ce magasin et ces dates. Si elle n'existe pas, on la crée.
+        circulaire_obj, _ = Circulaire.objects.get_or_create(
+            commerce=commerce_obj,
+            date_debut=date_debut,
+            date_fin=date_fin
+        )
+
+        # --- 4. Créer le Prix (le rabais) ---
+        Prix.objects.create(
+            produit=produit_obj,
+            commerce=commerce_obj,
+            circulaire=circulaire_obj,
+            prix=data['single_price'],
+            details_prix=data['price_details'],
+            submitted_by=request.user # On associe la soumission à l'utilisateur
+        )
+        
+        return Response({'message': 'Rabais soumis avec succès !'}, status=status.HTTP_201_CREATED)
+
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+# --- NOUVELLE VUE POUR LA CONFIRMATION DE PRIX ---
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def confirm_price(request, price_id):
+    """
+    Permet à un utilisateur de confirmer un prix soumis par un autre utilisateur.
+    """
+    # On récupère l'objet Prix ou on renvoie une erreur 404 s'il n'existe pas.
+    price_entry = get_object_or_404(Prix, id=price_id)
+    user = request.user
+
+    # Règle 1: Un utilisateur ne peut pas confirmer un prix qu'il a lui-même soumis.
+    if price_entry.submitted_by == user:
+        return Response(
+            {'error': 'Vous ne pouvez pas confirmer votre propre soumission de prix.'},
+            status=status.HTTP_403_FORBIDDEN
+        )
+    
+    # Règle 2: Un utilisateur ne peut pas confirmer le même prix plus d'une fois.
+    if price_entry.confirmations.filter(id=user.id).exists():
+        return Response(
+            {'message': 'Vous avez déjà confirmé ce prix.'},
+            status=status.HTTP_200_OK
+        )
+
+    # Si les règles sont respectées, on ajoute la confirmation.
+    price_entry.confirmations.add(user)
+    
+    # On pourrait aussi ajouter une logique pour augmenter la réputation de l'utilisateur qui a soumis le prix ici.
+    
+    return Response(
+        {'status': 'succès', 'message': 'Prix confirmé avec succès !'},
+        status=status.HTTP_200_OK
+    )
