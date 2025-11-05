@@ -101,6 +101,12 @@
             border-radius: 8px;
             padding: 15px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            /* --- LIGNES AJOUTÉES --- */
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 10px;
+            /* --- FIN DES LIGNES AJOUTÉES --- */
         }
         .rabais-item .produit-nom {
             font-weight: bold;
@@ -504,8 +510,50 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
             </div>
         </div>
     </div>
+
+    <div id="report-price-modal" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2>Signaler un Prix</h2>
+                <span id="close-report-modal-btn" class="close-btn">&times;</span>
+            </div>
+            <div id="modal-report-body">
+                <p>
+                    Vous signalez une information pour le produit : 
+                    <strong id="report-product-name"></strong>
+                </p>
+                <form id="report-price-form">
+                    <input type="hidden" id="hidden-report-price-id">
+                    
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 8px; font-weight: bold;">
+                            Quelle est la raison du signalement ? *
+                        </label>
+                        <div style="display: flex; flex-direction: column; gap: 8px;">
+                            <label><input type="radio" name="report_reason" value="INCORRECT_PRICE" required> Le prix est incorrect</label>
+                            <label><input type="radio" name="report_reason" value="WRONG_PRODUCT"> Ce n'est pas le bon produit/commerce</label>
+                            <label><input type="radio" name="report_reason" value="EXPIRED_DEAL"> Le rabais est expiré</label>
+                            <label><input type="radio" name="report_reason" value="OTHER"> Autre (précisez ci-dessous)</label>
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom: 20px;">
+                        <label for="report-comments" style="display: block; margin-bottom: 5px; font-weight: bold;">
+                            Commentaires (optionnel)
+                        </label>
+                        <textarea id="report-comments" placeholder="Fournissez plus de détails si nécessaire" style="width: 100%; min-height: 60px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;"></textarea>
+                    </div>
+
+                    <div style="text-align: right;">
+                        <button type="submit" class="btn" style="background-color: #e74c3c;">Envoyer le signalement</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <!-- ============================================= -->
-    <!-- ====== FIN DES NOUVELLES MODALES ====== -->
+    <!-- ============== FIN DES MODALES ============== -->
     <!-- ============================================= -->
 
     <script>
@@ -568,6 +616,13 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
         const submitDealModal = document.getElementById('submit-deal-modal');
         const closeDealModalBtn = document.getElementById('close-deal-modal-btn');
         const submitDealForm = document.getElementById('submit-deal-form');
+
+        // --- NOUVEAUX SÉLECTEURS POUR LA MODALE DE SIGNALEMENT ---
+        const reportPriceModal = document.getElementById('report-price-modal');
+        const closeReportModalBtn = document.getElementById('close-report-modal-btn');
+        const reportPriceForm = document.getElementById('report-price-form');
+        const reportProductName = document.getElementById('report-product-name');
+        const hiddenReportPriceId = document.getElementById('hidden-report-price-id');
 
         let optimizedItems = [];
         let allStores = []; // Pour garder la liste des commerces en mémoire
@@ -1126,6 +1181,8 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
                 return;
             }
 
+            // On récupère le nom de l'utilisateur actuellement connecté
+            const currentUser = localStorage.getItem('username');
             let total = 0;
             let hasItemsWithoutPrice = false;
 
@@ -1153,14 +1210,23 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
 
                     const optionsHtml = item.deals.map((deal, dealIndex) => {
                         const isSelected = item.selectedDeal && item.selectedDeal.name === deal.name && item.selectedDeal.store === deal.store;
-                        // Si c'est un prix communautaire, on ajoute le bouton "Confirmer"
-                        let confirmButtonHtml = '';
+
+                        let actionButtonsHtml = '';
+                        // On affiche les boutons Confirmer/Signaler uniquement pour les prix communautaires
                         if (deal.type === 'communautaire' && deal.price_id) {
-                            confirmButtonHtml = `<button class="btn btn-small btn-confirm-price" data-price-id="${deal.price_id}" style="background-color: #27ae60; margin-left: 10px;">Confirmer</button>`;
+                            actionButtonsHtml = `
+                                <button class="btn btn-small btn-confirm-price" data-price-id="${deal.price_id}" style="background-color: #27ae60; margin-left: 10px;">Confirmer</button>
+                                <button class="btn btn-small btn-report-price" data-price-id="${deal.price_id}" data-product-name="${deal.name}" style="background-color: #e67e22; margin-left: 5px;">Signaler</button>
+                            `;
                         }
 
-                        // On retourne une structure plus complexe qu'un simple <option>
-                        return `
+                            let confirmButtonHtml = '';
+                            // Condition 1: Le deal doit avoir été soumis par un utilisateur.
+                            // Condition 2: Cet utilisateur ne doit PAS être l'utilisateur actuel.
+                            if (deal.submitted_by_username && deal.submitted_by_username !== currentUser) {
+                                confirmButtonHtml = `<button class="btn btn-small btn-confirm-price" data-price-id="${deal.price_id}" style="background-color: #27ae60; margin-left: 10px;">Confirmer</button>`;
+                            }
+                            return `
                             <div style="display: flex; align-items: center; padding: 5px 0;">
                                 <input type="radio" name="deal-radio-${itemIndex}" id="deal-${itemIndex}-${dealIndex}" class="deal-selector-radio" data-item-index="${itemIndex}" data-deal-index="${dealIndex}" ${isSelected ? 'checked' : ''}>
                                 <label for="deal-${itemIndex}-${dealIndex}" style="flex-grow: 1; margin-left: 5px;">${deal.details} - ${deal.store}</label>
@@ -1266,6 +1332,73 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
         }
 
         optimizationDisplay.addEventListener('click', handleConfirmPrice);
+        document.getElementById('rabais-actifs-display').addEventListener('click', handleConfirmPrice);
+
+        // --- NOUVELLES FONCTIONS POUR LE SIGNALEMENT ---
+
+        // Gère l'ouverture de la modale de signalement
+        function openReportModal(event) {
+            if (!event.target.classList.contains('btn-report-price')) {
+                return;
+            }
+            const button = event.target;
+            const priceId = button.dataset.priceId;
+            const productName = button.dataset.productName;
+            
+            reportProductName.textContent = productName;
+            hiddenReportPriceId.value = priceId;
+            
+            reportPriceModal.style.display = 'block';
+        }
+
+        // Gère la fermeture de la modale
+        function closeReportModal() {
+            reportPriceModal.style.display = 'none';
+            reportPriceForm.reset();
+        }
+
+        // Gère la soumission du formulaire de signalement
+        async function handleReportSubmit(event) {
+            event.preventDefault();
+            
+            const priceId = hiddenReportPriceId.value;
+            const token = localStorage.getItem('authToken');
+            
+            if (!token) {
+                alert("Veuillez vous connecter pour signaler un prix.");
+                return;
+            }
+            
+            const formData = new FormData(reportPriceForm);
+            const reason = formData.get('report_reason');
+            const comments = document.getElementById('report-comments').value;
+
+            try {
+                const response = await fetch(`/api/prices/${priceId}/report/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken'),
+                        'Authorization': `Token ${token}`
+                    },
+                    body: JSON.stringify({ reason, comments })
+                });
+
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error || 'Une erreur est survenue.');
+                
+                alert(data.message);
+                closeReportModal();
+
+            } catch (error) {
+                alert(error.message);
+            }
+        }
+        
+        // On utilise la délégation d'événements pour les boutons de signalement
+        optimizationDisplay.addEventListener('click', openReportModal);
+        closeReportModalBtn.addEventListener('click', closeReportModal);
+        reportPriceForm.addEventListener('submit', handleReportSubmit);
 
         function saveOptimizedList() {
             localStorage.setItem('savedOptimizedList', JSON.stringify(optimizedItems));
@@ -1491,11 +1624,15 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
                 return;
             }
 
+            // --- DÉBUT DE LA MODIFICATION ---
+            // On ajoute un paramètre unique pour forcer le navigateur à ne pas utiliser de cache
+            const cacheBuster = `?t=${new Date().getTime()}`;
             // On charge les deux sources de prix en parallèle pour plus de rapidité
             const [flyerDealsResponse, communityPricesResponse] = await Promise.all([
-                fetch('/api/rabais-actifs/'),
-                fetch('/api/community-prices/')
+                fetch(`/api/rabais-actifs/${cacheBuster}`),
+                fetch(`/api/community-prices/${cacheBuster}`)
             ]);
+            // --- FIN DE LA MODIFICATION ---
             
             const flyerDeals = await flyerDealsResponse.json();
             const communityPrices = await communityPricesResponse.json();
@@ -1513,41 +1650,29 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
                 const shoppingItemNameLower = shoppingItem.name.toLowerCase().normalize("NFD").replace(/[\u00-[\u036f]/g, "");
 
                 // On cherche dans la liste fusionnée
+                // La logique a été grandement simplifiée pour éviter toute erreur.
                 allAvailablePrices.forEach(deal => {
                     const storeIsSelected = selectedStores.some(selectedStore => deal.commerce_nom.includes(selectedStore));
+                    
                     if (storeIsSelected) {
                         const dealNameLower = deal.produit_nom.toLowerCase().normalize("NFD").replace(/[\u00-[\u036f]/g, "");
+                        
                         if (dealNameLower.includes(shoppingItemNameLower)) {
+                            // On crée un objet unique qui contient TOUTES les informations nécessaires,
+                            // y compris le 'submitted_by_username' qui était perdu auparavant.
                             potentialDeals.push({
                                 type: deal.type,
+                                price_id: deal.price_id,
                                 store: deal.commerce_nom,
                                 name: deal.produit_nom,
-                                price: deal.prix, // Utiliser le prix numérique brut
-                                details: deal.details_prix // Garder les détails formatés
+                                price: deal.prix,
+                                details: deal.details_prix,
+                                submitted_by_username: deal.submitted_by_username // L'information cruciale est maintenant préservée.
                             });
                         }
                     }
-                    if (deal.type === 'communautaire') {
-                        potentialDeals.push({
-                            type: deal.type,
-                            price_id: deal.price_id, // <-- AJOUT IMPORTANT
-                            store: deal.commerce_nom,
-                            name: deal.produit_nom,
-                            price: deal.prix,
-                            details: deal.details_prix
-                        });
-                    } else { // C'est un rabais de circulaire
-                        potentialDeals.push({
-                            type: deal.type,
-                            price_id: null, // Pas d'ID de confirmation pour les rabais de circulaire
-                            store: deal.commerce_nom,
-                            name: deal.produit_nom,
-                            price: deal.prix,
-                            details: deal.details_prix
-                        });
-                    }
                 });
-
+                   
                 optimizedItems.push({
                     name: shoppingItem.name,
                     quantity: shoppingItem.quantity,
@@ -1963,13 +2088,32 @@ Maintenant, génère le JSON pour la liste que je t'ai fournie.`;
                 grid.className = 'rabais-grid';
 
                 items.forEach(item => {
+                    // --- DÉBUT DE LA MODIFICATION ---
+                    let confirmButtonHtml = '';
+                    const currentUser = localStorage.getItem('username');
+
+                    // On affiche le bouton seulement si le rabais a été ajouté par un autre utilisateur
+                    if (item.submitted_by_username && item.submitted_by_username !== currentUser) {
+                        confirmButtonHtml = `
+                            <button class="btn btn-small btn-confirm-price" data-price-id="${item.price_id}" style="background-color: #27ae60; margin-top: 8px;">
+                                Confirmer
+                            </button>
+                        `;
+                    }
+
                     const itemHtml = `
                         <div class="rabais-item">
-                            <span class="produit-nom">${item.produit_nom}</span>
-                            <span class="commerce-nom">${item.commerce_nom}</span>
-                            <div class="prix-info">${item.details_prix || item.prix + ' $'}</div>
+                            <div>
+                                <span class="produit-nom">${item.produit_nom}</span>
+                                <span class="commerce-nom">${item.commerce_nom}</span>
+                            </div>
+                            <div style="text-align: right; flex-shrink: 0;">
+                                <div class="prix-info">${item.details_prix || item.prix + ' $'}</div>
+                                ${confirmButtonHtml}
+                            </div>
                         </div>
                     `;
+                    // --- FIN DE LA MODIFICATION ---
                     grid.innerHTML += itemHtml;
                 });
                 
@@ -2019,18 +2163,23 @@ Maintenant, génère le JSON pour la liste que je t'ai fournie.`;
             // 1. Charger les commerces et attendre la fin. Cela remplit `allStores` et les listes déroulantes.
             await loadStoresIntoModal();
 
-            // 2. Maintenant que les commerces sont chargés, charger les circulaires et les rabais.
+            // 2. Maintenant, charger toutes les autres données en parallèle
+            // --- DÉBUT DE LA MODIFICATION ---
             Promise.all([
                 chargerCirculairesActives(),
-                chargerRabaisActifs()
+                chargerRabaisActifs(),
+                // AJOUT CRUCIAL : On charge aussi la liste des commerces depuis la DB.
+                // Le 'false' empêche un rendu prématuré avant que tout soit prêt.
+                chargerCommercesDepuisDB(false) 
             ]).then(() => {
-                console.log("Données de circulaires et rabais chargées.");
-                // 3. Enfin, afficher la liste principale des commerces, qui dépend des circulaires.
+                console.log("Données de circulaires, rabais et commerces chargées.");
+                // 3. Enfin, afficher la liste principale des commerces, qui est maintenant complète.
                 renderAllStores(); 
             }).catch(error => {
-                console.error("Une erreur est survenue lors du chargement des circulaires/rabais:", error);
+                console.error("Une erreur est survenue lors du chargement des données initiales:", error);
             });
-
+            // --- FIN DE LA MODIFICATION ---
+            
             // Lier les formulaires et les filtres
             if (importFlyerForm) {
                 importFlyerForm.addEventListener('submit', importFlyerData);
@@ -2050,6 +2199,18 @@ Maintenant, génère le JSON pour la liste que je t'ai fournie.`;
             console.error("L'élément de formulaire avec l'id 'importFlyerForm' n'a pas été trouvé.");
         }
         
+        // Gérer la fermeture des modales en cliquant à l'extérieur
+        window.addEventListener('click', (event) => {
+            if (event.target == flyerModal) closeFlyerModal();
+            if (event.target == flyerManagerModal) closeFlyerManagerModal();
+            if (event.target == editStoreModal) closeStoreEditModal();
+            if (event.target == priceModal) closePriceModal();
+            if (event.target == addProductModal) addProductModal.style.display = 'none';
+            if (event.target == submitDealModal) submitDealModal.style.display = 'none';
+            // --- LIGNE AJOUTÉE ---
+            if (event.target == reportPriceModal) closeReportModal();
+        });
+
         // --- MISE À JOUR DE LA LOGIQUE DE RECHERCHE ---
         const searchRabaisInput = document.getElementById('search-rabais-input');
         searchRabaisInput.addEventListener('input', (e) => {

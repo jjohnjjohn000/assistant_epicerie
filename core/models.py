@@ -1,5 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 
 # Create your models here.
 
@@ -76,8 +78,6 @@ class Prix(models.Model):
     
     submitted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="submitted_prices")
     
-    # --- NOUVEAU CHAMP POUR LES CONFIRMATIONS ---
-    # `related_name` permet de retrouver facilement les prix qu'un utilisateur a confirmés.
     confirmations = models.ManyToManyField(User, related_name="confirmed_prices", blank=True)
     
     date_mise_a_jour = models.DateTimeField(auto_now=True)
@@ -88,6 +88,59 @@ class Prix(models.Model):
     class Meta:
         verbose_name = "Prix"
         verbose_name_plural = "Prix"
+
+# --- NOUVEAU MODÈLE POUR LE PROFIL UTILISATEUR ---
+class Profile(models.Model):
+    """ Modèle pour étendre les fonctionnalités du modèle User de base. """
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="profile")
+    reputation = models.IntegerField(default=0, help_text="Points de réputation de l'utilisateur")
+
+    def __str__(self):
+        return f"Profil de {self.user.username}"
+
+# --- VERSION CORRIGÉE ET ROBUSTE DU SIGNAL ---
+@receiver(post_save, sender=User)
+def create_or_update_user_profile(sender, instance, created, **kwargs):
+    """
+    Crée un profil pour un nouvel utilisateur OU s'assure qu'un profil
+    existe pour un utilisateur plus ancien qui n'en aurait pas.
+    """
+    if created:
+        Profile.objects.create(user=instance)
+    # Pour les utilisateurs existants, on s'assure que leur profil existe aussi
+    # get_or_create est la méthode la plus sûre ici.
+    Profile.objects.get_or_create(user=instance)
+
+# --- NOUVEAU MODÈLE POUR LES SIGNALEMENTS ---
+class Report(models.Model):
+    """ Modèle pour que les utilisateurs puissent signaler des données incorrectes. """
+    
+    # On définit les choix possibles pour le statut et la raison
+    REPORT_STATUS_CHOICES = [
+        ('PENDING', 'En attente'),
+        ('REVIEWED', 'Examiné'),
+        ('RESOLVED', 'Résolu'),
+    ]
+    REPORT_REASON_CHOICES = [
+        ('INCORRECT_PRICE', 'Prix incorrect'),
+        ('WRONG_PRODUCT', 'Mauvais produit/commerce'),
+        ('EXPIRED_DEAL', 'Rabais expiré'),
+        ('OTHER', 'Autre'),
+    ]
+    
+    price_entry = models.ForeignKey(Prix, on_delete=models.CASCADE, related_name="reports")
+    reported_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name="reports_made")
+    reason = models.CharField(max_length=50, choices=REPORT_REASON_CHOICES)
+    comments = models.TextField(blank=True, null=True, help_text="Commentaires additionnels (optionnel)")
+    status = models.CharField(max_length=20, choices=REPORT_STATUS_CHOICES, default='PENDING')
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Signalement pour '{self.price_entry}' par {self.reported_by.username}"
+
+    class Meta:
+        # Un utilisateur ne peut signaler le même prix qu'une seule fois
+        unique_together = ('price_entry', 'reported_by')
 
 # --- NOUVEAU MODÈLE POUR L'INVENTAIRE ---
 class InventoryItem(models.Model):

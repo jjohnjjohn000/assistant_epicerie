@@ -8,7 +8,7 @@ from rest_framework.permissions import IsAuthenticated # Import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from datetime import datetime
-from .models import Commerce, Produit, Circulaire, Prix, Categorie
+from .models import Commerce, Produit, Circulaire, Prix, Categorie, Profile, Report # Ajouter Profile et Report
 from django.db.models import Prefetch, Count
 from collections import defaultdict
 from django.contrib.auth.models import User
@@ -159,69 +159,74 @@ def get_commerces(request):
     # `safe=False` est nécessaire pour permettre de retourner une liste en JSON.
     return JsonResponse(data, safe=False)
 
-# VUE ORIGINALE, LÉGÈREMENT AJUSTÉE (elle reste dédiée aux rabais)
+# VUE MODIFIÉE POUR INCLURE LES INFOS DE CONFIRMATION
 @api_view(['GET'])
 def get_rabais_actifs(request):
     today = timezone.now().date()
-    prix_en_rabais = Prix.objects.select_related("produit", "commerce").filter(
+    prix_en_rabais = Prix.objects.select_related("produit", "commerce", "submitted_by").filter(
         circulaire__isnull=False,
         circulaire__date_debut__lte=today,
         circulaire__date_fin__gte=today,
     )
     data = []
     for prix_obj in prix_en_rabais:
+        details = f"🔥 {prix_obj.details_prix or str(prix_obj.prix) + ' $'}"
+        
+        # --- DÉBUT DE LA MODIFICATION ---
+        submitter_username = None
+        if prix_obj.submitted_by:
+            details += f" (Ajouté par 👤 {prix_obj.submitted_by.username})"
+            submitter_username = prix_obj.submitted_by.username
+        # --- FIN DE LA MODIFICATION ---
+
         data.append({
+            "price_id": prix_obj.id,
             "produit_nom": prix_obj.produit.nom,
             "commerce_nom": prix_obj.commerce.nom,
-            # On garde un formatage propre ici pour l'affichage
-            "details_prix": f"🔥 {prix_obj.details_prix or str(prix_obj.prix) + ' $'}",
-            "prix": str(prix_obj.prix) # On garde le prix numérique pour le tri/calcul
+            "details_prix": details,
+            "prix": str(prix_obj.prix),
+            # On envoie le nom d'utilisateur directement
+            "submitted_by_username": submitter_username
         })
     return JsonResponse(data, safe=False)
 
 
-# NOUVELLE VUE DÉDIÉE AUX PRIX COMMUNAUTAIRES
 @api_view(['GET'])
 def get_community_prices(request):
     one_week_ago = timezone.now() - timedelta(days=7)
     
-    # --- NOUVELLE LOGIQUE AMÉLIORÉE ---
+    # --- DÉBUT DE LA MODIFICATION MAJEURE ---
+    # On retire complètement la logique de 'processed_prices' pour ne plus filtrer les doublons.
+    # Chaque soumission valide sera maintenant retournée.
     prix_communautaires = Prix.objects.filter(
-        circulaire__isnull=True, # On ne prend que les prix soumis par la communauté
+        circulaire__isnull=True,
         date_mise_a_jour__gte=one_week_ago
     ).annotate(
-        # On crée un nouveau champ 'confirmations_count' qui compte le nombre de confirmations
         confirmations_count=Count('confirmations')
-    ).select_related("produit", "commerce").order_by(
-        'produit_id', 
-        'commerce_id', 
-        '-confirmations_count', # On trie par le plus grand nombre de confirmations en premier
-        '-date_mise_a_jour' # Puis par le plus récent
-    )
-    
-    # Pour éviter les doublons (plusieurs soumissions pour le même produit/commerce),
-    # on garde seulement le premier résultat pour chaque paire (qui sera le meilleur grâce au tri).
-    # NOTE: .distinct('produit_id', 'commerce_id') est idéal mais ne fonctionne que sur PostgreSQL.
-    # Voici une alternative qui fonctionne partout :
-    
-    processed_prices = {}
-    for prix_obj in prix_communautaires:
-        key = (prix_obj.produit_id, prix_obj.commerce_id)
-        if key not in processed_prices:
-            processed_prices[key] = prix_obj
+    ).select_related("produit", "commerce", "submitted_by") # Important d'inclure submitted_by
 
     data = []
-    for prix_obj in processed_prices.values():
+    for prix_obj in prix_communautaires:
         confirmation_text = f"({prix_obj.confirmations_count} ✓)" if prix_obj.confirmations_count > 0 else ""
+        submitter_username = None
+        submitter_text = ""
+
+        if prix_obj.submitted_by:
+            submitter_username = prix_obj.submitted_by.username
+            submitter_text = f" (Ajouté par 👤 {submitter_username})"
+
         data.append({
-            "price_id": prix_obj.id, # <-- On ajoute l'ID pour le frontend !
+            "price_id": prix_obj.id,
             "produit_nom": prix_obj.produit.nom,
             "commerce_nom": prix_obj.commerce.nom,
-            "details_prix": f"👥 {str(prix_obj.prix)} $ {confirmation_text}",
-            "prix": str(prix_obj.prix)
+            "details_prix": f"👥 {str(prix_obj.prix)} $ {confirmation_text}{submitter_text}",
+            "prix": str(prix_obj.prix),
+            # On envoie le nom d'utilisateur directement
+            "submitted_by_username": submitter_username
         })
+    # --- FIN DE LA MODIFICATION MAJEURE ---
         
-    return Response(data) # Utiliser Response de DRF
+    return Response(data)
 
 @api_view(['POST'])
 def register_user(request):
@@ -563,37 +568,73 @@ def submit_deal(request):
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-# --- NOUVELLE VUE POUR LA CONFIRMATION DE PRIX ---
+# --- VERSION CORRIGÉE DE LA VUE POUR LA CONFIRMATION DE PRIX ---
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def confirm_price(request, price_id):
     """
-    Permet à un utilisateur de confirmer un prix soumis par un autre utilisateur.
+    Permet à un utilisateur de confirmer un prix soumis par un autre utilisateur
+    et augmente la réputation du soumissionnaire original.
     """
-    # On récupère l'objet Prix ou on renvoie une erreur 404 s'il n'existe pas.
     price_entry = get_object_or_404(Prix, id=price_id)
     user = request.user
 
-    # Règle 1: Un utilisateur ne peut pas confirmer un prix qu'il a lui-même soumis.
     if price_entry.submitted_by == user:
         return Response(
             {'error': 'Vous ne pouvez pas confirmer votre propre soumission de prix.'},
             status=status.HTTP_403_FORBIDDEN
         )
     
-    # Règle 2: Un utilisateur ne peut pas confirmer le même prix plus d'une fois.
     if price_entry.confirmations.filter(id=user.id).exists():
         return Response(
             {'message': 'Vous avez déjà confirmé ce prix.'},
             status=status.HTTP_200_OK
         )
 
-    # Si les règles sont respectées, on ajoute la confirmation.
     price_entry.confirmations.add(user)
     
-    # On pourrait aussi ajouter une logique pour augmenter la réputation de l'utilisateur qui a soumis le prix ici.
+    # --- DÉBUT DE LA LOGIQUE DE RÉPUTATION (CORRIGÉE ET ROBUSTE) ---
+    # On vérifie si un utilisateur a soumis ce prix
+    if price_entry.submitted_by:
+        # On utilise get_or_create pour éviter une erreur si le profil n'existe pas
+        submitter_profile, created = Profile.objects.get_or_create(user=price_entry.submitted_by)
+        # On augmente sa réputation de 5 points
+        submitter_profile.reputation += 5
+        submitter_profile.save()
+    # --- FIN DE LA LOGIQUE DE RÉPUTATION ---
     
     return Response(
         {'status': 'succès', 'message': 'Prix confirmé avec succès !'},
         status=status.HTTP_200_OK
     )
+
+# --- NOUVELLE VUE POUR LE SIGNALEMENT DE PRIX ---
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def report_price(request, price_id):
+    """
+    Permet à un utilisateur de signaler une entrée de prix.
+    """
+    price_entry = get_object_or_404(Prix, id=price_id)
+    user = request.user
+    
+    # On récupère la raison du signalement depuis le corps de la requête
+    reason = request.data.get('reason')
+    comments = request.data.get('comments', '')
+
+    if not reason:
+        return Response({'error': 'Une raison pour le signalement est requise.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+    # Vérifie si l'utilisateur a déjà signalé ce prix
+    if Report.objects.filter(price_entry=price_entry, reported_by=user).exists():
+        return Response({'message': 'Vous avez déjà signalé ce prix.'}, status=status.HTTP_200_OK)
+
+    # Crée le signalement
+    Report.objects.create(
+        price_entry=price_entry,
+        reported_by=user,
+        reason=reason,
+        comments=comments
+    )
+    
+    return Response({'status': 'succès', 'message': 'Le prix a été signalé. Merci de votre contribution !'}, status=status.HTTP_201_CREATED)

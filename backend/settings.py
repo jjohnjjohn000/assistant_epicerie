@@ -142,3 +142,20 @@ INTERNAL_IPS = [
 # URL vers laquelle rediriger l'utilisateur après une connexion réussie.
 # '/' correspond à la racine de votre site (la page 'assistant_epicerie').
 LOGIN_REDIRECT_URL = '/'
+
+# --- CONFIGURATION DE DJANGO REST FRAMEWORK ---
+REST_FRAMEWORK = {
+    # On définit les méthodes d'authentification par défaut pour toutes les vues de l'API.
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        # Privilégie l'authentification par jeton (Token), idéale pour les API consommées par du JS.
+        'rest_framework.authentication.TokenAuthentication',
+        # Garde l'authentification par session comme alternative (utile pour l'API explorable).
+        'rest_framework.authentication.SessionAuthentication',
+    ],
+    # On peut aussi définir une politique de permission par défaut pour plus de sécurité.
+    # Ceci exigera que l'utilisateur soit authentifié pour toutes les vues API,
+    # sauf si une vue spécifie le contraire.
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ]
+}

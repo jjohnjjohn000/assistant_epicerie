@@ -818,7 +818,12 @@ Maintenant, analyse la recette suivante :
                     const data = await apiCall('login', 'POST', { username, password });
                     localStorage.setItem('authToken', data.token);
                     localStorage.setItem('username', data.username);
-                    updateAuthUI();
+
+                    // On redirige vers la page d'accueil. Cela va forcer un rechargement complet
+                    // et l'appel à updateAuthUI() sur la nouvelle page chargera les données fraîches.
+                    window.location.href = '/';
+
+                    //updateAuthUI();
                 } catch (error) {
                     authError.textContent = error.message;
                 }
@@ -839,14 +844,24 @@ Maintenant, analyse la recette suivante :
                     localStorage.removeItem('shoppingList');
                     localStorage.removeItem('savedOptimizedList');
 
+                    // Clés "fantômes" de l'ancienne version (important de les nettoyer)
+                    localStorage.removeItem('inventory');
+                    localStorage.removeItem('recipes');
+                    localStorage.removeItem('flyerData');
+                    localStorage.removeItem('manualStoresList');
+                    
+                    // Rediriger vers la page d'accueil pour s'assurer que tout l'état
+                    // en mémoire est effacé. La page se rechargera en mode "déconnecté".
+                    window.location.href = '/';
+
                     // --- DEBUT DE LA CORRECTION ---
                     // On vide la variable de la liste d'épicerie en mémoire
-                    shoppingList = [];
+                    //shoppingList = [];
                     // On rafraîchit immédiatement l'affichage de la liste pour qu'elle disparaisse
-                    renderShoppingList();
+                    //renderShoppingList();
                     // --- FIN DE LA CORRECTION ---
 
-                    updateAuthUI();
+                    //updateAuthUI();
                 }
             }
 
