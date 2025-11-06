@@ -1436,7 +1436,66 @@ Maintenant, analyse la recette suivante :
                 recipeFormModal.style.display = 'block';
             }
 
-            // --- AJOUTEZ CES TROIS FONCTIONS ---
+            async function addRecipeIngredientsToShoppingList(recipeId) {
+                const recipe = recipes.find(r => r.id == recipeId);
+                if (!recipe || !recipe.ingredients) {
+                    alert("Cette recette n'a pas d'ingrédients à ajouter.");
+                    return;
+                }
+
+                // Sépare les ingrédients par ligne et enlève les lignes vides
+                const ingredients = recipe.ingredients.split('\n').filter(line => line.trim() !== '');
+                if (ingredients.length === 0) {
+                    alert("Aucun ingrédient trouvé dans cette recette.");
+                    return;
+                }
+
+                if (!confirm(`Voulez-vous ajouter ${ingredients.length} ingrédient(s) à votre liste d'épicerie ?`)) {
+                    return;
+                }
+
+                const itemsToAddPromises = [];
+                let itemsSkippedCount = 0;
+
+                ingredients.forEach(ingredientName => {
+                    const cleanedName = ingredientName.split('(')[0].trim();
+
+                    // Vérifie si l'article est déjà dans la liste (insensible à la casse)
+                    const alreadyInList = shoppingList.some(shopItem =>
+                        shopItem.name.trim().toLowerCase() === cleanedName.toLowerCase()
+                    );
+
+                    if (!alreadyInList) {
+                        const newItem = {
+                            name: cleanedName,
+                            quantity: '1' // Quantité par défaut
+                        };
+                        itemsToAddPromises.push(apiCall('shopping-list', 'POST', newItem));
+                    } else {
+                        itemsSkippedCount++;
+                    }
+                });
+
+                if (itemsToAddPromises.length === 0) {
+                    alert("Tous les ingrédients de cette recette sont déjà dans votre liste d'épicerie.");
+                    return;
+                }
+
+                try {
+                    await Promise.all(itemsToAddPromises);
+                    alert(`${itemsToAddPromises.length} ingrédient(s) ont été ajouté(s) avec succès.`);
+                    if (itemsSkippedCount > 0) {
+                        console.log(`${itemsSkippedCount} ingrédient(s) étaient déjà dans la liste et n'ont pas été ajoutés.`);
+                    }
+                    loadServerData(); // Recharge les données pour voir la liste à jour
+                } catch (error) {
+                    console.error("Erreur lors de l'ajout des ingrédients:", error);
+                    alert("Une erreur est survenue lors de l'ajout des ingrédients.");
+                } finally {
+                    closeRecipeViewModal(); // Ferme la modale après l'opération
+                }
+            }
+
             function closeRecipeFormModal() {
                 recipeFormModal.style.display = 'none';
             }
@@ -1461,9 +1520,8 @@ Maintenant, analyse la recette suivante :
                     <button class="btn btn-delete" id="delete-recipe-btn">Supprimer</button>
                 `;
                 
-                // Les écouteurs d'événements utilisent maintenant l'ID
-                // Note: La logique d'ajout d'ingrédients doit aussi être mise à jour
-                // footer.querySelector('#add-ingredients-to-list-btn').addEventListener('click', () => addRecipeIngredientsToShoppingList(recipe.id));
+                // On attache les écouteurs d'événements aux 3 boutons
+                footer.querySelector('#add-ingredients-to-list-btn').addEventListener('click', () => addRecipeIngredientsToShoppingList(recipe.id));
                 footer.querySelector('#edit-recipe-btn').addEventListener('click', () => { closeRecipeViewModal(); openRecipeFormModal(recipe.id); });
                 footer.querySelector('#delete-recipe-btn').addEventListener('click', () => deleteRecipe(recipe.id));
                 
@@ -1524,22 +1582,6 @@ Maintenant, analyse la recette suivante :
                     card.addEventListener('click', () => viewRecipe(recipe.id)); 
                     recipeListDisplay.appendChild(card);
                 });
-            }
-
-            function viewRecipe(recipeId) {
-                const recipe = recipes.find(r => r.id == recipeId);
-                if (!recipe) return;
-                
-                // ... la logique pour remplir la modale reste la même ...
-                
-                const footer = document.getElementById('recipe-view-footer');
-                footer.innerHTML = `...`; // Le HTML reste le même
-                
-                // Les écouteurs d'événements utilisent maintenant l'ID
-                footer.querySelector('#edit-recipe-btn').addEventListener('click', () => { closeRecipeViewModal(); openRecipeFormModal(recipe.id); });
-                footer.querySelector('#delete-recipe-btn').addEventListener('click', () => deleteRecipe(recipe.id));
-                
-                recipeViewModal.style.display = 'block';
             }
 
             function openRecipeFormModal(recipeId = null) {
