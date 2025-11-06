@@ -1,0 +1,25 @@
+{% extends "admin/index.html" %}
+
+{% block content %}
+{{ block.super }}
+
+<div class="app-core module">
+    <table>
+        <caption>
+            <a href="{% url 'admin:data-management' %}" class="section" title="Outils de gestion de données">
+                Outils de Gestion
+            </a>
+        </caption>
+        <tbody>
+            <tr class="model-group">
+                <th scope="row">
+                    <a href="{% url 'admin:data-management' %}">Gestion Avancée des Données</a>
+                </th>
+                <td>
+                    <a href="{% url 'admin:data-management' %}" class="addlink">Accéder</a>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+{% endblock %}

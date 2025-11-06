@@ -19,7 +19,26 @@ from django.urls import path, include
 from core import views
 from django.conf import settings
 
+# --- NOUVELLES IMPORTATIONS ---
+from core.views import (
+    data_management_view,
+    reset_flyers_view,
+    reset_community_prices_view,
+    reset_users_view,
+    reset_all_data_view,
+)
+# --- FIN DES NOUVELLES IMPORTATIONS ---
+
 urlpatterns = [
+    # --- DÉBUT DES NOUVELLES URLS DE GESTION ---
+    # On les place avant l'URL admin par défaut
+    path('admin/data-management/', data_management_view, name='data-management'),
+    path('admin/data-management/reset-flyers/', reset_flyers_view, name='reset-flyers'),
+    path('admin/data-management/reset-community-prices/', reset_community_prices_view, name='reset-community-prices'),
+    path('admin/data-management/reset-users/', reset_users_view, name='reset-users'),
+    path('admin/data-management/reset-all/', reset_all_data_view, name='reset-all'),
+    # --- FIN DES NOUVELLES URLS DE GESTION ---
+
     path('admin/', admin.site.urls),
     path('accounts/', include('django.contrib.auth.urls')),
     path('', views.assistant_epicerie, name='assistant_epicerie'),

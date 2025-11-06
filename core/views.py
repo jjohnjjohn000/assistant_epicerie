@@ -1,14 +1,14 @@
 # Fichier : core/views.py
 
 from django.shortcuts import render, get_object_or_404
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponseRedirect
 from django.utils import timezone
-from rest_framework.decorators import api_view, permission_classes # Import 'permission_classes'
-from rest_framework.permissions import IsAuthenticated # Import IsAuthenticated
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework import status
 from datetime import datetime
-from .models import Commerce, Produit, Circulaire, Prix, Categorie, Profile, Report # Ajouter Profile et Report
+from .models import Commerce, Produit, Circulaire, Prix, Categorie, Profile, Report, InventoryItem, ShoppingListItem, Recipe
 from django.db.models import Prefetch, Count
 from collections import defaultdict
 from django.contrib.auth.models import User
@@ -18,6 +18,11 @@ from rest_framework.views import APIView
 from .models import InventoryItem, ShoppingListItem, Recipe
 from .serializers import InventoryItemSerializer, ShoppingListItemSerializer, RecipeSerializer, ProduitSerializer, PrixSubmissionSerializer
 from datetime import timedelta, date
+from django.contrib.admin.views.decorators import staff_member_required
+from django.template.response import TemplateResponse
+from django.http import HttpResponseRedirect
+from django.contrib import messages
+
 
 # ... (les autres vues comme assistant_epicerie, optimiseur_rabais) ...
 def assistant_epicerie(request):
@@ -144,26 +149,21 @@ def get_circulaires_actives(request):
     return JsonResponse(data)
     
 @api_view(['GET'])
+@permission_classes([AllowAny])
 def get_commerces(request):
     """
     Retourne la liste de tous les commerces avec leur ID, nom, adresse et site web.
     """
-    # On récupère tous les objets Commerce et on sélectionne les champs qu'on veut retourner.
-    # .values() est efficace car il ne récupère que les données nécessaires.
     commerces = Commerce.objects.all().values('id', 'nom', 'adresse', 'site_web')
-    
-    # On convertit le résultat en une liste.
     data = list(commerces)
-    
-    # On retourne la liste sous forme de réponse JSON.
-    # `safe=False` est nécessaire pour permettre de retourner une liste en JSON.
     return JsonResponse(data, safe=False)
 
-# VUE MODIFIÉE POUR INCLURE LES INFOS DE CONFIRMATION
 @api_view(['GET'])
+@permission_classes([AllowAny])
 def get_rabais_actifs(request):
     today = timezone.now().date()
-    prix_en_rabais = Prix.objects.select_related("produit", "commerce", "submitted_by").filter(
+    # On ajoute 'produit__categorie' pour optimiser la requête et l'inclure
+    prix_en_rabais = Prix.objects.select_related("produit", "commerce", "submitted_by", "produit__categorie").filter(
         circulaire__isnull=False,
         circulaire__date_debut__lte=today,
         circulaire__date_fin__gte=today,
@@ -172,26 +172,30 @@ def get_rabais_actifs(request):
     for prix_obj in prix_en_rabais:
         details = f"🔥 {prix_obj.details_prix or str(prix_obj.prix) + ' $'}"
         
-        # --- DÉBUT DE LA MODIFICATION ---
         submitter_username = None
         if prix_obj.submitted_by:
             details += f" (Ajouté par 👤 {prix_obj.submitted_by.username})"
             submitter_username = prix_obj.submitted_by.username
-        # --- FIN DE LA MODIFICATION ---
+
+        # On récupère le nom de la catégorie, avec une valeur par défaut
+        categorie_nom = "Non classé"
+        if prix_obj.produit.categorie:
+            categorie_nom = prix_obj.produit.categorie.nom
 
         data.append({
             "price_id": prix_obj.id,
             "produit_nom": prix_obj.produit.nom,
             "commerce_nom": prix_obj.commerce.nom,
+            "categorie_nom": categorie_nom, # On ajoute la catégorie au JSON
             "details_prix": details,
             "prix": str(prix_obj.prix),
-            # On envoie le nom d'utilisateur directement
             "submitted_by_username": submitter_username
         })
     return JsonResponse(data, safe=False)
 
 
 @api_view(['GET'])
+@permission_classes([AllowAny])
 def get_community_prices(request):
     one_week_ago = timezone.now() - timedelta(days=7)
     
@@ -638,3 +642,57 @@ def report_price(request, price_id):
     )
     
     return Response({'status': 'succès', 'message': 'Le prix a été signalé. Merci de votre contribution !'}, status=status.HTTP_201_CREATED)
+
+
+@staff_member_required
+def data_management_view(request):
+    """
+    Affiche la page principale de gestion des données.
+    """
+    context = {
+        'title': 'Gestion Avancée des Données',
+        'has_permission': request.user.is_superuser,
+    }
+    # On ajoute le contexte de l'admin pour que le template fonctionne correctement
+    context.update(admin.site.each_context(request))
+    return TemplateResponse(request, 'admin/data_management.html', context)
+
+@staff_member_required
+def reset_flyers_view(request):
+    if request.method == 'POST' and request.user.is_superuser:
+        prix_count, _ = Prix.objects.filter(circulaire__isnull=False).delete()
+        circulaire_count, _ = Circulaire.objects.all().delete()
+        messages.success(request, f'{circulaire_count} circulaires et {prix_count} prix associés ont été supprimés.')
+    return HttpResponseRedirect('/admin/data-management/')
+
+@staff_member_required
+def reset_community_prices_view(request):
+    if request.method == 'POST' and request.user.is_superuser:
+        count, _ = Prix.objects.filter(circulaire__isnull=True).delete()
+        messages.success(request, f'{count} prix communautaires ont été supprimés.')
+    return HttpResponseRedirect('/admin/data-management/')
+
+@staff_member_required
+def reset_users_view(request):
+    if request.method == 'POST' and request.user.is_superuser:
+        count, _ = User.objects.filter(is_superuser=False).delete()
+        messages.success(request, f'{count} utilisateurs (non-administrateurs) ont été supprimés.')
+    return HttpResponseRedirect('/admin/data-management/')
+
+@staff_member_required
+def reset_all_data_view(request):
+    if request.method == 'POST' and request.user.is_superuser:
+        Report.objects.all().delete()
+        Prix.objects.all().delete()
+        Circulaire.objects.all().delete()
+        InventoryItem.objects.all().delete()
+        ShoppingListItem.objects.all().delete()
+        Recipe.objects.all().delete()
+        Produit.objects.all().delete()
+        Commerce.objects.all().delete()
+        Categorie.objects.all().delete()
+        User.objects.filter(is_superuser=False).delete()
+        messages.warning(request, 'La base de données a été entièrement réinitialisée (sauf les comptes administrateurs).')
+    return HttpResponseRedirect('/admin/data-management/')
+
+# --- FIN DES AJOUTS POUR LA GESTION ADMIN ---

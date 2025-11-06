@@ -124,6 +124,7 @@
             color: #27ae60;
             text-align: right;
         }
+        
         /* --- NOUVEAUX STYLES POUR L'ACCORDÉON DE RABAIS --- */
         .store-rabais-group {
             border: 1px solid #e9ecef;
@@ -171,6 +172,42 @@
         }
         .store-rabais-group .rabais-grid {
             padding: 15px;
+        }
+        /* --- NOUVEAUX STYLES POUR L'ACCORDÉON DE CATÉGORIES --- */
+        .category-rabais-group {
+            margin: 0 15px 10px 15px;
+            border: 1px solid #f0f0f0;
+            border-radius: 6px;
+            background-color: #fcfcfc;
+        }
+        .category-rabais-summary {
+            padding: 10px 15px;
+            font-weight: 500; /* Moins gras que le magasin */
+            cursor: pointer;
+            color: #4a5568; /* Un peu plus clair */
+            font-size: 1em;
+            list-style: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .category-rabais-summary::-webkit-details-marker { display: none; }
+        .category-rabais-summary:hover {
+            background-color: #f0f3f5;
+        }
+        .category-rabais-summary::before {
+            content: '›';
+            margin-right: 8px;
+            font-weight: bold;
+            color: #3498db;
+            transition: transform 0.2s ease-in-out;
+            transform: rotate(0deg);
+        }
+        .category-rabais-group[open] > .category-rabais-summary::before {
+             transform: rotate(90deg);
+        }
+        .category-rabais-group[open] > .category-rabais-summary {
+            border-bottom: 1px solid #e9ecef;
         }
     </style>
 </head>
@@ -624,12 +661,93 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
         const reportProductName = document.getElementById('report-product-name');
         const hiddenReportPriceId = document.getElementById('hidden-report-price-id');
 
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        async function apiCall(endpoint, method = 'GET', body = null) {
+            const headers = {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            };
+            const token = localStorage.getItem('authToken');
+            if (token) {
+                headers['Authorization'] = `Token ${token}`;
+            }
+
+            const options = { method, headers };
+            if (body) {
+                options.body = JSON.stringify(body);
+            }
+
+            const response = await fetch(endpoint, options);
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.detail || `Erreur ${response.status}`);
+            }
+            if (response.status === 204) {
+                return null;
+            }
+            return response.json();
+        }
+
         let optimizedItems = [];
         let allStores = []; // Pour garder la liste des commerces en mémoire
         let nearbyStores = []; 
         let manualStores = [];
         let flyerData = {}; 
         let activeDeals = [];
+
+        // --- DÉBUT DES MODIFICATIONS ---
+        const ACCORDION_STATE_KEY = 'optimiseurAccordionStates';
+
+        /**
+         * Sauvegarde l'état (ouvert/fermé) de chaque accordéon de magasin.
+         */
+        function saveAccordionStates() {
+            const states = {};
+            document.querySelectorAll('#rabais-actifs-display .store-rabais-group').forEach(details => {
+                const summary = details.querySelector('.store-rabais-summary');
+                if (summary && summary.firstChild) {
+                    // Extrait le nom du magasin, qui est le premier nœud de texte dans le <summary>
+                    const storeName = summary.firstChild.textContent.trim();
+                    if (storeName) {
+                        states[storeName] = details.open;
+                    }
+                }
+            });
+            localStorage.setItem(ACCORDION_STATE_KEY, JSON.stringify(states));
+        }
+
+        /**
+         * Applique l'état sauvegardé aux accordéons lors du chargement.
+         */
+        function applyAccordionStates() {
+            const savedStates = JSON.parse(localStorage.getItem(ACCORDION_STATE_KEY)) || {};
+            document.querySelectorAll('#rabais-actifs-display .store-rabais-group').forEach(details => {
+                const summary = details.querySelector('.store-rabais-summary');
+                if (summary && summary.firstChild) {
+                    const storeName = summary.firstChild.textContent.trim();
+                    // Si un état est sauvegardé pour ce magasin, on l'applique.
+                    // Sinon, il conserve son état par défaut (ouvert).
+                    if (savedStates.hasOwnProperty(storeName)) {
+                        details.open = savedStates[storeName];
+                    }
+                }
+            });
+        }
+        // --- FIN DES MODIFICATIONS ---
 
         function saveFlyerData() { localStorage.setItem('flyerData', JSON.stringify(flyerData)); }
         function loadFlyerData() { flyerData = JSON.parse(localStorage.getItem('flyerData')) || {}; }
@@ -807,58 +925,92 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
         }
 
         async function findNearbyStores() {
-            findStoresBtn.disabled = true; sortStoresBtn.style.display = 'none';
+            findStoresBtn.disabled = true;
+            sortStoresBtn.style.display = 'none';
             storesListDisplay.innerHTML = '<p>Recherche des commerces en cours...</p>';
-            
+
+            if (!navigator.geolocation) {
+                storesListDisplay.innerHTML = '<p>La géolocalisation n\'est pas supportée par votre navigateur.</p>';
+                findStoresBtn.disabled = false;
+                return;
+            }
+
             const selectedTypes = Array.from(document.querySelectorAll('.store-type-filter:checked')).map(cb => cb.value);
             if (selectedTypes.length === 0) {
                 storesListDisplay.innerHTML = '<p>Veuillez sélectionner au moins un type de commerce.</p>';
-                findStoresBtn.disabled = false; return;
-            }
-            if (!navigator.geolocation) {
-                storesListDisplay.innerHTML = '<p>La géolocalisation n est pas supportée.</p>';
-                findStoresBtn.disabled = false; return;
+                findStoresBtn.disabled = false;
+                return;
             }
 
             navigator.geolocation.getCurrentPosition(async position => {
                 const { latitude, longitude } = position.coords;
-                const radius = 2000;
-                const filterMap = {
-                    supermarket: `node["shop"="supermarket"](around:${radius},${latitude},${longitude}); way["shop"="supermarket"](around:${radius},${latitude},${longitude});`,
-                    grocery: `node["shop"="grocery"](around:${radius},${latitude},${longitude}); way["shop"="grocery"](around:${radius},${latitude},${longitude});`,
-                    convenience: `node["shop"="convenience"](around:${radius},${latitude},${longitude}); way["shop"="convenience"](around:${radius},${latitude},${longitude});`,
-                    pharmacy: `node["amenity"="pharmacy"](around:${radius},${latitude},${longitude}); way["amenity"="pharmacy"](around:${radius},${latitude},${longitude});`
-                };
-                const queryParts = selectedTypes.map(type => filterMap[type]).join('\n');
-                const query = `[out:json][timeout:25];(${queryParts}); out center;`;
+                const radius = 2000; // Rayon de recherche de 2km
+
+                // --- DÉBUT DE LA MODIFICATION : Requête Overpass simplifiée et plus robuste ---
+                let queryParts = [];
+                
+                // Regroupe les types 'shop' pour une requête plus efficace
+                const shopTypes = selectedTypes.filter(type => ['supermarket', 'grocery', 'convenience'].includes(type));
+                if (shopTypes.length > 0) {
+                    // Utilise l'opérateur '~' pour une regex qui cherche l'un des types
+                    const shopQuery = shopTypes.join('|');
+                    queryParts.push(`nwr["shop"~"${shopQuery}"](around:${radius},${latitude},${longitude});`);
+                }
+
+                // Gère la pharmacie séparément car elle utilise la clé 'amenity'
+                if (selectedTypes.includes('pharmacy')) {
+                    queryParts.push(`nwr["amenity"="pharmacy"](around:${radius},${latitude},${longitude});`);
+                }
+
+                // 'nwr' est un raccourci pour 'node, way, relation', ce qui simplifie la requête.
+                const query = `[out:json][timeout:25]; (${queryParts.join('')}); out center;`;
+                // --- FIN DE LA MODIFICATION ---
+
                 const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`;
 
                 try {
                     const response = await fetch(url);
-                    if (!response.ok) throw new Error(`Erreur réseau: ${response.statusText}`);
+                    if (!response.ok) {
+                        // Donne un message d'erreur plus spécifique en cas d'échec de l'API
+                        throw new Error(`Le service de cartographie a retourné une erreur : ${response.status} ${response.statusText}`);
+                    }
                     const data = await response.json();
+                    console.log("Réponse de l'API Overpass :", data);
                     processAndDisplayStores(data.elements, latitude, longitude);
                 } catch (error) {
                     console.error("Erreur Overpass:", error);
-                    storesListDisplay.innerHTML = '<p>Impossible de récupérer les données des commerces.</p>';
+                    storesListDisplay.innerHTML = `<p>Impossible de récupérer les données des commerces. Le service externe est peut-être temporairement indisponible. <br>Erreur : ${error.message}</p>`;
                 } finally {
                     findStoresBtn.disabled = false;
                 }
             }, () => {
-                storesListDisplay.innerHTML = '<p>La géolocalisation a été refusée.</p>';
+                storesListDisplay.innerHTML = '<p>La géolocalisation a été refusée. Veuillez autoriser l\'accès à votre position pour utiliser cette fonctionnalité.</p>';
                 findStoresBtn.disabled = false;
             });
         }
         
         function processAndDisplayStores(places, userLat, userLon) {
-            nearbyStores = [];
+            let foundStores = []; // Crée une liste temporaire pour les résultats
+            
+            // Gère le cas où la recherche ne retourne aucun résultat
             if (!places || places.length === 0) {
-                renderAllStores(); return;
+                nearbyStores = []; // Vide la liste des commerces à proximité
+                renderAllStores(); // Affiche la liste (qui contiendra les commerces manuels)
+                
+                // Ajoute un message d'information clair pour l'utilisateur
+                const message = document.createElement('p');
+                message.style.color = '#e67e22'; // Orange pour un avertissement
+                message.style.marginBottom = '15px';
+                message.textContent = 'Aucun commerce correspondant aux critères n\'a été trouvé à proximité.';
+                storesListDisplay.prepend(message);
+                return;
             }
+
             const uniquePlaces = new Map();
             places.forEach(place => {
-                if (place.tags && place.tags.name && !uniquePlaces.has(place.tags.name)) {
-                    uniquePlaces.set(place.tags.name, place);
+                // Utilise toLowerCase() pour éviter les doublons dus à la casse (ex: "Iga" et "IGA")
+                if (place.tags && place.tags.name && !uniquePlaces.has(place.tags.name.toLowerCase())) {
+                    uniquePlaces.set(place.tags.name.toLowerCase(), place);
                 }
             });
 
@@ -867,45 +1019,88 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
                 const storeLon = place.type === 'node' ? place.lon : place.center.lon;
                 const distance = calculateDistance(userLat, userLon, storeLat, storeLon);
                 const website = place.tags.website || place.tags['contact:website'];
-                const addressParts = [ place.tags['addr:housenumber'], place.tags['addr:street'], place.tags['addr:city'], place.tags['addr:postcode'] ].filter(Boolean);
+                const addressParts = [
+                    place.tags['addr:housenumber'],
+                    place.tags['addr:street'],
+                    place.tags['addr:city'],
+                    place.tags['addr:postcode']
+                ].filter(Boolean); // Filtre les parties d'adresse vides
                 const address = addressParts.join(', ') || 'Adresse non disponible';
-                nearbyStores.push({ id: place.id, name: place.tags.name, distance: distance, website: website, address: address, lat: storeLat, lon: storeLon });
+                
+                foundStores.push({
+                    id: place.id,
+                    name: place.tags.name,
+                    distance: distance,
+                    website: website,
+                    address: address,
+                    lat: storeLat,
+                    lon: storeLon
+                });
             });
-            renderAllStores();
+
+            // Remplace l'ancienne liste des commerces à proximité par la nouvelle
+            nearbyStores = foundStores;
+            
+            renderAllStores(); // Met à jour l'affichage global
             sortStoresBtn.style.display = nearbyStores.length > 0 ? 'inline-block' : 'none';
         }
 
-        // --- VERSION CORRIGÉE ---
         function renderAllStores() {
             storesListDisplay.innerHTML = '';
-            const allStores = [...manualStores, ...nearbyStores];
+
+            // --- Logique améliorée pour fusionner et dédoublonner les listes ---
+            const allStoresMap = new Map();
+            
+            // Les commerces manuels sont prioritaires
+            manualStores.forEach(store => allStoresMap.set(store.name.toLowerCase(), store));
+            
+            // Ajoute les commerces à proximité seulement s'ils ne sont pas déjà dans la liste manuelle
+            nearbyStores.forEach(store => {
+                if (!allStoresMap.has(store.name.toLowerCase())) {
+                    allStoresMap.set(store.name.toLowerCase(), store);
+                }
+            });
+
+            const allStores = Array.from(allStoresMap.values());
+
+            // Trie la liste : d'abord par distance, puis alphabétiquement pour les commerces manuels
+            allStores.sort((a, b) => {
+                const aHasDist = a.distance !== undefined;
+                const bHasDist = b.distance !== undefined;
+
+                if (aHasDist && !bHasDist) return -1;
+                if (!aHasDist && bHasDist) return 1;
+                if (aHasDist && bHasDist) return a.distance - b.distance;
+                return a.name.localeCompare(b.name);
+            });
+            // --- Fin de la logique améliorée ---
+
+            if (allStores.length === 0) {
+                storesListDisplay.innerHTML = '<p class="placeholder">La liste des commerces apparaîtra ici. Utilisez la recherche ou ajoutez des commerces manuellement.</p>';
+                return;
+            }
 
             allStores.forEach(store => {
                 const storeElement = document.createElement('div');
                 storeElement.className = 'store-item';
                 const sanitizedId = store.name.replace(/[^a-zA-Z0-9]/g, '');
-                let isManual = manualStores.some(ms => ms.name === store.name);
+                let isManual = manualStores.some(ms => ms.name.toLowerCase() === store.name.toLowerCase());
                 
                 let storeDetailsHtml;
-                if (isManual) {
-                    const manualStoreData = manualStores.find(ms => ms.name === store.name);
-                    let addressHtml = manualStoreData.address && manualStoreData.address !== 'Adresse non fournie' ? `<div class="store-address">${manualStoreData.address}</div>` : '';
-                    let websiteHtml = manualStoreData.website && manualStoreData.website !== '#' ? `<a href="${manualStoreData.website}" target="_blank">Visiter le site web</a>` : `<span>(Ajouté manuellement)</span>`;
-                    storeDetailsHtml = `${addressHtml}<div class="store-details">${websiteHtml}</div>`;
-                } else {
+                if (store.distance !== undefined) { // C'est un commerce trouvé à proximité
                     storeDetailsHtml = `<div class="store-address">${store.address}</div><div class="store-details"><span>Distance: ~${store.distance.toFixed(1)} km</span> | <a href="https://www.openstreetmap.org/?mlat=${store.lat}&mlon=${store.lon}#map=18/${store.lat}/${store.lon}" target="_blank">Voir sur la carte</a></div>`;
+                } else { // C'est un commerce manuel
+                    let addressHtml = store.address && store.address !== 'Adresse non fournie' ? `<div class="store-address">${store.address}</div>` : '';
+                    let websiteHtml = store.website && store.website !== '#' ? `<a href="${store.website}" target="_blank">Visiter le site web</a>` : `<span>(Ajouté manuellement)</span>`;
+                    storeDetailsHtml = `${addressHtml}<div class="store-details">${websiteHtml}</div>`;
                 }
                 
                 const storeNameTrimmed = store.name.trim();
                 const flyerDataKeys = Object.keys(flyerData);
-                const matchingKey = flyerDataKeys.find(key => key.trim() === storeNameTrimmed);
+                const matchingKey = flyerDataKeys.find(key => key.trim().toLowerCase() === storeNameTrimmed.toLowerCase());
                 const hasFlyer = !!matchingKey;
                 
-                let flyerButtonHtml = '';
-                if (hasFlyer) {
-                    flyerButtonHtml = `<button class="btn btn-view-flyer" data-store-name="${matchingKey}">Voir la circulaire</button>`;
-                }
-
+                let flyerButtonHtml = hasFlyer ? `<button class="btn btn-view-flyer" data-store-name="${matchingKey}">Voir la circulaire</button>` : '';
                 const editButtonHtml = isManual ? `<button class="btn btn-edit-manual btn-small" data-store-name="${store.name}" style="background-color: #f39c12;">Éditer</button>` : '';
                 const deleteButtonHtml = isManual ? `<button class="btn btn-delete-manual btn-small" data-store-name="${store.name}" style="background-color: #c0392b;">X</button>` : '';
 
@@ -913,8 +1108,6 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
                 storesListDisplay.appendChild(storeElement);
             });
 
-            if (allStores.length === 0) { storesListDisplay.innerHTML = '<p class="placeholder">La liste des commerces apparaîtra ici.</p>'; }
-            
             document.querySelectorAll('.btn-edit-manual').forEach(button => button.addEventListener('click', openStoreEditModal));
             document.querySelectorAll('.btn-delete-manual').forEach(button => button.addEventListener('click', deleteManualStore));
             document.querySelectorAll('.btn-view-flyer').forEach(button => button.addEventListener('click', openFlyerModal));
@@ -955,10 +1148,12 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
         // MODIFIER la fonction loadStoresIntoModal pour qu'elle s'occupe de TOUTES les listes déroulantes
         async function loadStoresIntoModal() {
             try {
-                const response = await fetch('/api/commerces/');
-                if (!response.ok) throw new Error('Impossible de charger les commerces.');
-                
-                const stores = await response.json();
+                //const response = await fetch('/api/commerces/');
+                const stores = await apiCall('/api/commerces/'); // NOUVEAU CODE
+
+                //if (!response.ok) throw new Error('Impossible de charger les commerces.');                
+                //const stores = await response.json();
+
                 allStores = stores; // Sauvegarde pour un accès futur
                 
                 // --- DEBUT DE LA MODIFICATION ---
@@ -1026,7 +1221,7 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
             }
 
             try {
-                const searchResponse = await fetch(`/api/products/search/?q=${encodeURIComponent(productName)}`);
+                const searchResponse = await apiCall(`/api/products/search/?q=${encodeURIComponent(productName)}`);
                 const products = await searchResponse.json();
                 
                 let productId = null;
@@ -1058,7 +1253,7 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
 
         // Fonction séparée pour la soumission de prix, pour la réutiliser
         async function submitPrice(productId, commerceId, price, token) {
-            const submissionResponse = await fetch('/api/prices/', {
+            const submissionResponse = await apiCall('/api/prices/', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -1088,7 +1283,7 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
 
             try {
                 // Étape 1 : Créer le nouveau produit via l'API
-                const createResponse = await fetch('/api/products/', {
+                const createResponse = await apiCall('/api/products/', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1140,7 +1335,7 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
             };
 
             try {
-                const response = await fetch('/api/submit-deal/', {
+                const response = await apiCall('/api/submit-deal/', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1303,7 +1498,7 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
             button.textContent = '...';
 
             try {
-                const response = await fetch(`/api/prices/${priceId}/confirm/`, {
+                const response = await apiCall(`/api/prices/${priceId}/confirm/`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1374,7 +1569,7 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
             const comments = document.getElementById('report-comments').value;
 
             try {
-                const response = await fetch(`/api/prices/${priceId}/report/`, {
+                const response = await apiCall(`/api/prices/${priceId}/report/`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1624,19 +1819,13 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
                 return;
             }
 
-            // --- DÉBUT DE LA MODIFICATION ---
             // On ajoute un paramètre unique pour forcer le navigateur à ne pas utiliser de cache
             const cacheBuster = `?t=${new Date().getTime()}`;
-            // On charge les deux sources de prix en parallèle pour plus de rapidité
-            const [flyerDealsResponse, communityPricesResponse] = await Promise.all([
-                fetch(`/api/rabais-actifs/${cacheBuster}`),
-                fetch(`/api/community-prices/${cacheBuster}`)
+            const [flyerDeals, communityPrices] = await Promise.all([
+                apiCall(`/api/rabais-actifs/${cacheBuster}`),
+                apiCall(`/api/community-prices/${cacheBuster}`)
             ]);
-            // --- FIN DE LA MODIFICATION ---
             
-            const flyerDeals = await flyerDealsResponse.json();
-            const communityPrices = await communityPricesResponse.json();
-
             // On fusionne les deux listes en une seule
             const allAvailablePrices = [
                 ...flyerDeals.map(d => ({ ...d, type: 'rabais' })), // On ajoute le type 'rabais'
@@ -1717,14 +1906,11 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
         }
 
         function chargerCommercesDepuisDB(shouldRender = true) {
-            return fetch('/api/commerces/')
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Erreur réseau lors de la récupération des commerces.');
-                    }
-                    return response.json();
-                })
+            return apiCall('/api/commerces/')
                 .then(commercesFromDB => {
+                    if (!Array.isArray(commercesFromDB)) {
+                        throw new Error('La réponse des commerces n\'est pas un tableau.');
+                    }
                     const allStores = new Map();
                     manualStores.forEach(store => allStores.set(store.name.toLowerCase(), store));
                     commercesFromDB.forEach(commerce => {
@@ -1753,7 +1939,7 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
             // On charge d'abord ceux qui sont sauvegardés localement
             loadManualStores(); 
             // Ensuite, on met à jour avec ceux de la base de données
-            return fetch('/api/commerces/')
+            return apiCall('/api/commerces/')
                 .then(response => response.json())
                 .then(commercesFromDB => {
                     const allStoresMap = new Map();
@@ -1772,8 +1958,7 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
 
         // Fonction pour charger les données des circulaires actives
         function chargerCirculairesActives() {
-            return fetch('/api/circulaires-actives/')
-                .then(response => response.json())
+            return apiCall('/api/circulaires-actives/')
                 .then(data => {
                     flyerData = data;
                     // Sauvegarder dans localStorage pour la page d'inventaire
@@ -1783,8 +1968,7 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
 
         // Fonction pour charger les rabais (pour la section "Rabais Actifs")
         function chargerRabaisActifs() {
-            return fetch('/api/rabais-actifs/')
-                .then(response => response.json())
+            return apiCall('/api/rabais-actifs/')
                 .then(data => {
                     activeDeals = data;
                     renderRabaisGrid(data); // Met à jour l'affichage de cette section
@@ -1792,7 +1976,7 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
         }
 
         function chargerDonneesCirculaires(shouldRender = true) {
-            return fetch('/api/circulaires-actives/')
+            return apiCall('/api/circulaires-actives/')
                 .then(response => {
                     if (!response.ok) {
                         throw new Error('Erreur réseau lors de la récupération des circulaires.');
@@ -1826,7 +2010,7 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
             
             const csrftoken = getCookie('csrftoken');
 
-            fetch(apiUrl, {
+            apiCall(apiUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -2061,7 +2245,7 @@ Maintenant, génère le JSON pour la liste que je t'ai fournie.`;
             }
             container.innerHTML = '';
 
-            // 1. Regrouper les rabais par commerce
+            // 1. Regrouper les rabais par commerce (logique existante)
             const rabaisParCommerce = rabais.reduce((acc, item) => {
                 const store = item.commerce_nom;
                 if (!acc[store]) {
@@ -2075,74 +2259,101 @@ Maintenant, génère le JSON pour la liste que je t'ai fournie.`;
 
             // 2. Créer un accordéon pour chaque commerce
             sortedStores.forEach(storeName => {
-                const items = rabaisParCommerce[storeName];
+                const itemsDuCommerce = rabaisParCommerce[storeName];
                 
-                const details = document.createElement('details');
-                details.className = 'store-rabais-group';
+                const storeDetails = document.createElement('details');
+                storeDetails.className = 'store-rabais-group';
+                storeDetails.open = true; // Par défaut, on laisse les magasins ouverts
 
-                const summary = document.createElement('summary');
-                summary.className = 'store-rabais-summary';
-                summary.innerHTML = `${storeName} <span class="deal-count">${items.length} rabais</span>`;
+                const storeSummary = document.createElement('summary');
+                storeSummary.className = 'store-rabais-summary';
+                storeSummary.innerHTML = `${storeName} <span class="deal-count">${itemsDuCommerce.length} rabais</span>`;
                 
-                const grid = document.createElement('div');
-                grid.className = 'rabais-grid';
+                storeDetails.appendChild(storeSummary);
 
-                items.forEach(item => {
-                    // --- DÉBUT DE LA MODIFICATION ---
-                    let confirmButtonHtml = '';
-                    const currentUser = localStorage.getItem('username');
-
-                    // On affiche le bouton seulement si le rabais a été ajouté par un autre utilisateur
-                    if (item.submitted_by_username && item.submitted_by_username !== currentUser) {
-                        confirmButtonHtml = `
-                            <button class="btn btn-small btn-confirm-price" data-price-id="${item.price_id}" style="background-color: #27ae60; margin-top: 8px;">
-                                Confirmer
-                            </button>
-                        `;
+                // --- DÉBUT DE LA NOUVELLE LOGIQUE : REGROUPER PAR CATÉGORIE ---
+                const rabaisParCategorie = itemsDuCommerce.reduce((acc, item) => {
+                    const category = item.categorie_nom || "Non classé"; // Utilise la nouvelle clé
+                    if (!acc[category]) {
+                        acc[category] = [];
                     }
-
-                    const itemHtml = `
-                        <div class="rabais-item">
-                            <div>
-                                <span class="produit-nom">${item.produit_nom}</span>
-                                <span class="commerce-nom">${item.commerce_nom}</span>
-                            </div>
-                            <div style="text-align: right; flex-shrink: 0;">
-                                <div class="prix-info">${item.details_prix || item.prix + ' $'}</div>
-                                ${confirmButtonHtml}
-                            </div>
-                        </div>
-                    `;
-                    // --- FIN DE LA MODIFICATION ---
-                    grid.innerHTML += itemHtml;
-                });
+                    acc[category].push(item);
+                    return acc;
+                }, {});
                 
-                details.appendChild(summary);
-                details.appendChild(grid);
-                container.appendChild(details);
+                const sortedCategories = Object.keys(rabaisParCategorie).sort();
+                
+                // Boucle sur les catégories pour créer les accordéons imbriqués
+                sortedCategories.forEach(categoryName => {
+                    const itemsDeCategorie = rabaisParCategorie[categoryName];
+
+                    const categoryDetails = document.createElement('details');
+                    categoryDetails.className = 'category-rabais-group';
+                    
+                    const categorySummary = document.createElement('summary');
+                    categorySummary.className = 'category-rabais-summary';
+                    // Affiche le nom de la catégorie et le nombre d'articles
+                    categorySummary.innerHTML = `${categoryName} <span class="deal-count" style="background-color: #dfe6e9;">${itemsDeCategorie.length}</span>`;
+
+                    const grid = document.createElement('div');
+                    grid.className = 'rabais-grid';
+
+                    itemsDeCategorie.forEach(item => {
+                        let confirmButtonHtml = '';
+                        const currentUser = localStorage.getItem('username');
+                        if (item.submitted_by_username && item.submitted_by_username !== currentUser) {
+                            confirmButtonHtml = `
+                                <button class="btn btn-small btn-confirm-price" data-price-id="${item.price_id}" style="background-color: #27ae60; margin-top: 8px;">
+                                    Confirmer
+                                </button>
+                            `;
+                        }
+
+                        const itemHtml = `
+                            <div class="rabais-item">
+                                <div>
+                                    <span class="produit-nom">${item.produit_nom}</span>
+                                    <span class="commerce-nom">${item.commerce_nom}</span>
+                                </div>
+                                <div style="text-align: right; flex-shrink: 0;">
+                                    <div class="prix-info">${item.details_prix || item.prix + ' $'}</div>
+                                    ${confirmButtonHtml}
+                                </div>
+                            </div>
+                        `;
+                        grid.innerHTML += itemHtml;
+                    });
+                    
+                    categoryDetails.appendChild(categorySummary);
+                    categoryDetails.appendChild(grid);
+                    storeDetails.appendChild(categoryDetails); // Ajoute la catégorie au magasin
+                });
+                // --- FIN DE LA NOUVELLE LOGIQUE ---
+                
+                container.appendChild(storeDetails);
             });
+
+            // --- DÉBUT DE LA MODIFICATION ---
+            // Applique l'état sauvegardé une fois que tous les éléments sont dans le DOM
+            applyAccordionStates();
+            // --- FIN DE LA MODIFICATION ---
         }
 
         function chargerRabaisActifs() {
-            return fetch('/api/rabais-actifs/') // On appelle l'API des rabais
-                .then(response => response.json())
+            return apiCall('/api/rabais-actifs/') // On appelle l'API des rabais
                 .then(data => {
                     activeDeals = data; 
                     renderRabaisGrid(data); // Met à jour la section "Rabais Actifs"
                 })
                 .catch(error => {
                     console.error("Erreur chargement rabais:", error);
+                    const container = document.getElementById('rabais-actifs-display');
+                    container.innerHTML = '<p class="placeholder" style="color: red;">Impossible de charger les rabais pour le moment.</p>';
                 });
         }
 
         function chargerPrixActifs() {
-            return fetch('/api/active-prices/')
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Erreur réseau lors de la récupération des prix.');
-                    }
-                    return response.json();
-                })
+            return apiCall('/api/active-prices/')
                 .then(data => {
                     activeDeals = data; 
                     renderRabaisGrid(data);
@@ -2187,10 +2398,34 @@ Maintenant, génère le JSON pour la liste que je t'ai fournie.`;
                 console.error("L'élément de formulaire avec l'id 'importFlyerForm' n'a pas été trouvé.");
             }
             
+            // --- MISE À JOUR DE LA LOGIQUE DE RECHERCHE ---
             const searchRabaisInput = document.getElementById('search-rabais-input');
             searchRabaisInput.addEventListener('input', (e) => {
-                // ... (logique de recherche existante) ...
+                const searchTerm = e.target.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                
+                const filteredDeals = activeDeals.filter(deal => 
+                    deal.produit_nom.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes(searchTerm)
+                );
+                
+                renderRabaisGrid(filteredDeals);
+
+                // Si un terme de recherche est actif, déplier TOUS les accordéons
+                if (searchTerm.length > 1) {
+                    document.querySelectorAll('#rabais-actifs-display details').forEach(details => {
+                        details.open = true;
+                    });
+                }
             });
+
+            // --- DÉBUT DE LA MODIFICATION ---
+            // Ajoute un écouteur global pour sauvegarder l'état des accordéons lors d'un changement
+            document.getElementById('rabais-actifs-display').addEventListener('toggle', (event) => {
+                // S'assure que l'événement vient bien d'un accordéon de magasin
+                if (event.target.classList.contains('store-rabais-group')) {
+                    saveAccordionStates();
+                }
+            }, true); // Utilise la phase de capture pour plus de fiabilité
+            // --- FIN DE LA MODIFICATION ---
         }
 
         if (importFlyerForm) {

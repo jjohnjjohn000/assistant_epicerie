@@ -1,0 +1,99 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block content %}
+<div>
+    <h1>Outils de Réinitialisation de la Base de Données</h1>
+    <p><strong>Attention :</strong> Ces actions sont irréversibles et supprimeront définitivement des données.</p>
+
+    {% if messages %}
+    <ul class="messagelist">
+        {% for message in messages %}
+        <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+
+    <div id="content-main">
+        <style>
+            .reset-section {
+                border: 1px solid #ccc;
+                border-radius: 4px;
+                padding: 15px;
+                margin-bottom: 20px;
+                background: #f9f9f9;
+            }
+            .reset-section form {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+            .reset-section .description {
+                max-width: 70%;
+            }
+            .reset-section .description h3 {
+                margin: 0 0 5px 0;
+            }
+             .reset-section .description p {
+                margin: 0;
+                font-size: 0.9em;
+                color: #555;
+            }
+            .button.danger, .button.caution {
+                color: white;
+                border: none;
+            }
+            .button.caution { background-color: #f0b842; } /* Orange */
+            .button.danger { background-color: #ba2121; } /* Rouge */
+        </style>
+
+        <!-- Section pour les circulaires -->
+        <div class="reset-section">
+            <form action="{% url 'admin:reset-flyers' %}" method="post">
+                {% csrf_token %}
+                <div class="description">
+                    <h3>Réinitialiser les Données des Circulaires</h3>
+                    <p>Supprime toutes les circulaires et les prix qui y sont directement associés.</p>
+                </div>
+                <input type="submit" value="Exécuter" class="button caution">
+            </form>
+        </div>
+
+        <!-- Section pour les prix communautaires -->
+        <div class="reset-section">
+            <form action="{% url 'admin:reset-community-prices' %}" method="post">
+                {% csrf_token %}
+                <div class="description">
+                    <h3>Réinitialiser les Prix Communautaires</h3>
+                    <p>Supprime uniquement les prix soumis par les utilisateurs (non issus des circulaires).</p>
+                </div>
+                <input type="submit" value="Exécuter" class="button caution">
+            </form>
+        </div>
+
+        <!-- Section pour les utilisateurs -->
+        <div class="reset-section">
+            <form action="{% url 'admin:reset-users' %}" method="post">
+                {% csrf_token %}
+                <div class="description">
+                    <h3>Réinitialiser les Utilisateurs</h3>
+                    <p>Supprime tous les utilisateurs et leurs profils, <strong>sauf les super-utilisateurs</strong>.</p>
+                </div>
+                <input type="submit" value="Exécuter" class="button danger">
+            </form>
+        </div>
+
+        <!-- Section pour TOUT réinitialiser -->
+        <div class="reset-section" style="border-color: #ba2121;">
+            <form action="{% url 'admin:reset-all' %}" method="post" onsubmit="return confirm('ÊTES-VOUS ABSOLUMENT SÛR ? Cette action est irréversible et videra presque toute la base de données.');">
+                {% csrf_token %}
+                <div class="description">
+                    <h3>Réinitialisation Complète de la Base de Données</h3>
+                    <p>Supprime TOUTES les circulaires, prix, produits, commerces, utilisateurs, inventaires, listes et recettes.</p>
+                </div>
+                <input type="submit" value="TOUT RÉINITIALISER" class="button danger">
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
