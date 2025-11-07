@@ -123,6 +123,10 @@
         .inventory-item.drag-over {
             border-top: 2px solid #3498db;
         }
+        .inventory-section.drag-over {
+            background-color: #e8f4fd; /* Bleu clair pour indiquer une zone de dépôt */
+            border-radius: 8px;
+        }
         .low-quantity-warning {
             background-color: #fcf8e3; /* Jaune pâle */
             border-left: 4px solid #f39c12; /* Bordure orange */
@@ -996,6 +1000,7 @@ Maintenant, analyse la recette suivante :
                             const li = document.createElement('li');
                             li.dataset.itemId = item.id;
                             li.dataset.index = index;
+                            li.draggable = true; // Assurons-nous que l'élément est déplaçable
 
                             let liClasses = 'inventory-item';
                              const quantityValue = parseQuantity(item.quantity);
@@ -1010,8 +1015,10 @@ Maintenant, analyse la recette suivante :
                                     <span class="inventory-item-name">${item.name}</span>
                                 </div>
                                 <div class="item-controls">
+                                    <button class="btn btn-quantity-change" data-item-id="${item.id}" data-amount="-1" style="background-color: #ecf0f1; color: #333; border: 1px solid #bdc3c7; padding: 5px 10px; font-weight: bold; cursor: pointer;">-</button>
                                     <input type="text" value="${item.quantity}" data-item-id="${item.id}" class="item-quantity-input">
-                                    <label style="font-size: 0.8em; color: #7f8c8d;">Alerte:</label>
+                                    <button class="btn btn-quantity-change" data-item-id="${item.id}" data-amount="1" style="background-color: #ecf0f1; color: #333; border: 1px solid #bdc3c7; padding: 5px 10px; font-weight: bold; cursor: pointer;">+</button>
+                                    <label style="font-size: 0.8em; color: #7f8c8d; margin-left: 8px;">Alerte:</label>
                                     <input type="number" value="${item.alert_threshold}" data-item-id="${item.id}" class="item-threshold-input" min="0" style="width: 45px;">
                                     <button class="btn btn-delete" data-item-id="${item.id}">Supprimer</button>
                                 </div>`;
@@ -1160,6 +1167,7 @@ Maintenant, analyse la recette suivante :
                 document.querySelectorAll('.item-threshold-input').forEach(input => input.addEventListener('change', updateItemThreshold));
                 document.querySelectorAll('.include-item').forEach(checkbox => checkbox.addEventListener('change', toggleInclusion));
                 document.querySelectorAll('.inventory-item-name').forEach(span => span.addEventListener('click', startEditInventoryItemName));
+                document.querySelectorAll('.btn-quantity-change').forEach(button => button.addEventListener('click', changeQuantity));
             }
             
             function attachShoppingListListeners() {
@@ -1211,11 +1219,50 @@ Maintenant, analyse la recette suivante :
                     const updatedItem = await apiCall(`inventory/${itemId}`, 'PUT', dataToUpdate);
                     // Met à jour l'élément dans notre état local
                     const index = inventory.findIndex(item => item.id == updatedItem.id);
-                    if (index !== -1) inventory[index] = updatedItem;
+                    if (index !== -1) {
+                        // Fusionne l'objet mis à jour du serveur dans notre objet local,
+                        // ce qui préserve la propriété 'include'.
+                        Object.assign(inventory[index], updatedItem);
+                    }
                     renderInventory(); // Rafraîchit l'affichage pour montrer les changements et recalculer les alertes
                 } catch(error) {
                     console.error("Erreur de mise à jour:", error);
                 }
+            }
+
+            async function changeQuantity(e) {
+                const button = e.target;
+                const itemId = button.dataset.itemId;
+                const amount = parseInt(button.dataset.amount, 10);
+
+                // La variable 'inventory' est maintenant accessible
+                const itemIndex = inventory.findIndex(item => item.id == itemId);
+                if (itemIndex === -1) return;
+
+                // Utilise la fonction existante pour extraire le nombre de "x12" ou "1 pot"
+                let currentQuantity = parseQuantity(inventory[itemIndex].quantity);
+
+                // Si la quantité n'est pas un simple nombre (ex: "1 conserve"), on ne peut pas l'incrémenter.
+                // On donne alors le focus à l'input pour une modification manuelle.
+                if (currentQuantity === Infinity || isNaN(currentQuantity)) {
+                    const input = document.querySelector(`.item-quantity-input[data-item-id="${itemId}"]`);
+                    if (input) {
+                        input.focus();
+                        input.select();
+                    }
+                    return;
+                }
+
+                const newQuantity = Math.max(0, currentQuantity + amount); // Empêche les quantités négatives
+
+                // Met à jour l'interface immédiatement pour une meilleure réactivité
+                const input = document.querySelector(`.item-quantity-input[data-item-id="${itemId}"]`);
+                if (input) {
+                    input.value = newQuantity;
+                }
+                
+                // Appelle la fonction de mise à jour pour sauvegarder le changement sur le serveur
+                await updateItem(itemId, { quantity: String(newQuantity) });
             }
 
             function updateQuantity(e) {
@@ -1758,17 +1805,36 @@ Maintenant, analyse la recette suivante :
                 const dropTarget = e.target.closest('.inventory-item');
                 if (dropTarget && draggedInventoryItemIndex !== null) {
                     const dropIndex = parseInt(dropTarget.dataset.index, 10);
-                    if (dropIndex === draggedInventoryItemIndex) return; // Ne rien faire si déposé sur lui-même
 
-                    const dropCategory = dropTarget.dataset.category;
+                    // Ne rien faire si l'article est déposé sur lui-même
+                    if (dropIndex === draggedInventoryItemIndex) return;
+
+                    // Récupérer la nouvelle catégorie depuis l'article cible DANS le tableau JS,
+                    // car l'élément DOM ne contient pas cette information.
+                    const newCategory = inventory[dropIndex].category;
+
+                    // Retirer l'article de sa position initiale
                     const [itemToMove] = inventory.splice(draggedInventoryItemIndex, 1);
-                    itemToMove.category = dropCategory;
                     
+                    // Vérifier si la catégorie a réellement changé
+                    const categoryChanged = itemToMove.category !== newCategory;
+                    itemToMove.category = newCategory; // Mettre à jour la catégorie de l'article déplacé
+                    
+                    // Recalculer l'index de destination après le retrait
                     const newDropIndex = (draggedInventoryItemIndex < dropIndex) ? dropIndex - 1 : dropIndex;
+                    
+                    // Insérer l'article à sa nouvelle position dans le tableau
                     inventory.splice(newDropIndex, 0, itemToMove);
                     
-                    saveInventory();
-                    renderInventory();
+                    // Si la catégorie a changé, on sauvegarde le changement via l'API.
+                    // La fonction 'updateItem' s'occupe déjà de l'appel API ET du rafraîchissement de l'affichage.
+                    if (categoryChanged) {
+                        updateItem(itemToMove.id, { category: newCategory });
+                    } else {
+                        // Si seule la position a changé (dans la même catégorie), on rafraîchit simplement l'affichage
+                        // pour refléter le nouvel ordre.
+                        renderInventory();
+                    }
                 }
             });
             inventoryDisplay.addEventListener('dragend', () => {
