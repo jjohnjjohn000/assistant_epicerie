@@ -233,6 +233,7 @@ def get_community_prices(request):
     return Response(data)
 
 @api_view(['POST'])
+@permission_classes([AllowAny])
 def register_user(request):
     """
     Vue pour l'inscription d'un nouvel utilisateur.
@@ -257,6 +258,7 @@ def register_user(request):
 
 
 @api_view(['POST'])
+@permission_classes([AllowAny])
 def login_user(request):
     """
     Vue pour la connexion d'un utilisateur.

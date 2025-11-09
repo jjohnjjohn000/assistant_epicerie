@@ -1,17 +1,12 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Optimiseur de Rabais et Itinéraire</title>
+{% extends "core/base.html" %}
+{% load static %}
+
+{% block title %}Optimiseur de Rabais et Itinéraire{% endblock %}
+
+{% block head_styles %}
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; background-color: #f4f7f9; color: #333; margin: 0; padding: 0; display: flex; }
-        #toc { position: fixed; top: 0; left: 0; width: 220px; height: 100%; background: #2c3e50; color: white; padding: 20px; box-shadow: 2px 0 5px rgba(0,0,0,0.1); flex-shrink: 0; overflow-y: auto; }
-        #toc h2 { color: #ecf0f1; border-bottom: 1px solid #34495e; padding-bottom: 10px; }
-        #toc ul { list-style: none; padding: 0; }
-        #toc li a { color: #bdc3c7; text-decoration: none; display: block; padding: 10px 15px; border-radius: 5px; transition: background-color 0.3s, color 0.3s; }
-        #toc li a:hover, #toc li a.active { background-color: #34495e; color: white; }
-        .content-wrapper { flex-grow: 1; margin-left: 220px; padding: 20px; display: flex; justify-content: center; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; background-color: #f4f7f9; color: #333; margin: 0; padding: 0; }
+        .content-wrapper { padding: 20px; display: flex; justify-content: center; }
         .container { width: 100%; max-width: 800px; background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
         h1, h2 { color: #2c3e50; border-bottom: 2px solid #e0e0e0; padding-bottom: 10px; }
         h2 { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;}
@@ -77,8 +72,7 @@
         .store-address { font-size: 0.85em; color: #333; margin-top: 5px; }
         .store-actions { display: flex; flex-direction: column; gap: 5px; align-items: flex-end; }
         .btn-view-flyer { background-color: #9b59b6; font-size: 12px; padding: 5px 10px; margin-top: 5px; }
-        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5); }
-        .modal-content { background-color: #fefefe; margin: 10% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 600px; border-radius: 8px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+        .modal { display: none; position: fixed; z-index: 1056; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5); }        .modal-content { background-color: #fefefe; margin: 10% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 600px; border-radius: 8px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
         .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #ddd; padding-bottom: 10px; }
         .modal-header h2 { margin: 0; color: #2c3e50; border-bottom: none; }
         .close-btn, .close-btn-manager, .close-btn-edit { color: #aaa; font-size: 28px; font-weight: bold; cursor: pointer; }
@@ -210,17 +204,11 @@
             border-bottom: 1px solid #e9ecef;
         }
     </style>
+{% endblock %}
+
+{% block content %}
 </head>
 <body>
-
-    <nav id="toc">
-        <h2>Navigation</h2>
-        <ul>
-            <li><a href="../">Inventaire & Listes</a></li>
-            <li><a href="../" class="active">Optimiseur de Rabais</a></li>
-        </ul>
-    </nav>
-
     <main class="content-wrapper">
         <div class="container">
 
@@ -228,7 +216,7 @@
 
             <section id="flyer-deals-section" class="section">
                 <h2>Rabais Actifs des Circulaires</h2>
-                <input type="search" id="search-rabais-input" placeholder="Filtrer les rabais par nom de produit..." style="width: 100%; padding: 10px; margin-bottom: 15px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 5px; font-size: 1em;">
+                <input type="search" id="search-rabais-input" class="form-control form-control-lg mb-3" placeholder="Filtrer les rabais par nom de produit...">
                 <div id="rabais-actifs-display">
                     <p class="placeholder">Chargement des rabais en cours...</p>
                 </div>
@@ -246,21 +234,29 @@
                 </div>
                 
                 <div>
-                    <button id="findStoresBtn" class="btn">Trouver les commerces à proximité</button>
-                    <button id="sortStoresBtn" class="btn" style="display: none; background-color: #16a085; margin-left: 10px;">Trier par distance</button>
+                    <button id="findStoresBtn" class="btn btn-primary">
+                        <i class="bi bi-magic"></i> Trouver les commerces à proximité
+                    </button>
+                    <button id="sortStoresBtn" class="btn btn-primary" style="display: none; background-color: #16a085; margin-left: 10px;">
+                        <i class="bi bi-magic"></i> Trier par distance
+                    </button>
                 </div>
 
                 <div id="manual-add-section" style="margin-top: 25px;">
                     <h4>Ajouter un commerce via son site web</h4>
-                    <form id="addStoreUrlForm" style="display: flex; gap: 10px;">
-                        <input type="url" id="manualStoreUrl" placeholder="https://www.exemple.com" style="flex-grow: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px;" required>
-                        <button type="submit" class="btn" style="background-color: #27ae60;">Ajouter</button>
+                    <form id="addStoreUrlForm" class="input-group">
+                        <input type="url" id="manualStoreUrl" class="form-control" placeholder="https://www.exemple.com" required>
+                        <button type="submit" class="btn btn-outline-secondary">
+                            <i class="bi bi-plus-lg"></i> Ajouter
+                        </button>
                     </form>
                 </div>
 
                 <div id="community-add-section" style="margin-top: 25px;">
                     <h4>Contribution Communautaire</h4>
-                    <button id="add-deal-btn" class="btn" style="background-color: #e67e22;">Soumettre un rabais</button>
+                    <button id="add-deal-btn" class="btn btn-primary" style="background-color: #e67e22;">
+                        <i class="bi bi-magic"></i> Soumettre un rabais
+                    </button>
                     <p style="font-size: 0.9em; color: #555;">Aidez la communauté en ajoutant un rabais que vous avez vu en magasin ou sur une circulaire.</p>
                 </div>
                 
@@ -312,21 +308,29 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
                         </textarea>
                                                 
                         <div style="margin-top: 10px; display: flex; gap: 10px;">
-                            <button id="copy-ai-prompt-btn" class="btn" style="background-color: #27ae60;">Copier l'instruction</button>
-                            <a href="https://gemini.google.com/app" target="_blank" class="btn" style="background-color: #8e44ad; text-decoration: none; text-align: center;">Ouvrir Gemini</a>
+                            <button id="copy-ai-prompt-btn" class="btn btn-primary" style="background-color: #27ae60;">
+                                <i class="bi bi-magic"></i> Copier l'instruction
+                            </button>
+                            <a href="https://gemini.google.com/app" target="_blank" class="btn btn-primary" style="background-color: #8e44ad; text-decoration: none; text-align: center;">
+                                <i class="bi bi-magic"></i> Ouvrir Gemini
+                            </a>
                         </div>
                     </div>
 
                     <h4>
                         <span>Ajouter une circulaire (JSON)</span>
-                        <button id="manageFlyersBtn" class="btn btn-small" style="background-color: #7f8c8d;">Gérer les circulaires</button>
+                        <button id="manageFlyersBtn" class="btn btn-primary btn-small" style="background-color: #7f8c8d;">
+                            <i class="bi bi-magic"></i> Gérer les circulaires
+                        </button>
                     </h4>
                     <form id="importFlyerForm">
                         <p style="margin-top:0; font-size: 0.9em; color: #555;">
                             Collez ici les données de la circulaire au format JSON pour l'intégrer à l'optimiseur.
                         </p>
                         <textarea id="flyerJsonInput" placeholder='{"store": "NomDuMagasin", "categories": [{"items": [...]}]}' style="width: 100%; min-height: 100px; box-sizing: border-box; border: 1px solid #ced4da; border-radius: 4px; padding: 10px; font-family: monospace; margin-bottom: 10px;"></textarea>
-                        <button type="submit" class="btn" style="background-color: #8e44ad;">Intégrer la circulaire</button>
+                        <button type="submit" class="btn btn-primary" style="background-color: #8e44ad;">
+                            <i class="bi bi-magic"></i> Intégrer la circulaire
+                        </button>
                     </form>
                 </div>
                 
@@ -339,12 +343,18 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
                 <h2>
                     <span>2. Optimisation</span>
                     <div>
-                        <button id="findPricesBtn" class="btn btn-small" style="background-color: #f39c12; display: none;">Chercher prix manquants</button>
-                        <button id="printListBtn" class="btn btn-small" style="background-color: #16a085;">Imprimer la liste</button>
+                        <button id="findPricesBtn" class="btn btn-primary btn-small" style="background-color: #f39c12; display: none;">
+                            <i class="bi bi-magic"></i> Chercher prix manquants
+                        </button>
+                        <button id="printListBtn" class="btn btn-primary btn-small" style="background-color: #16a085;">
+                            <i class="bi bi-magic"></i> Imprimer la liste
+                        </button>
                     </div>
                 </h2>
                 <p>Comparez votre liste d'épicerie avec les rabais des commerces sélectionnés.</p>
-                <button id="optimizeListBtn" class="btn">Optimiser ma liste</button>
+                <button id="optimizeListBtn" class="btn btn-primary">
+                    <i class="bi bi-magic"></i> Optimiser ma liste
+                </button>
 
                 <div id="price-finder-container" style="margin-top: 25px; display: none;">
                     <hr style="margin-bottom: 25px;">
@@ -355,15 +365,21 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
                         <p><strong>Étape 1 :</strong> Copiez l'instruction. <br><strong>Étape 2 :</strong> Collez-la dans Gemini pour obtenir les prix.</p>
                         <textarea id="price-finder-prompt-textarea" rows="10" readonly style="width: 100%; box-sizing: border-box; font-family: monospace; padding: 10px; border-radius: 5px; border: 1px solid #ccc; background-color: #f8f9fa;"></textarea>
                         <div style="margin-top: 10px; display: flex; gap: 10px;">
-                            <button id="copy-price-finder-prompt-btn" class="btn" style="background-color: #27ae60;">Copier l'instruction</button>
-                            <a href="https://gemini.google.com/app" target="_blank" class="btn" style="background-color: #8e44ad; text-decoration: none; text-align: center;">Ouvrir Gemini</a>
+                            <button id="copy-price-finder-prompt-btn" class="btn btn-primary" style="background-color: #27ae60;">
+                                <i class="bi bi-magic"></i> Copier l'instruction
+                            </button>
+                            <a href="https://gemini.google.com/app" target="_blank" class="btn btn-primary" style="background-color: #8e44ad; text-decoration: none; text-align: center;">
+                                <i class="bi bi-magic"></i> Ouvrir Gemini
+                            </a>
                         </div>
                     </div>
             
                     <div id="price-importer-section">
                          <p><strong>Étape 3 :</strong> Collez le JSON fourni par Gemini ci-dessous.</p>
                          <textarea id="import-prices-json" placeholder='[{"name": "Nom De L&#39;article", "price": 4.99}, ...]' style="width: 100%; min-height: 80px; box-sizing: border-box; border: 1px solid #ced4da; border-radius: 4px; padding: 10px; font-family: monospace; margin-bottom: 10px;"></textarea>
-                         <button id="importPricesBtn" class="btn" style="background-color: #16a085;">Importer les Prix</button>
+                         <button id="importPricesBtn" class="btn btn-primary" style="background-color: #16a085;">
+                            <i class="bi bi-magic"></i> Importer les Prix
+                        </button>
                     </div>
                 </div>
 
@@ -375,7 +391,9 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
             <section id="route-section" class="section">
                 <h2>3. Itinéraire d'Achat Suggéré</h2>
                 <p>Générez un itinéraire simple basé sur les magasins où se trouvent les meilleures offres.</p>
-                <button id="generateRouteBtn" class="btn">Générer l'itinéraire</button>
+                <button id="generateRouteBtn" class="btn btn-primary">
+                    <i class="bi bi-magic"></i> Générer l'itinéraire
+                </button>
                 <div id="route-display" style="margin-top: 20px;">
                      <p class="placeholder">Votre itinéraire apparaîtra ici.</p>
                 </div>
@@ -426,7 +444,9 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
                         <input type="url" id="editStoreWebsite" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
                     </div>
                     <div style="text-align: right;">
-                        <button type="submit" class="btn" style="background-color: #2ecc71;">Sauvegarder</button>
+                        <button type="submit" class="btn btn-primary" style="background-color: #2ecc71;">
+                            <i class="bi bi-magic"></i> Sauvegarder
+                        </button>
                     </div>
                 </form>
             </div>
@@ -467,7 +487,9 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
                     </div>
 
                     <div style="text-align: right;">
-                        <button type="submit" class="btn" style="background-color: #2ecc71;">Soumettre</button>
+                        <button type="submit" class="btn btn-primary" style="background-color: #2ecc71;">
+                            <i class="bi bi-magic"></i> Soumettre
+                        </button>
                     </div>
                 </form>
             </div>
@@ -494,7 +516,6 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
                     </div>
                     <!-- On pourrait ajouter une sélection de catégorie ici plus tard -->
                     <div style="text-align: right;">
-                        <button type="submit" class="btn" style="background-color: #2ecc71;">Ajouter le Produit</button>
                     </div>
                 </form>
             </div>
@@ -541,7 +562,9 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
                     </div>
                     <style> #submit-deal-form input, #submit-deal-form select { width: 100%; padding: 8px; box-sizing: border-box; margin-top: 5px;} </style>
                     <div style="text-align: right; margin-top: 20px;">
-                        <button type="submit" class="btn" style="background-color: #2ecc71;">Soumettre le Rabais</button>
+                        <button type="submit" class="btn btn-primary" style="background-color: #2ecc71;">
+                            <i class="bi bi-magic"></i> Soumettre le Rabais
+                        </button>
                     </div>
                 </form>
             </div>
@@ -582,7 +605,9 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
                     </div>
 
                     <div style="text-align: right;">
-                        <button type="submit" class="btn" style="background-color: #e74c3c;">Envoyer le signalement</button>
+                        <button type="submit" class="btn btn-primary" style="background-color: #e74c3c;">
+                            <i class="bi bi-magic"></i> Envoyer le signalement
+                        </button>
                     </div>
                 </form>
             </div>
@@ -592,7 +617,9 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
     <!-- ============================================= -->
     <!-- ============== FIN DES MODALES ============== -->
     <!-- ============================================= -->
+{% endblock %}
 
+{% block body_scripts %}
     <script>
     document.addEventListener('DOMContentLoaded', function() {
         const findStoresBtn = document.getElementById('findStoresBtn');
@@ -740,9 +767,11 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
                 if (summary && summary.firstChild) {
                     const storeName = summary.firstChild.textContent.trim();
                     // Si un état est sauvegardé pour ce magasin, on l'applique.
-                    // Sinon, il conserve son état par défaut (ouvert).
+                    // Par défaut, l'accordéon restera fermé si aucun état n'est trouvé.
                     if (savedStates.hasOwnProperty(storeName)) {
                         details.open = savedStates[storeName];
+                    } else {
+                        details.open = false; // Fermé par défaut
                     }
                 }
             });
@@ -777,7 +806,9 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
                 itemElement.className = 'managed-flyer-item';
                 itemElement.innerHTML = `
                     <span class="flyer-item-name">${storeName}</span>
-                    <button class="btn btn-small btn-delete-flyer" data-store-name="${storeName}">Supprimer</button>
+                    <button class="btn btn-primary btn-small btn-delete-flyer" data-store-name="${storeName}">
+                        <i class="bi bi-magic"></i> Supprimer
+                    </button>
                 `;
                 modalManagerBody.appendChild(itemElement);
             });
@@ -1100,9 +1131,15 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
                 const matchingKey = flyerDataKeys.find(key => key.trim().toLowerCase() === storeNameTrimmed.toLowerCase());
                 const hasFlyer = !!matchingKey;
                 
-                let flyerButtonHtml = hasFlyer ? `<button class="btn btn-view-flyer" data-store-name="${matchingKey}">Voir la circulaire</button>` : '';
-                const editButtonHtml = isManual ? `<button class="btn btn-edit-manual btn-small" data-store-name="${store.name}" style="background-color: #f39c12;">Éditer</button>` : '';
-                const deleteButtonHtml = isManual ? `<button class="btn btn-delete-manual btn-small" data-store-name="${store.name}" style="background-color: #c0392b;">X</button>` : '';
+                let flyerButtonHtml = hasFlyer ? `<button class="btn btn-primary btn-view-flyer" data-store-name="${matchingKey}">
+                    <i class="bi bi-magic"></i> Voir la circulaire
+                </button>` : '';
+                const editButtonHtml = isManual ? `<button class="btn btn-primary btn-edit-manual btn-small" data-store-name="${store.name}" style="background-color: #f39c12;">
+                    <i class="bi bi-magic"></i> Éditer
+                </button>` : '';
+                const deleteButtonHtml = isManual ? `<button class="btn btn-primary btn-delete-manual btn-small" data-store-name="${store.name}" style="background-color: #c0392b;">
+                    <i class="bi bi-magic"></i> X
+                </button>` : '';
 
                 storeElement.innerHTML = `<input type="checkbox" class="store-checkbox" value="${store.name}" id="store-${sanitizedId}" checked><label for="store-${sanitizedId}" style="display: flex; justify-content: space-between; align-items: center; width: 100%;"><div><div class="store-name">${store.name}</div>${storeDetailsHtml}</div><div class="store-actions">${editButtonHtml}${deleteButtonHtml}${flyerButtonHtml}</div></label>`;
                 storesListDisplay.appendChild(storeElement);
@@ -1410,8 +1447,12 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
                         // On affiche les boutons Confirmer/Signaler uniquement pour les prix communautaires
                         if (deal.type === 'communautaire' && deal.price_id) {
                             actionButtonsHtml = `
-                                <button class="btn btn-small btn-confirm-price" data-price-id="${deal.price_id}" style="background-color: #27ae60; margin-left: 10px;">Confirmer</button>
-                                <button class="btn btn-small btn-report-price" data-price-id="${deal.price_id}" data-product-name="${deal.name}" style="background-color: #e67e22; margin-left: 5px;">Signaler</button>
+                                <button class="btn btn-primary btn-small btn-confirm-price" data-price-id="${deal.price_id}" style="background-color: #27ae60; margin-left: 10px;">
+                                    <i class="bi bi-magic"></i> Confirmer
+                                </button>
+                                <button class="btn btn-primary btn-small btn-report-price" data-price-id="${deal.price_id}" data-product-name="${deal.name}" style="background-color: #e67e22; margin-left: 5px;">
+                                    <i class="bi bi-magic"></i> Signaler
+                                </button>
                             `;
                         }
 
@@ -1419,7 +1460,9 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
                             // Condition 1: Le deal doit avoir été soumis par un utilisateur.
                             // Condition 2: Cet utilisateur ne doit PAS être l'utilisateur actuel.
                             if (deal.submitted_by_username && deal.submitted_by_username !== currentUser) {
-                                confirmButtonHtml = `<button class="btn btn-small btn-confirm-price" data-price-id="${deal.price_id}" style="background-color: #27ae60; margin-left: 10px;">Confirmer</button>`;
+                                confirmButtonHtml = `<button class="btn btn-primary btn-small btn-confirm-price" data-price-id="${deal.price_id}" style="background-color: #27ae60; margin-left: 10px;">
+                                    <i class="bi bi-magic"></i> Confirmer
+                                </button>`;
                             }
                             return `
                             <div style="display: flex; align-items: center; padding: 5px 0;">
@@ -1449,10 +1492,11 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
                         
                         <!-- ================== LIGNE AJOUTÉE ================== -->
                         <button 
-                            class="btn btn-small btn-submit-price" 
+                            class="btn btn-primary btn-small btn-submit-price" 
                             data-item-name="${item.name}" 
                             style="background-color: #16a085; margin-top: 8px;">
-                            Soumettre un prix régulier
+                            
+                            <i class="bi bi-magic"></i> Soumettre un prix régulier
                         </button>
                         <!-- =================================================== -->
 
@@ -2239,77 +2283,51 @@ Maintenant, génère le JSON pour la liste que je t'ai fournie.`;
         // --- MISE À JOUR DE LA FONCTION DE RENDU DES RABAIS ---
         function renderRabaisGrid(rabais) {
             const container = document.getElementById('rabais-actifs-display');
+            container.innerHTML = '';
             if (rabais.length === 0) {
-                container.innerHTML = '<p class="placeholder">Aucun rabais actif trouvé dans les circulaires importées ou correspondant à votre recherche.</p>';
+                container.innerHTML = '<p class="placeholder">Aucun rabais actif trouvé.</p>';
                 return;
             }
-            container.innerHTML = '';
 
-            // 1. Regrouper les rabais par commerce (logique existante)
             const rabaisParCommerce = rabais.reduce((acc, item) => {
                 const store = item.commerce_nom;
-                if (!acc[store]) {
-                    acc[store] = [];
-                }
+                if (!acc[store]) acc[store] = [];
                 acc[store].push(item);
                 return acc;
             }, {});
 
             const sortedStores = Object.keys(rabaisParCommerce).sort();
 
-            // 2. Créer un accordéon pour chaque commerce
             sortedStores.forEach(storeName => {
                 const itemsDuCommerce = rabaisParCommerce[storeName];
-                
                 const storeDetails = document.createElement('details');
                 storeDetails.className = 'store-rabais-group';
-                storeDetails.open = true; // Par défaut, on laisse les magasins ouverts
+                storeDetails.open = true; // Ouvert par défaut avant application de l'état sauvegardé
 
                 const storeSummary = document.createElement('summary');
                 storeSummary.className = 'store-rabais-summary';
                 storeSummary.innerHTML = `${storeName} <span class="deal-count">${itemsDuCommerce.length} rabais</span>`;
-                
                 storeDetails.appendChild(storeSummary);
 
-                // --- DÉBUT DE LA NOUVELLE LOGIQUE : REGROUPER PAR CATÉGORIE ---
                 const rabaisParCategorie = itemsDuCommerce.reduce((acc, item) => {
-                    const category = item.categorie_nom || "Non classé"; // Utilise la nouvelle clé
-                    if (!acc[category]) {
-                        acc[category] = [];
-                    }
+                    const category = item.categorie_nom || "Non classé";
+                    if (!acc[category]) acc[category] = [];
                     acc[category].push(item);
                     return acc;
                 }, {});
                 
-                const sortedCategories = Object.keys(rabaisParCategorie).sort();
-                
-                // Boucle sur les catégories pour créer les accordéons imbriqués
-                sortedCategories.forEach(categoryName => {
-                    const itemsDeCategorie = rabaisParCategorie[categoryName];
-
+                Object.keys(rabaisParCategorie).sort().forEach(categoryName => {
                     const categoryDetails = document.createElement('details');
                     categoryDetails.className = 'category-rabais-group';
+                    categoryDetails.innerHTML = `<summary class="category-rabais-summary">${categoryName} <span class="deal-count">${rabaisParCategorie[categoryName].length}</span></summary>`;
                     
-                    const categorySummary = document.createElement('summary');
-                    categorySummary.className = 'category-rabais-summary';
-                    // Affiche le nom de la catégorie et le nombre d'articles
-                    categorySummary.innerHTML = `${categoryName} <span class="deal-count" style="background-color: #dfe6e9;">${itemsDeCategorie.length}</span>`;
-
                     const grid = document.createElement('div');
                     grid.className = 'rabais-grid';
+                    rabaisParCategorie[categoryName].forEach(item => {
+                        const confirmButtonHtml = (item.submitted_by_username && item.submitted_by_username !== localStorage.getItem('username')) ?
+                            `<button class="btn btn-small btn-confirm-price" data-price-id="${item.price_id}" style="background-color: #27ae60; margin-top: 8px;">Confirmer</button>` : '';
 
-                    itemsDeCategorie.forEach(item => {
-                        let confirmButtonHtml = '';
-                        const currentUser = localStorage.getItem('username');
-                        if (item.submitted_by_username && item.submitted_by_username !== currentUser) {
-                            confirmButtonHtml = `
-                                <button class="btn btn-small btn-confirm-price" data-price-id="${item.price_id}" style="background-color: #27ae60; margin-top: 8px;">
-                                    Confirmer
-                                </button>
-                            `;
-                        }
-
-                        const itemHtml = `
+                        grid.innerHTML += `
                             <div class="rabais-item">
                                 <div>
                                     <span class="produit-nom">${item.produit_nom}</span>
@@ -2319,24 +2337,16 @@ Maintenant, génère le JSON pour la liste que je t'ai fournie.`;
                                     <div class="prix-info">${item.details_prix || item.prix + ' $'}</div>
                                     ${confirmButtonHtml}
                                 </div>
-                            </div>
-                        `;
-                        grid.innerHTML += itemHtml;
+                            </div>`;
                     });
-                    
-                    categoryDetails.appendChild(categorySummary);
                     categoryDetails.appendChild(grid);
-                    storeDetails.appendChild(categoryDetails); // Ajoute la catégorie au magasin
+                    storeDetails.appendChild(categoryDetails);
                 });
-                // --- FIN DE LA NOUVELLE LOGIQUE ---
-                
                 container.appendChild(storeDetails);
             });
-
-            // --- DÉBUT DE LA MODIFICATION ---
-            // Applique l'état sauvegardé une fois que tous les éléments sont dans le DOM
+            
+            // --- MODIFICATION : Applique l'état sauvegardé ---
             applyAccordionStates();
-            // --- FIN DE LA MODIFICATION ---
         }
 
         function chargerRabaisActifs() {
@@ -2425,7 +2435,14 @@ Maintenant, génère le JSON pour la liste que je t'ai fournie.`;
                     saveAccordionStates();
                 }
             }, true); // Utilise la phase de capture pour plus de fiabilité
-            // --- FIN DE LA MODIFICATION ---
+            
+            // Ajoute un écouteur global pour sauvegarder l'état des accordéons lors d'un changement
+            document.getElementById('rabais-actifs-display').addEventListener('toggle', (event) => {
+                // S'assure que l'événement vient bien d'un accordéon de magasin
+                if (event.target.classList.contains('store-rabais-group')) {
+                    saveAccordionStates();
+                }
+            }, true); // Utilise la phase de capture pour plus de fiabilité
         }
 
         if (importFlyerForm) {
@@ -2469,5 +2486,4 @@ Maintenant, génère le JSON pour la liste que je t'ai fournie.`;
         initializePage();
     });
     </script>
-</body>
-</html>
+{% endblock %}
