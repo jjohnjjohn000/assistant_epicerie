@@ -13,6 +13,7 @@ function getCookie(name) {
     return cookieValue;
 }
 
+// REMPLACEZ L'ANCIENNE FONCTION PAR CELLE-CI
 async function apiCall(endpoint, method, body = null) {
     const headers = {
         'Content-Type': 'application/json',
@@ -26,8 +27,12 @@ async function apiCall(endpoint, method, body = null) {
     if (body) {
         options.body = JSON.stringify(body);
     }
-    // Assurez-vous que l'URL commence bien par /api/
-    const url = endpoint.startsWith('api/') ? `/${endpoint}` : `/api/${endpoint}/`;
+    
+    // LOGIQUE D'URL SIMPLIFIÉE ET ROBUSTE
+    // Nettoie l'endpoint pour s'assurer qu'il n'a pas de slash au début ou à la fin
+    const cleanEndpoint = endpoint.replace(/^\/|\/$/g, '');
+    const url = `/api/${cleanEndpoint}/`; // Garantit une URL toujours correcte comme /api/inventory/ ou /api/inventory/123/
+
     const response = await fetch(url, options);
 
     if (!response.ok) {
@@ -35,11 +40,11 @@ async function apiCall(endpoint, method, body = null) {
         try {
             errorData = await response.json();
         } catch (e) {
-            errorData = { error: `Erreur ${response.status}: ${response.statusText}` };
+            errorData = { detail: `Erreur ${response.status}: ${response.statusText}` };
         }
-        throw new Error(errorData.error || errorData.detail || `Erreur ${response.status}`);
+        throw new Error(errorData.detail || errorData.error || `Erreur ${response.status}`);
     }
-    if (response.status === 204) { // No Content
+    if (response.status === 204) {
         return null;
     }
     return response.json();

@@ -49,7 +49,7 @@
 
         <!-- Section pour les circulaires -->
         <div class="reset-section">
-            <form action="{% url 'admin:reset-flyers' %}" method="post">
+            <form action="{% url 'reset-flyers' %}" method="post">
                 {% csrf_token %}
                 <div class="description">
                     <h3>Réinitialiser les Données des Circulaires</h3>
@@ -61,7 +61,7 @@
 
         <!-- Section pour les prix communautaires -->
         <div class="reset-section">
-            <form action="{% url 'admin:reset-community-prices' %}" method="post">
+            <form action="{% url 'reset-community-prices' %}" method="post">
                 {% csrf_token %}
                 <div class="description">
                     <h3>Réinitialiser les Prix Communautaires</h3>
@@ -73,7 +73,7 @@
 
         <!-- Section pour les utilisateurs -->
         <div class="reset-section">
-            <form action="{% url 'admin:reset-users' %}" method="post">
+            <form action="{% url 'reset-users' %}" method="post">
                 {% csrf_token %}
                 <div class="description">
                     <h3>Réinitialiser les Utilisateurs</h3>
@@ -85,7 +85,7 @@
 
         <!-- Section pour TOUT réinitialiser -->
         <div class="reset-section" style="border-color: #ba2121;">
-            <form action="{% url 'admin:reset-all' %}" method="post" onsubmit="return confirm('ÊTES-VOUS ABSOLUMENT SÛR ? Cette action est irréversible et videra presque toute la base de données.');">
+            <form action="{% url 'reset-all' %}" method="post" onsubmit="return confirm('ÊTES-VOUS ABSOLUMENT SÛR ? Cette action est irréversible et videra presque toute la base de données.');">
                 {% csrf_token %}
                 <div class="description">
                     <h3>Réinitialisation Complète de la Base de Données</h3>

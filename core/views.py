@@ -12,7 +12,7 @@ from .models import Commerce, Produit, Circulaire, Prix, Categorie, Profile, Rep
 from django.db.models import Prefetch, Count
 from collections import defaultdict
 from django.contrib.auth.models import User
-from django.contrib.auth import authenticate
+from django.contrib.auth import authenticate, login, logout
 from rest_framework.authtoken.models import Token
 from rest_framework.views import APIView
 from .models import InventoryItem, ShoppingListItem, Recipe
@@ -21,10 +21,9 @@ from datetime import timedelta, date
 from django.contrib.admin.views.decorators import staff_member_required
 from django.template.response import TemplateResponse
 from django.http import HttpResponseRedirect
-from django.contrib import messages
+from django.contrib import messages, admin
 
 
-# ... (les autres vues comme assistant_epicerie, optimiseur_rabais) ...
 def assistant_epicerie(request):
     return render(request, 'core/assistant_epicerie.html')
 
@@ -273,11 +272,11 @@ def login_user(request):
     user = authenticate(username=username, password=password)
 
     if user is not None:
-        # Si l'utilisateur est valide, on récupère ou crée son jeton
+        logout(request)
+        login(request, user)
         token, _ = Token.objects.get_or_create(user=user)
         return Response({'token': token.key, 'username': user.username})
     else:
-        # Si les identifiants sont incorrects
         return Response({'error': 'Identifiants invalides.'}, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -290,9 +289,14 @@ def logout_user(request):
     try:
         # On supprime simplement le jeton de l'utilisateur
         request.user.auth_token.delete()
-        return Response({'message': 'Déconnexion réussie.'}, status=status.HTTP_200_OK)
-    except Exception as e:
-        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    except (AttributeError, Token.DoesNotExist):
+        # Gère le cas où il n'y a pas de jeton, sans faire planter la vue
+        pass
+
+    # Détruit la session Django active pour cet utilisateur
+    logout(request)
+
+    return Response({'message': 'Déconnexion réussie.'}, status=status.HTTP_200_OK)
 
 
 # --- NOUVELLE VUE POUR LA GESTION DE L'INVENTAIRE ---
@@ -301,32 +305,27 @@ class InventoryView(APIView):
     """
     API pour gérer l'inventaire de l'utilisateur connecté.
     """
-    permission_classes = [IsAuthenticated] # Seuls les utilisateurs connectés peuvent accéder
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         """ Retourne la liste complète de l'inventaire de l'utilisateur. """
+        # CETTE VUE DOIT INTERROGER LE MODÈLE 'InventoryItem'.
         items = InventoryItem.objects.filter(user=request.user)
         serializer = InventoryItemSerializer(items, many=True)
         return Response(serializer.data)
 
     def post(self, request):
         """ Ajoute un nouvel article à l'inventaire de l'utilisateur. """
-        # On ajoute l'ID de l'utilisateur aux données reçues avant de valider
-        data = request.data.copy()
-        data['user'] = request.user.id
-        
-        # On utilise le serializer pour valider et créer l'objet
         serializer = InventoryItemSerializer(data=request.data)
         if serializer.is_valid():
-            # request.user est fourni par l'authentification par jeton
             serializer.save(user=request.user)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def put(self, request, item_id):
         """ Met à jour un article existant. """
-        item = InventoryItem.objects.get(id=item_id, user=request.user)
-        serializer = InventoryItemSerializer(item, data=request.data, partial=True) # partial=True permet de ne mettre à jour que certains champs
+        item = get_object_or_404(InventoryItem, id=item_id, user=request.user)
+        serializer = InventoryItemSerializer(item, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
@@ -334,12 +333,9 @@ class InventoryView(APIView):
 
     def delete(self, request, item_id):
         """ Supprime un article de l'inventaire. """
-        try:
-            item = InventoryItem.objects.get(id=item_id, user=request.user)
-            item.delete()
-            return Response(status=status.HTTP_204_NO_CONTENT) # 204 signifie "Ok, mais pas de contenu à retourner"
-        except InventoryItem.DoesNotExist:
-            return Response({'error': 'Article non trouvé.'}, status=status.HTTP_404_NOT_FOUND)
+        item = get_object_or_404(InventoryItem, id=item_id, user=request.user)
+        item.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
             
 # --- NOUVELLE VUE POUR L'IMPORTATION EN BLOC ---
 
@@ -698,3 +694,21 @@ def reset_all_data_view(request):
     return HttpResponseRedirect('/admin/data-management/')
 
 # --- FIN DES AJOUTS POUR LA GESTION ADMIN ---
+
+class UserLayoutView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """ Récupère la disposition sauvegardée de l'utilisateur. """
+        # Utilise get_or_create pour trouver le profil ou le créer s'il manque.
+        profile, created = Profile.objects.get_or_create(user=request.user)
+        layout_data = profile.inventory_layout
+        return Response(layout_data or [])
+
+    def post(self, request):
+        """ Sauvegarde la nouvelle disposition de l'utilisateur. """
+        # Utilise aussi get_or_create ici pour être cohérent et robuste.
+        profile, created = Profile.objects.get_or_create(user=request.user)
+        profile.inventory_layout = request.data
+        profile.save()
+        return Response({"status": "success"}, status=status.HTTP_200_OK)

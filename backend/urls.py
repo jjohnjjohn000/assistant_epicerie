@@ -85,6 +85,9 @@ urlpatterns = [
     # --- URLS POUR LES RECETTES ---
     path('api/recipes/', views.RecipeView.as_view(), name='recipe_list'),
     path('api/recipes/<int:recipe_id>/', views.RecipeDetailView.as_view(), name='recipe_detail'),
+
+    # --- NOUVELLE URL POUR LA DISPOSITION ---
+    path('api/user/layout/', views.UserLayoutView.as_view(), name='user_layout'),
 ]
 
 if settings.DEBUG:

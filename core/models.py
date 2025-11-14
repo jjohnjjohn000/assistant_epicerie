@@ -89,16 +89,15 @@ class Prix(models.Model):
         verbose_name = "Prix"
         verbose_name_plural = "Prix"
 
-# --- NOUVEAU MODÈLE POUR LE PROFIL UTILISATEUR ---
 class Profile(models.Model):
     """ Modèle pour étendre les fonctionnalités du modèle User de base. """
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="profile")
     reputation = models.IntegerField(default=0, help_text="Points de réputation de l'utilisateur")
+    inventory_layout = models.JSONField(null=True, blank=True)
 
     def __str__(self):
         return f"Profil de {self.user.username}"
 
-# --- VERSION CORRIGÉE ET ROBUSTE DU SIGNAL ---
 @receiver(post_save, sender=User)
 def create_or_update_user_profile(sender, instance, created, **kwargs):
     """

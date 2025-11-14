@@ -5,41 +5,6 @@
 
 {% block head_styles %}
     <style>
-        .container {
-            width: 100%;
-            max-width: 1400px !important;
-            padding: 0 !important;
-            background: transparent !important;
-            box-shadow: none !important;
-        }
-        .grid-stack {
-            /* background: #f0f0f0; */ /* Optionnel: pour voir la grille pendant le dev */
-        }
-        .grid-stack-item-content {
-            background-color: #ffffff;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            overflow: auto !important;
-            padding: 20px;
-            height: 100%;
-            box-sizing: border-box;
-            display: flex;
-            flex-direction: column;
-        }
-        .grid-stack-item-content section {
-            flex-grow: 1;
-        }
-        .grid-stack-item-content h1, .grid-stack-item-content h2, .grid-stack-item-content h3 {
-            margin-top: 0;
-            color: #2c3e50;
-            border-bottom: 2px solid #e0e0e0;
-            padding-bottom: 10px;
-        }
-        .ui-resizable-handle {
-            filter: brightness(0.8);
-        }
-
-
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             line-height: 1.6;
@@ -52,6 +17,13 @@
             padding: 20px;
             display: flex;
             justify-content: center;
+        }
+        .container {
+            width: 100%;
+            max-width: 1400px !important; /* On force une plus grande largeur */
+            padding: 0 !important;
+            background: transparent !important;
+            box-shadow: none !important;
         }
         h1, h2 {
             color: #2c3e50;
@@ -329,7 +301,7 @@
             border-radius: 8px;
             margin-bottom: 25px;
         }
-        /* --- STYLES POUR L'AUTHENTIFICATION --- */
+        /* --- NOUVEAUX STYLES POUR L'AUTHENTIFICATION --- */
         #auth-section {
             background-color: #ecf0f1;
             padding: 15px;
@@ -372,7 +344,7 @@
             display: none !important;
         }
            
-        /* Styles pour la section de gestion */
+        /* Styles pour la nouvelle section de gestion */
         .data-management-section {
             background-color: #f8f9fa;
             border: 1px solid #e9ecef;
@@ -389,15 +361,49 @@
             gap: 10px;
             flex-wrap: wrap;
         }
+        
+        /* --- STYLES POUR GRIDSTACK --- */
+        .grid-stack {
+            background: #f4f7f9; /* Fond de la zone de la grille */
+        }
+        .grid-stack-item-content {
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            overflow: auto !important;
+            padding: 20px;
+            height: 100%;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+        }
+        .grid-stack-item-content section {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        .grid-stack-item-content h1,
+        .grid-stack-item-content h2,
+        .grid-stack-item-content h3 {
+            margin-top: 0;
+            color: #2c3e50;
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 10px;
+        }
+        .ui-resizable-handle {
+            filter: brightness(0.8);
+        }
     </style>
 {% endblock %}
 
 {% block content %}
 
 {% load static %}
+    <main class="content-wrapper">
+        <div class="container mt-4">
+
             <div class="grid-stack">
-                <!-- WIDGET 1: Inventaire -->
-                <div class="grid-stack-item" gs-id="inventory-widget" gs-w="8" gs-h="6" gs-x="0" gs-y="0">
+                <div class="grid-stack-item" gs-id="inventory-widget" gs-w="12" gs-h="6" gs-x="0" gs-y="0">
                     <div class="grid-stack-item-content">
                         <section id="inventory-section">
                             <h1>Inventaire des Denrées</h1>
@@ -413,10 +419,9 @@
                     </div>
                 </div>
 
-                <!-- WIDGET 2: Outils -->
-                <div class="grid-stack-item" gs-id="tools-widget" gs-w="4" gs-h="5" gs-x="8" gs-y="0">
+                <div class="grid-stack-item" gs-id="tools-widget" gs-w="6" gs-h="5" gs-x="0" gs-y="6">
                     <div class="grid-stack-item-content">
-                        <section id="add-item-section" class="mb-4">
+                        <section id="add-item-section">
                             <h2>Ajouter un Nouvel Article à l'Inventaire</h2>
                             <form id="addItemForm" class="row g-3 align-items-center p-3 bg-light rounded-3 border">
                                 <div class="col-sm-4">
@@ -456,7 +461,7 @@
                     </div>
                 </div>
 
-                <div class="grid-stack-item" gs-id="shopping-list-widget" gs-w="8" gs-h="5" gs-x="0" gs-y="6">
+                <div class="grid-stack-item" gs-id="shopping-list-widget" gs-w="6" gs-h="5" gs-x="6" gs-y="6">
                     <div class="grid-stack-item-content">
                         <section id="shopping-list-section" class="shopping-list-section">
                             <h2>Liste d'Épicerie</h2>
@@ -478,7 +483,7 @@
                     </div>
                 </div>
                         
-                <div class="grid-stack-item" gs-id="recipe-book-widget" gs-w="4" gs-h="5" gs-x="8" gs-y="6">
+                <div class="grid-stack-item" gs-id="recipe-book-widget" gs-w="6" gs-h="5" gs-x="0" gs-y="11">
                     <div class="grid-stack-item-content">
                         <section id="recipe-book-section">
                             <h2>Livre de recettes</h2>
@@ -491,7 +496,7 @@
                     </div>
                 </div>
 
-                <div class="grid-stack-item" gs-id="generate-list-widget" gs-w="6" gs-h="5" gs-x="0" gs-y="11">
+                <div class="grid-stack-item" gs-id="generate-list-widget" gs-w="6" gs-h="5" gs-x="6" gs-y="11">
                     <div class="grid-stack-item-content">
                         <section id="ai-shopping-list-generator">
                             <h2>Générer une Liste d'Épicerie avec l'IA</h2>
@@ -510,7 +515,7 @@
                     </div>
                 </div>
 
-                <div class="grid-stack-item" gs-id="recipe-generator-widget" gs-w="6" gs-h="5" gs-x="6" gs-y="11">
+                <div class="grid-stack-item" gs-id="recipe-generator-widget" gs-w="6" gs-h="5" gs-x="11" gs-y="11">
                     <div class="grid-stack-item-content">
                         <section id="recipe-section" class="recipe-section">
                             <h2>Trouver une Recette</h2>
@@ -667,112 +672,102 @@ Maintenant, analyse la recette suivante :
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-
-            // --- PARTIE 1 : DÉCLARATION DES VARIABLES (SANS ACCÉDER AU DOM) ---
+        // --- VARIABLES ET SÉLECTEURS SPÉCIFIQUES À LA PAGE ---
             let inventory = [];
             let shoppingList = [];
             let recipes = [];
             let grid;
-            let draggedShoppingItemIndex = null;
-            let draggedInventoryItemIndex = null;
 
-            let inventoryDisplay, shoppingListDisplay, addItemForm, addShoppingItemForm, 
-            generateRecipeBtn, generateShoppingListBtn, toggleAllCheckbox, 
-            addLowStockItemsBtn, promptOutputSection, promptOutputTextarea, 
-            copyPromptBtn, importShoppingListTextarea, importShoppingListBtn, 
-            recipeListDisplay, showAddRecipeBtn, recipeFormModal, recipeViewModal, 
-            closeRecipeFormBtn, closeRecipeViewBtn, recipeForm, recipeModalTitle, 
-            copyRecipePromptBtn, importRecipeJsonBtn, viewOldInventoryBtn, 
-            exportInventoryBtn, importInventoryBtn, inventoryFileInput, 
-            viewOldDataModal, closeOldDataModalBtn, oldDataContent;
-
-            // --- PARTIE 2 : FONCTIONS (ELLES NE S'EXÉCUTENT PAS ENCORE) ---
+            // --- DOM ELEMENTS ---
+            const inventoryDisplay = document.getElementById('inventory-display');
+            const shoppingListDisplay = document.getElementById('shopping-list-display');
+            const addItemForm = document.getElementById('addItemForm');
+            const addShoppingItemForm = document.getElementById('addShoppingItemForm');
+            const generateRecipeBtn = document.getElementById('generateRecipeBtn');
+            const generateShoppingListBtn = document.getElementById('generateShoppingListBtn');
+            const toggleAllCheckbox = document.getElementById('toggleAll');
+            const addLowStockItemsBtn = document.getElementById('addLowStockItemsBtn');
+            const promptOutputSection = document.getElementById('prompt-output-section');
+            const promptOutputTextarea = document.getElementById('prompt-output-textarea');
+            const copyPromptBtn = document.getElementById('copy-prompt-btn');
+            const importShoppingListTextarea = document.getElementById('importShoppingListTextarea');
+            const importShoppingListBtn = document.getElementById('importShoppingListBtn');
+            const recipeListDisplay = document.getElementById('recipe-list-display');
+            const showAddRecipeBtn = document.getElementById('show-add-recipe-modal-btn');
+            const recipeFormModal = document.getElementById('recipe-form-modal');
+            const recipeViewModal = document.getElementById('recipe-view-modal');
+            const closeRecipeFormBtn = document.getElementById('close-recipe-form-modal');
+            const closeRecipeViewBtn = document.getElementById('close-recipe-view-modal');
+            const recipeForm = document.getElementById('recipe-form');
+            const recipeModalTitle = document.getElementById('recipe-modal-title');
+            const copyRecipePromptBtn = document.getElementById('copy-recipe-prompt-btn');
+            const importRecipeJsonBtn = document.getElementById('import-recipe-json-btn');
+            const viewOldInventoryBtn = document.getElementById('view-old-inventory-btn');
+            const exportInventoryBtn = document.getElementById('export-inventory-btn');
+            const importInventoryBtn = document.getElementById('import-inventory-btn');
+            const inventoryFileInput = document.getElementById('inventory-file-input');
+            const viewOldDataModal = document.getElementById('view-old-data-modal');
+            const closeOldDataModalBtn = document.getElementById('close-old-data-modal');
+            const oldDataContent = document.getElementById('old-data-content');
+                        
+            // --- FONCTIONS DE CHARGEMENT ET DE SAUVEGARDE ---
             async function loadServerData() {
-                const token = localStorage.getItem('authToken');
-                //console.log("1. Tentative de chargement des données. Jeton trouvé:", token ? "Oui" : "Non");
-
-                if (!token) {
+                if (!localStorage.getItem('authToken')) {
                     renderInventory(); renderShoppingList(); renderRecipeBook();
                     return;
                 }
-
                 try {
-                    const [inv, sl, rec, layout] = await Promise.all([
+                    const [inv, sl, rec] = await Promise.all([
                         apiCall('inventory', 'GET'),
                         apiCall('shopping-list', 'GET'),
-                        apiCall('recipes', 'GET'),
-                        apiCall('user/layout', 'GET')
+                        apiCall('recipes', 'GET')
                     ]);
-                    
-                    /*console.log("2. Données reçues du serveur:", { 
-                        inventory: inv, 
-                        shoppingList: sl, 
-                        recipes: rec 
-                    });*/
-
                     inventory = inv.map(item => ({ ...item, include: true }));
                     shoppingList = sl;
                     recipes = rec;
-                    
-                    if (grid && layout && layout.length > 0) {
-                        //console.log("5. Application de la disposition Gridstack sauvegardée.");
-                        grid.load(layout);
-                    } else {
-                        //console.log("5. Aucune disposition Gridstack sauvegardée à appliquer.");
-                    }
-
-                    //console.log("3. Lancement du rendu des composants...");
-                    renderInventory();
-                    renderShoppingList();
-                    renderRecipeBook();
-                    //console.log("4. Rendu terminé.");
-
+                    saveShoppingList();
+                    renderInventory(); renderShoppingList(); renderRecipeBook();
                 } catch (error) {
-                    console.error("ERREUR CRITIQUE lors du chargement des données:", error);
+                    console.error("Impossible de charger les données du serveur:", error);
                     if (String(error).includes('401') || String(error).includes('403')) {
                         handleLogout();
                     }
                 }
+                try {
+                    const layout = await apiCall('user/layout', 'GET');
+                    initializeGrid(layout);
+                } catch (error) {
+                    console.error("Impossible de charger la disposition, utilisation par défaut.", error);
+                    initializeGrid(); // Initialise avec la disposition par défaut du HTML
+                }
             }
             function saveShoppingList() { localStorage.setItem('shoppingList', JSON.stringify(shoppingList)); }
 
-            function initializeGrid() {
-                // Initialise Gridstack et stocke l'instance dans la variable globale 'grid'.
+            function initializeGrid(layoutItems = []) {
                 grid = GridStack.init({
-                    float: true,
-                    cellHeight: '70px',
+                    float: true, // Permet aux widgets de se positionner de manière plus fluide
+                    cellHeight: '70px', // Hauteur de base pour une unité 'gs-h'
                     minRow: 1,
                 });
 
-                // Attache l'événement de sauvegarde une seule fois, à la création.
-                // Il se déclenchera à chaque fois que l'utilisateur déplace ou redimensionne un widget.
+                // Si une disposition est sauvegardée, on l'applique
+                if (layoutItems.length > 0) {
+                    grid.load(layoutItems);
+                }
+
+                // Sauvegarder la disposition à chaque fois qu'un widget est déplacé ou redimensionné
                 grid.on('change', async function (event, items) {
-                    // On ne tente de sauvegarder que si l'utilisateur est connecté.
-                    if (localStorage.getItem('authToken')) {
-                        const serializedData = grid.save();
-                        try {
-                            await apiCall('user/layout', 'POST', serializedData);
-                        } catch (error) {
-                            console.error("Erreur de sauvegarde de la disposition:", error);
-                        }
+                    const serializedData = grid.save();
+                    try {
+                        await apiCall('user/layout', 'POST', serializedData);
+                    } catch (error) {
+                        console.error("Erreur de sauvegarde de la disposition:", error);
                     }
                 });
             }
 
             // --- FONCTIONS DE RENDU ---
             function renderInventory() {
-                // SOLUTION : On récupère l'élément à chaque appel pour garantir une référence valide.
-                const inventoryDisplay = document.getElementById('inventory-display');
-
-                //console.log("--- Exécution de renderInventory ---");
-                //console.log("Element 'inventoryDisplay' frais:", inventoryDisplay); // DEBUG
-                //console.log("Données à afficher:", inventory); // DEBUG
-
-                if (!inventoryDisplay) {
-                    console.error("ERREUR: 'inventoryDisplay' n'a pas été trouvé dans le DOM au moment du rendu.");
-                    return;
-                }
-
                 inventoryDisplay.innerHTML = '';
                 if (!localStorage.getItem('authToken')) {
                     inventoryDisplay.innerHTML = "<p>Veuillez vous connecter pour voir votre inventaire.</p>"; return;
@@ -803,7 +798,7 @@ Maintenant, analyse la recette suivante :
                                     <input type="text" value="${item.quantity}" data-item-id="${item.id}" class="item-quantity-input">
                                     <button class="btn btn-quantity-change" data-item-id="${item.id}" data-amount="1">+</button>
                                     <label style="font-size: 0.8em; color: #7f8c8d; margin-left: 8px;">Alerte:</label>
-                                    <input type="number" value="${item.alert_threshold || 2}" data-item-id="${item.id}" class="item-threshold-input" min="0" style="width: 45px;">
+                                    <input type="number" value="${item.alert_threshold}" data-item-id="${item.id}" class="item-threshold-input" min="0" style="width: 45px;">
                                     <button class="btn btn-delete" data-item-id="${item.id}">Supprimer</button>
                                 </div>`;
                             list.appendChild(li);
@@ -814,21 +809,9 @@ Maintenant, analyse la recette suivante :
                 });
                 attachInventoryListeners();
                 updateToggleAllCheckboxState();
-                //console.log("--- Fin de renderInventory ---");
             }
             
             function renderShoppingList() {
-                // SOLUTION : On récupère l'élément à chaque appel.
-                const shoppingListDisplay = document.getElementById('shopping-list-display');
-
-                //console.log("--- Exécution de renderShoppingList ---");
-                //console.log("Element 'shoppingListDisplay' frais:", shoppingListDisplay); // DEBUG
-
-                if (!shoppingListDisplay) {
-                    console.error("ERREUR: 'shoppingListDisplay' n'a pas été trouvé dans le DOM au moment du rendu.");
-                    return;
-                }
-
                 shoppingListDisplay.innerHTML = '';
                 if (!localStorage.getItem('authToken')) {
                     shoppingListDisplay.innerHTML = "<p>Connectez-vous pour gérer votre liste.</p>"; return;
@@ -850,21 +833,9 @@ Maintenant, analyse la recette suivante :
                 });
                 shoppingListDisplay.appendChild(list);
                 attachShoppingListListeners();
-                //console.log("--- Fin de renderShoppingList ---");
             }
 
             function renderRecipeBook() {
-                // SOLUTION : On récupère l'élément à chaque appel.
-                const recipeListDisplay = document.getElementById('recipe-list-display');
-
-                //console.log("--- Exécution de renderRecipeBook ---");
-                //console.log("Element 'recipeListDisplay' frais:", recipeListDisplay); // DEBUG
-
-                if (!recipeListDisplay) {
-                    console.error("ERREUR: 'recipeListDisplay' n'a pas été trouvé dans le DOM au moment du rendu.");
-                    return;
-                }
-
                 recipeListDisplay.innerHTML = '';
                 if (!localStorage.getItem('authToken')) {
                     recipeListDisplay.innerHTML = "<p>Connectez-vous pour voir vos recettes.</p>"; return;
@@ -872,14 +843,14 @@ Maintenant, analyse la recette suivante :
                 if (recipes.length === 0) {
                     recipeListDisplay.innerHTML = '<p>Aucune recette sauvegardée.</p>'; return;
                 }
-                recipes.forEach((recipe) => {
+                recipes.forEach((recipe) => { // Plus besoin de l'index
                     const col = document.createElement('div');
-                    col.className = 'col';
+                    col.className = 'col'; // Classe de la grille Bootstrap
                     
                     const card = document.createElement('div');
                     card.className = 'card h-100 shadow-sm recipe-card';
                     card.style.cursor = 'pointer';
-                    card.dataset.recipeId = recipe.id;
+                    card.dataset.recipeId = recipe.id; // On utilise l'ID de la DB
                     
                     card.innerHTML = `
                         <div class="card-body">
@@ -891,9 +862,9 @@ Maintenant, analyse la recette suivante :
                     col.appendChild(card);
                     recipeListDisplay.appendChild(col);
                 });
-                //console.log("--- Fin de renderRecipeBook ---");
             }
    
+            // --- GESTIONNAIRES D'ÉVÉNEMENTS ---
             async function addItem(e) {
                 e.preventDefault();
                 const newItem = {
@@ -1370,7 +1341,7 @@ Maintenant, analyse la recette suivante :
                     await Promise.all(itemsToAddPromises);
                     alert(`${itemsToAddPromises.length} ingrédient(s) ont été ajouté(s) avec succès.`);
                     if (itemsSkippedCount > 0) {
-                        //console.log(`${itemsSkippedCount} ingrédient(s) étaient déjà dans la liste et n'ont pas été ajoutés.`);
+                        console.log(`${itemsSkippedCount} ingrédient(s) étaient déjà dans la liste et n'ont pas été ajoutés.`);
                     }
                     loadServerData(); // Recharge les données pour voir la liste à jour
                 } catch (error) {
@@ -1403,8 +1374,8 @@ Maintenant, analyse la recette suivante :
                 button.textContent = 'Copié!';
                 setTimeout(() => { button.textContent = originalText; }, 2000);
             }
-                
-            // --- PARTIE 3 : INITIALISATION ET ATTACHEMENT DES ÉVÉNEMENTS (LA PARTIE CORRIGÉE) ---
+            
+            // --- ATTACH LISTENERS ---
             function attachInventoryListeners() {
                 document.querySelectorAll('.btn-delete').forEach(b => b.addEventListener('click', deleteItem));
                 document.querySelectorAll('.item-quantity-input').forEach(i => i.addEventListener('change', updateQuantity));
@@ -1418,133 +1389,97 @@ Maintenant, analyse la recette suivante :
                 document.querySelectorAll('.btn-move').forEach(b => b.addEventListener('click', moveItemToInventory));
             }
 
-            function initializeApp() {
-                //console.log("Initialisation de l'application...");
-
-                initializeGrid();
-                        
-                // ÉTAPE 1 (CORRIGÉE) : On capture d'abord TOUS les éléments du DOM
-                // On regroupe toutes les assignations ici pour être certain de ne rien manquer.
-                inventoryDisplay = document.getElementById('inventory-display');
-                shoppingListDisplay = document.getElementById('shopping-list-display');
-                recipeListDisplay = document.getElementById('recipe-list-display');
-                
-                addItemForm = document.getElementById('addItemForm');
-                addShoppingItemForm = document.getElementById('addShoppingItemForm');
-                
-                promptOutputSection = document.getElementById('prompt-output-section');
-                promptOutputTextarea = document.getElementById('prompt-output-textarea');
-                importShoppingListTextarea = document.getElementById('importShoppingListTextarea');
-                
-                recipeFormModal = document.getElementById('recipe-form-modal');
-                recipeViewModal = document.getElementById('recipe-view-modal');
-                recipeModalTitle = document.getElementById('recipe-modal-title');
-                
-                viewOldDataModal = document.getElementById('view-old-data-modal');
-                oldDataContent = document.getElementById('old-data-content');
-                
-                toggleAllCheckbox = document.getElementById('toggleAll');
-                generateShoppingListBtn = document.getElementById('generateShoppingListBtn');
-                copyPromptBtn = document.getElementById('copy-prompt-btn');
-                addLowStockItemsBtn = document.getElementById('addLowStockItemsBtn');
-                importShoppingListBtn = document.getElementById('importShoppingListBtn');
-                generateRecipeBtn = document.getElementById('generateRecipeBtn');
-                showAddRecipeBtn = document.getElementById('show-add-recipe-modal-btn');
-                closeRecipeFormBtn = document.getElementById('close-recipe-form-modal');
-                closeRecipeViewBtn = document.getElementById('close-recipe-view-modal');
-                recipeForm = document.getElementById('recipe-form');
-                copyRecipePromptBtn = document.getElementById('copy-recipe-prompt-btn');
-                importRecipeJsonBtn = document.getElementById('import-recipe-json-btn');
-                viewOldInventoryBtn = document.getElementById('view-old-inventory-btn');
-                exportInventoryBtn = document.getElementById('export-inventory-btn');
-                importInventoryBtn = document.getElementById('import-inventory-btn');
-                inventoryFileInput = document.getElementById('inventory-file-input');
-                closeOldDataModalBtn = document.getElementById('close-old-data-modal');
-
-                // ÉTAPE 3 : On attache tous les écouteurs d'événements
-                if (addItemForm) addItemForm.addEventListener('submit', addItem);
-                if (addShoppingItemForm) addShoppingItemForm.addEventListener('submit', addShoppingItem);
-                if (toggleAllCheckbox) toggleAllCheckbox.addEventListener('change', toggleAll);
-                if (generateShoppingListBtn) generateShoppingListBtn.addEventListener('click', generateShoppingListPrompt);
-                if (copyPromptBtn) copyPromptBtn.addEventListener('click', () => copyToClipboard(promptOutputTextarea, copyPromptBtn));
-                if (addLowStockItemsBtn) addLowStockItemsBtn.addEventListener('click', addLowStockItemsToShoppingList);
-                if (importShoppingListBtn) importShoppingListBtn.addEventListener('click', importShoppingListData);
-                if (generateRecipeBtn) generateRecipeBtn.addEventListener('click', generateRecipePrompt);
-                if (showAddRecipeBtn) showAddRecipeBtn.addEventListener('click', () => openRecipeFormModal());
-                if (closeRecipeFormBtn) closeRecipeFormBtn.addEventListener('click', closeRecipeFormModal);
-                if (closeRecipeViewBtn) closeRecipeViewBtn.addEventListener('click', closeRecipeViewModal);
-                if (recipeForm) recipeForm.addEventListener('submit', handleRecipeFormSubmit);
-                if (copyRecipePromptBtn) copyRecipePromptBtn.addEventListener('click', () => copyToClipboard(document.getElementById('ai-recipe-prompt'), copyRecipePromptBtn));
-                if (importRecipeJsonBtn) importRecipeJsonBtn.addEventListener('click', importRecipeDataFromJson);
-                if (viewOldInventoryBtn) viewOldInventoryBtn.addEventListener('click', viewOldInventory);
-                if (exportInventoryBtn) exportInventoryBtn.addEventListener('click', exportOldInventory);
-                if (importInventoryBtn) importInventoryBtn.addEventListener('click', () => inventoryFileInput.click());
-                if (inventoryFileInput) inventoryFileInput.addEventListener('change', handleFileImport);
-                if (closeOldDataModalBtn) closeOldDataModalBtn.addEventListener('click', () => viewOldDataModal.style.display = 'none');
-                    
-                window.addEventListener('click', e => {
-                    if (e.target == recipeFormModal) closeRecipeFormModal();
-                    if (e.target == recipeViewModal) closeRecipeViewModal();
-                    if (e.target == viewOldDataModal) viewOldDataModal.style.display = 'none';
-                });
-
-                // Attachement des écouteurs pour le Drag and Drop
-                if (shoppingListDisplay) {
-                    shoppingListDisplay.addEventListener('dragstart', (e) => { if (e.target.classList.contains('shopping-list-item')) { draggedShoppingItemIndex = parseInt(e.target.dataset.index, 10); setTimeout(() => { e.target.classList.add('dragging'); }, 0); } });
-                    shoppingListDisplay.addEventListener('dragover', (e) => { e.preventDefault(); const target = e.target.closest('.shopping-list-item'); if (target && parseInt(target.dataset.index, 10) !== draggedShoppingItemIndex) { document.querySelectorAll('.shopping-list-item.drag-over').forEach(el => el.classList.remove('drag-over')); target.classList.add('drag-over'); } });
-                    shoppingListDisplay.addEventListener('dragleave', (e) => { const target = e.target.closest('.shopping-list-item'); if (target) { target.classList.remove('drag-over'); } });
-                    shoppingListDisplay.addEventListener('drop', (e) => { e.preventDefault(); const dropTarget = e.target.closest('.shopping-list-item'); if (dropTarget && draggedShoppingItemIndex !== null) { const dropIndex = parseInt(dropTarget.dataset.index, 10); const itemToMove = shoppingList.splice(draggedShoppingItemIndex, 1)[0]; shoppingList.splice(dropIndex, 0, itemToMove); saveShoppingList(); renderShoppingList(); } });
-                    shoppingListDisplay.addEventListener('dragend', (e) => { document.querySelectorAll('.shopping-list-item.dragging, .shopping-list-item.drag-over').forEach(el => el.classList.remove('dragging', 'drag-over')); draggedShoppingItemIndex = null; });
+            // --- INITIALISATION DE LA PAGE ---
+            addItemForm.addEventListener('submit', addItem);
+            addShoppingItemForm.addEventListener('submit', addShoppingItem);
+            toggleAllCheckbox.addEventListener('change', toggleAll);
+            generateShoppingListBtn.addEventListener('click', generateShoppingListPrompt);
+            copyPromptBtn.addEventListener('click', () => copyToClipboard(promptOutputTextarea, copyPromptBtn));
+            addLowStockItemsBtn.addEventListener('click', addLowStockItemsToShoppingList);
+            importShoppingListBtn.addEventListener('click', importShoppingListData);
+            generateRecipeBtn.addEventListener('click', generateRecipePrompt);
+            showAddRecipeBtn.addEventListener('click', () => openRecipeFormModal());
+            closeRecipeFormBtn.addEventListener('click', closeRecipeFormModal);
+            closeRecipeViewBtn.addEventListener('click', closeRecipeViewModal);
+            recipeForm.addEventListener('submit', handleRecipeFormSubmit);
+            copyRecipePromptBtn.addEventListener('click', () => copyToClipboard(document.getElementById('ai-recipe-prompt'), copyRecipePromptBtn));
+            importRecipeJsonBtn.addEventListener('click', importRecipeDataFromJson);
+            window.addEventListener('click', e => {
+                if (e.target == recipeFormModal) closeRecipeFormModal();
+                if (e.target == recipeViewModal) closeRecipeViewModal();
+                if (e.target == viewOldDataModal) viewOldDataModal.style.display = 'none';
+            });
+        
+            // Gestion de l'ancien inventaire
+            viewOldInventoryBtn.addEventListener('click', viewOldInventory);
+            exportInventoryBtn.addEventListener('click', exportOldInventory);
+            importInventoryBtn.addEventListener('click', () => inventoryFileInput.click());
+            inventoryFileInput.addEventListener('change', handleFileImport);
+            closeOldDataModalBtn.addEventListener('click', () => viewOldDataModal.style.display = 'none');
+            
+            // --- DRAG AND DROP POUR LA LISTE D'ÉPICERIE ---
+            let draggedShoppingItemIndex = null;
+            shoppingListDisplay.addEventListener('dragstart', (e) => { if (e.target.classList.contains('shopping-list-item')) { draggedShoppingItemIndex = parseInt(e.target.dataset.index, 10); setTimeout(() => { e.target.classList.add('dragging'); }, 0); } });
+            shoppingListDisplay.addEventListener('dragover', (e) => { e.preventDefault(); const target = e.target.closest('.shopping-list-item'); if (target && parseInt(target.dataset.index, 10) !== draggedShoppingItemIndex) { document.querySelectorAll('.shopping-list-item.drag-over').forEach(el => el.classList.remove('drag-over')); target.classList.add('drag-over'); } });
+            shoppingListDisplay.addEventListener('dragleave', (e) => { const target = e.target.closest('.shopping-list-item'); if (target) { target.classList.remove('drag-over'); } });
+            shoppingListDisplay.addEventListener('drop', (e) => { e.preventDefault(); const dropTarget = e.target.closest('.shopping-list-item'); if (dropTarget && draggedShoppingItemIndex !== null) { const dropIndex = parseInt(dropTarget.dataset.index, 10); const itemToMove = shoppingList.splice(draggedShoppingItemIndex, 1)[0]; shoppingList.splice(dropIndex, 0, itemToMove); saveShoppingList(); renderShoppingList(); } });
+            shoppingListDisplay.addEventListener('dragend', (e) => { document.querySelectorAll('.shopping-list-item.dragging, .shopping-list-item.drag-over').forEach(el => el.classList.remove('dragging', 'drag-over')); draggedShoppingItemIndex = null; });
+            
+            // --- DRAG AND DROP POUR L'INVENTAIRE ---
+            let draggedInventoryItemIndex = null;
+            inventoryDisplay.addEventListener('dragstart', (e) => {
+                if (e.target.classList.contains('inventory-item')) {
+                    draggedInventoryItemIndex = parseInt(e.target.dataset.index, 10);
+                    setTimeout(() => { e.target.classList.add('dragging'); }, 0);
                 }
-
-                if (inventoryDisplay) {
-                    inventoryDisplay.addEventListener('dragstart', (e) => {
-                        if (e.target.classList.contains('inventory-item')) {
-                            draggedInventoryItemIndex = parseInt(e.target.dataset.index, 10);
-                            setTimeout(() => { e.target.classList.add('dragging'); }, 0);
-                        }
-                    });
-                    inventoryDisplay.addEventListener('dragover', (e) => {
-                        e.preventDefault();
-                        const target = e.target.closest('.inventory-item');
-                        if (target && parseInt(target.dataset.index, 10) !== draggedInventoryItemIndex) {
-                            document.querySelectorAll('.inventory-item.drag-over').forEach(el => el.classList.remove('drag-over'));
-                            target.classList.add('drag-over');
-                        }
-                    });
-                    inventoryDisplay.addEventListener('dragleave', (e) => {
-                        const target = e.target.closest('.inventory-item');
-                        if (target) { target.classList.remove('drag-over'); }
-                    });
-                    inventoryDisplay.addEventListener('drop', e => {
-                        e.preventDefault();
-                        const dropTarget = e.target.closest('.inventory-item');
-                        if (dropTarget && draggedInventoryItemIndex !== null) {
-                            const dropIndex = parseInt(dropTarget.dataset.index, 10);
-                            if (dropIndex === draggedInventoryItemIndex) return;
-                            const newCategory = inventory[dropIndex].category;
-                            const [itemToMove] = inventory.splice(draggedInventoryItemIndex, 1);
-                            const categoryChanged = itemToMove.category !== newCategory;
-                            itemToMove.category = newCategory;
-                            const newDropIndex = (draggedInventoryItemIndex < dropIndex) ? dropIndex - 1 : dropIndex;
-                            inventory.splice(newDropIndex, 0, itemToMove);
-                            if (categoryChanged) {
-                                updateItem(itemToMove.id, { category: newCategory });
-                            } else {
-                                renderInventory();
-                            }
-                        }
-                    });
-                    inventoryDisplay.addEventListener('dragend', () => {
-                        document.querySelectorAll('.inventory-item.dragging, .inventory-item.drag-over').forEach(el => el.classList.remove('dragging', 'drag-over'));
-                        draggedInventoryItemIndex = null;
-                    });
+            });
+            inventoryDisplay.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                const target = e.target.closest('.inventory-item');
+                if (target && parseInt(target.dataset.index, 10) !== draggedInventoryItemIndex) {
+                    document.querySelectorAll('.inventory-item.drag-over').forEach(el => el.classList.remove('drag-over'));
+                    target.classList.add('drag-over');
                 }
-            }
+            });
+            inventoryDisplay.addEventListener('dragleave', (e) => {
+                const target = e.target.closest('.inventory-item');
+                if (target) { target.classList.remove('drag-over'); }
+            });
+            inventoryDisplay.addEventListener('drop', e => {
+                e.preventDefault();
+                const dropTarget = e.target.closest('.inventory-item');
+                if (dropTarget && draggedInventoryItemIndex !== null) {
+                    const dropIndex = parseInt(dropTarget.dataset.index, 10);
+                    if (dropIndex === draggedInventoryItemIndex) return;
+                    const newCategory = inventory[dropIndex].category;
+                    const [itemToMove] = inventory.splice(draggedInventoryItemIndex, 1);
+                    const categoryChanged = itemToMove.category !== newCategory;
+                    itemToMove.category = newCategory;
+                    const newDropIndex = (draggedInventoryItemIndex < dropIndex) ? dropIndex - 1 : dropIndex;
+                    inventory.splice(newDropIndex, 0, itemToMove);
+                    if (categoryChanged) {
+                        updateItem(itemToMove.id, { category: newCategory });
+                    } else {
+                        renderInventory();
+                    }
+                }
+            });
+            inventoryDisplay.addEventListener('dragend', () => {
+                document.querySelectorAll('.inventory-item.dragging, .inventory-item.drag-over').forEach(el => el.classList.remove('dragging', 'drag-over'));
+                draggedInventoryItemIndex = null;
+            });
 
-            initializeApp();
+            // Fermeture des modales
+            window.addEventListener('click', (event) => {
+                if (event.target == recipeFormModal) closeRecipeFormModal();
+                if (event.target == recipeViewModal) closeRecipeViewModal();
+                if (event.target == viewOldDataModal) viewOldDataModal.style.display = 'none';
+            });
+        
             // Lancement initial
             loadServerData();
         });
     </script>
 {% endblock %}
+</body>
+</html>
