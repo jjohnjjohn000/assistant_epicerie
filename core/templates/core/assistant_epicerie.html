@@ -554,7 +554,7 @@
                     </div>
                 </div>
             </div>
-        </div>
+        
 
     <!-- Modale pour ajouter/éditer une recette -->
     <div id="recipe-form-modal" class="modal">
@@ -684,7 +684,7 @@ Maintenant, analyse la recette suivante :
             closeRecipeFormBtn, closeRecipeViewBtn, recipeForm, recipeModalTitle, 
             copyRecipePromptBtn, importRecipeJsonBtn, viewOldInventoryBtn, 
             exportInventoryBtn, importInventoryBtn, inventoryFileInput, 
-            viewOldDataModal, closeOldDataModalBtn, oldDataContent;
+            viewOldDataModal, closeOldDataModalBtn, oldDataContent, autoArrangeBtn, reorganizeBtn, compactBtn;
 
             // --- PARTIE 2 : FONCTIONS (ELLES NE S'EXÉCUTENT PAS ENCORE) ---
             async function loadServerData() {
@@ -701,7 +701,7 @@ Maintenant, analyse la recette suivante :
                         apiCall('inventory', 'GET'),
                         apiCall('shopping-list', 'GET'),
                         apiCall('recipes', 'GET'),
-                        apiCall('user/layout', 'GET')
+                        apiCall('user/layout?page=assistant', 'GET')
                     ]);
                     
                     /*console.log("2. Données reçues du serveur:", { 
@@ -751,7 +751,7 @@ Maintenant, analyse la recette suivante :
                     if (localStorage.getItem('authToken')) {
                         const serializedData = grid.save();
                         try {
-                            await apiCall('user/layout', 'POST', serializedData);
+                            await apiCall('user/layout?page=assistant', 'POST', serializedData);
                         } catch (error) {
                             console.error("Erreur de sauvegarde de la disposition:", error);
                         }
@@ -1418,6 +1418,35 @@ Maintenant, analyse la recette suivante :
                 document.querySelectorAll('.btn-move').forEach(b => b.addEventListener('click', moveItemToInventory));
             }
 
+            // Préréglage de la disposition idéale pour la page de l'assistant
+            const ASSISTANT_LAYOUT_PRESET = [
+                { 'gs-id': 'inventory-widget',       w: 8, h: 6, x: 0, y: 0 },
+                { 'gs-id': 'shopping-list-widget',   w: 8, h: 5, x: 0, y: 6 },
+                { 'gs-id': 'tools-widget',           w: 4, h: 6, x: 8, y: 0 },
+                { 'gs-id': 'recipe-book-widget',     w: 4, h: 5, x: 8, y: 6 },
+                { 'gs-id': 'generate-list-widget',   w: 6, h: 5, x: 0, y: 11 },
+                { 'gs-id': 'recipe-generator-widget',w: 6, h: 5, x: 6, y: 11 },
+            ];
+
+            /**
+             * Applique une disposition prédéfinie à la grille.
+             * @param {Array} preset Le tableau d'objets définissant la disposition.
+             */
+            function applyLayoutPreset(preset) {
+                if (!grid) return;
+
+                // On désactive temporairement les événements pour éviter des sauvegardes multiples
+                grid.batchUpdate();
+                preset.forEach(itemPreset => {
+                    const element = document.querySelector(`.grid-stack-item[gs-id='${itemPreset['gs-id']}']`);
+                    if (element) {
+                        grid.update(element, itemPreset);
+                    }
+                });
+                // On réactive les événements et on déclenche le rendu
+                grid.commit();
+            }
+
             function initializeApp() {
                 //console.log("Initialisation de l'application...");
 
@@ -1460,6 +1489,9 @@ Maintenant, analyse la recette suivante :
                 importInventoryBtn = document.getElementById('import-inventory-btn');
                 inventoryFileInput = document.getElementById('inventory-file-input');
                 closeOldDataModalBtn = document.getElementById('close-old-data-modal');
+                autoArrangeBtn = document.getElementById('auto-arrange-btn');
+                reorganizeBtn = document.getElementById('reorganize-layout-btn');
+                compactBtn = document.getElementById('compact-layout-btn');
 
                 // ÉTAPE 3 : On attache tous les écouteurs d'événements
                 if (addItemForm) addItemForm.addEventListener('submit', addItem);
@@ -1480,8 +1512,15 @@ Maintenant, analyse la recette suivante :
                 if (exportInventoryBtn) exportInventoryBtn.addEventListener('click', exportOldInventory);
                 if (importInventoryBtn) importInventoryBtn.addEventListener('click', () => inventoryFileInput.click());
                 if (inventoryFileInput) inventoryFileInput.addEventListener('change', handleFileImport);
+                
+                if (reorganizeBtn) {
+                    reorganizeBtn.addEventListener('click', (e) => { e.preventDefault(); applyLayoutPreset(ASSISTANT_LAYOUT_PRESET); });
+                }
+                if (compactBtn) {
+                    compactBtn.addEventListener('click', (e) => { e.preventDefault(); if (grid) grid.compact(); });
+                }
                 if (closeOldDataModalBtn) closeOldDataModalBtn.addEventListener('click', () => viewOldDataModal.style.display = 'none');
-                    
+
                 window.addEventListener('click', e => {
                     if (e.target == recipeFormModal) closeRecipeFormModal();
                     if (e.target == recipeViewModal) closeRecipeViewModal();

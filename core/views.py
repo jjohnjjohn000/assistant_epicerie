@@ -110,8 +110,9 @@ def importer_circulaire(request):
             {"status": "erreur", "message": str(e)}, status=status.HTTP_400_BAD_REQUEST
         )
 
-# ... (les autres vues comme get_rabais_actifs) ...
 
+@api_view(['GET'])
+@permission_classes([AllowAny])
 def get_circulaires_actives(request):
     today = timezone.now().date()
     # On optimise la requête en préchargeant aussi la catégorie du produit
@@ -699,16 +700,24 @@ class UserLayoutView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        """ Récupère la disposition sauvegardée de l'utilisateur. """
-        # Utilise get_or_create pour trouver le profil ou le créer s'il manque.
-        profile, created = Profile.objects.get_or_create(user=request.user)
-        layout_data = profile.inventory_layout
-        return Response(layout_data or [])
+        """ Récupère la disposition sauvegardée pour une page spécifique. """
+        page_name = request.query_params.get('page')
+        if not page_name:
+            return Response({"error": "Le paramètre 'page' est manquant."}, status=status.HTTP_400_BAD_REQUEST)
+
+        profile, _ = Profile.objects.get_or_create(user=request.user)
+        # On récupère la disposition pour la page demandée depuis le dictionnaire 'layouts'.
+        layout_data = profile.layouts.get(page_name, [])
+        return Response(layout_data)
 
     def post(self, request):
-        """ Sauvegarde la nouvelle disposition de l'utilisateur. """
-        # Utilise aussi get_or_create ici pour être cohérent et robuste.
-        profile, created = Profile.objects.get_or_create(user=request.user)
-        profile.inventory_layout = request.data
+        """ Sauvegarde la nouvelle disposition pour une page spécifique. """
+        page_name = request.query_params.get('page')
+        if not page_name:
+            return Response({"error": "Le paramètre 'page' est manquant."}, status=status.HTTP_400_BAD_REQUEST)
+
+        profile, _ = Profile.objects.get_or_create(user=request.user)
+        # On met à jour la clé correspondant à la page dans le dictionnaire 'layouts'.
+        profile.layouts[page_name] = request.data
         profile.save()
         return Response({"status": "success"}, status=status.HTTP_200_OK)

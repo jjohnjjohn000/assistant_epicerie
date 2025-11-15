@@ -31,7 +31,7 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 # Le 'True' est une valeur par défaut si la variable n'est pas trouvée
 DEBUG = os.getenv('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = ['maptool.temis.qc.ca', 'localhost']
+ALLOWED_HOSTS = ['maptool.temis.qc.ca', 'localhost', '*']
 
 # Application definition
 

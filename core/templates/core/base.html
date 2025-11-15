@@ -42,6 +42,15 @@
 
                 <!-- Vue pour l'utilisateur connecté -->
                 <div id="nav-logged-in-view" class="d-none align-items-center text-white">
+                   <div class="dropdown me-3">
+                        <button class="btn btn-info btn-sm dropdown-toggle" type="button" id="layoutOptionsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-grid-fill"></i> Options d'affichage
+                        </button>
+                        <ul class="dropdown-menu" aria-labelledby="layoutOptionsDropdown">
+                            <li><a class="dropdown-item" href="#" id="reorganize-layout-btn">Réorganiser l'affichage (Reset)</a></li>
+                            <li><a class="dropdown-item" href="#" id="compact-layout-btn">Compacter les widgets</a></li>
+                        </ul>
+                    </div> 
                     <span id="nav-user-status" class="me-3"></span>
                     <button id="nav-logout-btn" class="btn btn-danger btn-sm"><i class="bi bi-box-arrow-right"></i></button>
                 </div>

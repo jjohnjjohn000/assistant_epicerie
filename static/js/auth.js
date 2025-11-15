@@ -13,7 +13,6 @@ function getCookie(name) {
     return cookieValue;
 }
 
-// REMPLACEZ L'ANCIENNE FONCTION PAR CELLE-CI
 async function apiCall(endpoint, method, body = null) {
     const headers = {
         'Content-Type': 'application/json',
@@ -28,10 +27,16 @@ async function apiCall(endpoint, method, body = null) {
         options.body = JSON.stringify(body);
     }
     
-    // LOGIQUE D'URL SIMPLIFIÉE ET ROBUSTE
-    // Nettoie l'endpoint pour s'assurer qu'il n'a pas de slash au début ou à la fin
-    const cleanEndpoint = endpoint.replace(/^\/|\/$/g, '');
-    const url = `/api/${cleanEndpoint}/`; // Garantit une URL toujours correcte comme /api/inventory/ ou /api/inventory/123/
+    // 1. On retire un préfixe /api/ si l'appelant l'a inclus par erreur.
+    let cleanEndpoint = endpoint.startsWith('/api/') ? endpoint.substring(5) : endpoint;
+    
+    // 2. On retire un éventuel slash au début.
+    cleanEndpoint = cleanEndpoint.startsWith('/') ? cleanEndpoint.substring(1) : cleanEndpoint;
+    
+    // 3. On reconstruit l'URL. On ajoute le slash final seulement si l'endpoint ne se termine pas
+    //    déjà par un slash et ne contient pas de paramètres de requête.
+    const needsTrailingSlash = !cleanEndpoint.endsWith('/') && !cleanEndpoint.includes('?');
+    const url = `/api/${cleanEndpoint}${needsTrailingSlash ? '/' : ''}`;
 
     const response = await fetch(url, options);
 
@@ -40,8 +45,10 @@ async function apiCall(endpoint, method, body = null) {
         try {
             errorData = await response.json();
         } catch (e) {
+            // Fournit un message d'erreur plus clair pour les erreurs 404
             errorData = { detail: `Erreur ${response.status}: ${response.statusText}` };
         }
+        // S'assure qu'on lance une erreur avec un message
         throw new Error(errorData.detail || errorData.error || `Erreur ${response.status}`);
     }
     if (response.status === 204) {
@@ -60,7 +67,7 @@ async function handleLogout() {
         localStorage.removeItem('username');
         localStorage.removeItem('shoppingList');
         localStorage.removeItem('savedOptimizedList');
-        window.location.href = '/';
+        window.location.reload();
     }
 }
 

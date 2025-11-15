@@ -93,7 +93,7 @@ class Profile(models.Model):
     """ Modèle pour étendre les fonctionnalités du modèle User de base. """
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="profile")
     reputation = models.IntegerField(default=0, help_text="Points de réputation de l'utilisateur")
-    inventory_layout = models.JSONField(null=True, blank=True)
+    layouts = models.JSONField(default=dict, blank=True)
 
     def __str__(self):
         return f"Profil de {self.user.username}"
