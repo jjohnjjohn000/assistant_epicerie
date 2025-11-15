@@ -203,70 +203,101 @@
         .category-rabais-group[open] > .category-rabais-summary {
             border-bottom: 1px solid #e9ecef;
         }
+        .container {
+            /* On ajuste le conteneur principal pour la grille */
+            width: 100%;
+            max-width: 1400px !important;
+            padding: 0 !important;
+            background: transparent !important;
+            box-shadow: none !important;
+        }
+        .grid-stack-item-content {
+            /* Style de base pour chaque "widget" */
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            overflow: auto !important; /* Permet le défilement interne */
+            padding: 20px;
+            height: 100%;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+        }
+        .grid-stack-item-content section {
+            flex-grow: 1; /* Assure que la section remplit le widget */
+        }
+        .grid-stack-item-content h1, .grid-stack-item-content h2 {
+            margin-top: 0;
+        }
     </style>
 {% endblock %}
 
 {% block content %}
-</head>
-<body>
-    <main class="content-wrapper">
-        <div class="container">
 
-            <h1>Optimiseur de Rabais et Itinéraire</h1>
-
-            <section id="flyer-deals-section" class="section">
-                <h2>Rabais Actifs des Circulaires</h2>
-                <input type="search" id="search-rabais-input" class="form-control form-control-lg mb-3" placeholder="Filtrer les rabais par nom de produit...">
-                <div id="rabais-actifs-display">
-                    <p class="placeholder">Chargement des rabais en cours...</p>
+            <div class="grid-stack">
+                <!-- WIDGET 1: Rabais Actifs -->
+                <div class="grid-stack-item" gs-id="flyer-deals-widget" gs-w="12" gs-h="6" gs-x="0" gs-y="0">
+                    <div class="grid-stack-item-content">
+                        <section id="flyer-deals-section" class="section">
+                            <h2>Rabais Actifs des Circulaires</h2>
+                            <input type="search" id="search-rabais-input" class="form-control form-control-lg mb-3" placeholder="Filtrer les rabais par nom de produit...">
+                            <div id="rabais-actifs-display">
+                                <p class="placeholder">Chargement des rabais en cours...</p>
+                            </div>
+                        </section>
+                    </div>
                 </div>
-            </section>
             
-            <section id="store-selection-section" class="section">
-                <h2>1. Sélection des Commerces</h2>
-                <p>Trouvez les magasins à proximité ou ajoutez-les via leur site web ou une circulaire JSON.</p>
-                
-                <div id="store-type-filters">
-                    <label><input type="checkbox" class="store-type-filter" value="supermarket" checked> Grandes surfaces</label>
-                    <label><input type="checkbox" class="store-type-filter" value="grocery" checked> Épiceries</label>
-                    <label><input type="checkbox" class="store-type-filter" value="convenience" checked> Dépanneurs</label>
-                    <label><input type="checkbox" class="store-type-filter" value="pharmacy" checked> Pharmacies</label>
-                </div>
-                
-                <div>
-                    <button id="findStoresBtn" class="btn btn-primary">
-                        <i class="bi bi-magic"></i> Trouver les commerces à proximité
-                    </button>
-                    <button id="sortStoresBtn" class="btn btn-primary" style="display: none; background-color: #16a085; margin-left: 10px;">
-                        <i class="bi bi-magic"></i> Trier par distance
-                    </button>
-                </div>
 
-                <div id="manual-add-section" style="margin-top: 25px;">
-                    <h4>Ajouter un commerce via son site web</h4>
-                    <form id="addStoreUrlForm" class="input-group">
-                        <input type="url" id="manualStoreUrl" class="form-control" placeholder="https://www.exemple.com" required>
-                        <button type="submit" class="btn btn-outline-secondary">
-                            <i class="bi bi-plus-lg"></i> Ajouter
-                        </button>
-                    </form>
-                </div>
-
-                <div id="community-add-section" style="margin-top: 25px;">
-                    <h4>Contribution Communautaire</h4>
-                    <button id="add-deal-btn" class="btn btn-primary" style="background-color: #e67e22;">
-                        <i class="bi bi-magic"></i> Soumettre un rabais
-                    </button>
-                    <p style="font-size: 0.9em; color: #555;">Aidez la communauté en ajoutant un rabais que vous avez vu en magasin ou sur une circulaire.</p>
-                </div>
+                <!-- WIDGET 2: Sélection des Commerces & Outils -->
+                <div class="grid-stack-item" gs-id="store-selection-widget" gs-w="6" gs-h="8" gs-x="0" gs-y="6">
+                    <div class="grid-stack-item-content">
+                        <section id="store-selection-section" class="section">
+                            <!-- Tout le contenu de l'ancienne section "1. Sélection des Commerces" va ici -->
+                            <h2>1. Sélection des Commerces</h2>
+                            <p>Trouvez les magasins à proximité ou ajoutez-les via leur site web ou une circulaire JSON.</p>
+                            
+                            <div id="store-type-filters">
+                                <label><input type="checkbox" class="store-type-filter" value="supermarket" checked> Grandes surfaces</label>
+                                <label><input type="checkbox" class="store-type-filter" value="grocery" checked> Épiceries</label>
+                                <label><input type="checkbox" class="store-type-filter" value="convenience" checked> Dépanneurs</label>
+                                <label><input type="checkbox" class="store-type-filter" value="pharmacy" checked> Pharmacies</label>
+                            </div>
                 
-                <div id="flyer-import-section" style="margin-top: 25px;">
-                    <div id="ai-converter-helper" style="background-color: #e8f4fd; border: 1px solid #d1e9fc; border-radius: 8px; padding: 20px; margin-bottom: 25px;">
-                        <h4>Besoin d'aide pour convertir une circulaire ?</h4>
-                        <p>Utilisez un assistant IA comme Gemini pour transformer automatiquement une circulaire (PDF, image ou site web) en format JSON compatible.</p>
-                        <p><strong>Étape 1 :</strong> Copiez l'instruction ci-dessous. <br><strong>Étape 2 :</strong> Ouvrez Gemini, collez l'instruction, puis ajoutez le lien ou le contenu de la circulaire que vous voulez convertir.</p>
-                        
-                        <textarea id="ai-prompt-textarea" rows="12" readonly style="width: 100%; box-sizing: border-box; font-family: monospace; padding: 10px; border-radius: 5px; border: 1px solid #ccc; background-color: #f8f9fa;">
+                            <div>
+                                <button id="findStoresBtn" class="btn btn-primary">
+                                    <i class="bi bi-magic"></i> Trouver les commerces à proximité
+                                </button>
+                                <button id="sortStoresBtn" class="btn btn-primary" style="display: none; background-color: #16a085; margin-left: 10px;">
+                                    <i class="bi bi-magic"></i> Trier par distance
+                                </button>
+                            </div>
+                
+                            <div id="manual-add-section" style="margin-top: 25px;">
+                                <h4>Ajouter un commerce via son site web</h4>
+                                <form id="addStoreUrlForm" class="input-group">
+                                    <input type="url" id="manualStoreUrl" class="form-control" placeholder="https://www.exemple.com" required>
+                                    <button type="submit" class="btn btn-outline-secondary">
+                                        <i class="bi bi-plus-lg"></i> Ajouter
+                                    </button>
+                                </form>
+                            </div>
+
+                            <div id="community-add-section" style="margin-top: 25px;">
+                                <h4>Contribution Communautaire</h4>
+                                <button id="add-deal-btn" class="btn btn-primary" style="background-color: #e67e22;">
+                                    <i class="bi bi-magic"></i> Soumettre un rabais
+                                </button>
+                                <p style="font-size: 0.9em; color: #555;">Aidez la communauté en ajoutant un rabais que vous avez vu en magasin ou sur une circulaire.</p>
+                            </div>
+                            
+                            <div id="flyer-import-section" style="margin-top: 25px;">
+                                <div id="ai-converter-helper" style="background-color: #e8f4fd; border: 1px solid #d1e9fc; border-radius: 8px; padding: 20px; margin-bottom: 25px;">
+                                    <h4>Besoin d'aide pour convertir une circulaire ?</h4>
+                                    <p>Utilisez un assistant IA comme Gemini pour transformer automatiquement une circulaire (PDF, image ou site web) en format JSON compatible.</p>
+                                    <p><strong>Étape 1 :</strong> Copiez l'instruction ci-dessous. <br><strong>Étape 2 :</strong> Ouvrez Gemini, collez l'instruction, puis ajoutez le lien ou le contenu de la circulaire que vous voulez convertir.</p>
+                                    
+                                    <textarea id="ai-prompt-textarea" rows="12" readonly style="width: 100%; box-sizing: border-box; font-family: monospace; padding: 10px; border-radius: 5px; border: 1px solid #ccc; background-color: #f8f9fa;">
 Agis comme un expert en extraction de données de circulaires d'épicerie. Ta tâche est de transformer les informations d'une circulaire que je vais te fournir en un format JSON structuré.
 
 Pour les dates, il est impératif d'utiliser les clés `date_debut` et `date_fin` et de fournir les dates au format `AAAA-MM-JJ`.
@@ -276,131 +307,142 @@ Le JSON doit impérativement suivre la structure suivante. Ne fournis aucune exp
 Voici la structure exacte à respecter :
 \`\`\`json
 {
-  "store": "NomDuMagasin",
-  "address": "123 Rue Principale, Ville, QC",
-  "website": "https://www.example.com",
-  "date_debut": "AAAA-MM-JJ",
-  "date_fin": "AAAA-MM-JJ",
-  "categories": [
+"store": "NomDuMagasin",
+"address": "123 Rue Principale, Ville, QC",
+"website": "https://www.example.com",
+"date_debut": "AAAA-MM-JJ",
+"date_fin": "AAAA-MM-JJ",
+"categories": [
     {
-      "category_name": "Nom de la catégorie (ex: Épicerie, Fruits et légumes)",
-      "items": [
+    "category_name": "Nom de la catégorie (ex: Épicerie, Fruits et légumes)",
+    "items": [
         {
-          "name": "Nom complet de l'article",
-          "brand": "Marque (si disponible)",
-          "description": "Description additionnelle",
-          "price": "Prix affiché (ex: 5.99, 2/4.00)",
-          "quantity": "Quantité ou poids (ex: 500g, Paquet de 2)",
-          "unit": "$/lb, l'unité, pour 2, etc.",
-          "member_price": "Prix membre (si différent)",
-          "regular_price": "Prix régulier (si un rabais est indiqué)",
-          "single_price": "Prix à l'unité (si un prix de groupe est affiché, ex: 2.50)",
-          "local": true,
-          "scene_points": "Points Scène+ (ou autre programme de points)"
+        "name": "Nom complet de l'article",
+        "brand": "Marque (si disponible)",
+        "description": "Description additionnelle",
+        "price": "Prix affiché (ex: 5.99, 2/4.00)",
+        "quantity": "Quantité ou poids (ex: 500g, Paquet de 2)",
+        "unit": "$/lb, l'unité, pour 2, etc.",
+        "member_price": "Prix membre (si différent)",
+        "regular_price": "Prix régulier (si un rabais est indiqué)",
+        "single_price": "Prix à l'unité (si un prix de groupe est affiché, ex: 2.50)",
+        "local": true,
+        "scene_points": "Points Scène+ (ou autre programme de points)"
         }
-      ]
+    ]
     }
-  ]
+]
 }
 \`\`\`
 
 Maintenant, analyse la circulaire que je vais te fournir et génère le JSON correspondant.
-                        </textarea>
-                                                
-                        <div style="margin-top: 10px; display: flex; gap: 10px;">
-                            <button id="copy-ai-prompt-btn" class="btn btn-primary" style="background-color: #27ae60;">
-                                <i class="bi bi-magic"></i> Copier l'instruction
-                            </button>
-                            <a href="https://gemini.google.com/app" target="_blank" class="btn btn-primary" style="background-color: #8e44ad; text-decoration: none; text-align: center;">
-                                <i class="bi bi-magic"></i> Ouvrir Gemini
-                            </a>
-                        </div>
-                    </div>
+                                    </textarea>
+                                                            
+                                    <div style="margin-top: 10px; display: flex; gap: 10px;">
+                                        <button id="copy-ai-prompt-btn" class="btn btn-primary" style="background-color: #27ae60;">
+                                            <i class="bi bi-magic"></i> Copier l'instruction
+                                        </button>
+                                        <a href="https://gemini.google.com/app" target="_blank" class="btn btn-primary" style="background-color: #8e44ad; text-decoration: none; text-align: center;">
+                                            <i class="bi bi-magic"></i> Ouvrir Gemini
+                                        </a>
+                                    </div>
+                                </div>
 
-                    <h4>
-                        <span>Ajouter une circulaire (JSON)</span>
-                        <button id="manageFlyersBtn" class="btn btn-primary btn-small" style="background-color: #7f8c8d;">
-                            <i class="bi bi-magic"></i> Gérer les circulaires
-                        </button>
-                    </h4>
-                    <form id="importFlyerForm">
-                        <p style="margin-top:0; font-size: 0.9em; color: #555;">
-                            Collez ici les données de la circulaire au format JSON pour l'intégrer à l'optimiseur.
-                        </p>
-                        <textarea id="flyerJsonInput" placeholder='{"store": "NomDuMagasin", "categories": [{"items": [...]}]}' style="width: 100%; min-height: 100px; box-sizing: border-box; border: 1px solid #ced4da; border-radius: 4px; padding: 10px; font-family: monospace; margin-bottom: 10px;"></textarea>
-                        <button type="submit" class="btn btn-primary" style="background-color: #8e44ad;">
-                            <i class="bi bi-magic"></i> Intégrer la circulaire
-                        </button>
-                    </form>
-                </div>
+                                <h4>
+                                    <span>Ajouter une circulaire (JSON)</span>
+                                    <button id="manageFlyersBtn" class="btn btn-primary btn-small" style="background-color: #7f8c8d;">
+                                        <i class="bi bi-magic"></i> Gérer les circulaires
+                                    </button>
+                                </h4>
+                                <form id="importFlyerForm">
+                                    <p style="margin-top:0; font-size: 0.9em; color: #555;">
+                                        Collez ici les données de la circulaire au format JSON pour l'intégrer à l'optimiseur.
+                                    </p>
+                                    <textarea id="flyerJsonInput" placeholder='{"store": "NomDuMagasin", "categories": [{"items": [...]}]}' style="width: 100%; min-height: 100px; box-sizing: border-box; border: 1px solid #ced4da; border-radius: 4px; padding: 10px; font-family: monospace; margin-bottom: 10px;"></textarea>
+                                    <button type="submit" class="btn btn-primary" style="background-color: #8e44ad;">
+                                        <i class="bi bi-magic"></i> Intégrer la circulaire
+                                    </button>
+                                </form>
+                            </div>
                 
-                <div id="stores-list-display" style="margin-top: 20px;">
-                    <p class="placeholder">La liste des commerces apparaîtra ici.</p>
-                </div>
-            </section>
-
-            <section id="optimization-section" class="section">
-                <h2>
-                    <span>2. Optimisation</span>
-                    <div>
-                        <button id="findPricesBtn" class="btn btn-primary btn-small" style="background-color: #f39c12; display: none;">
-                            <i class="bi bi-magic"></i> Chercher prix manquants
-                        </button>
-                        <button id="printListBtn" class="btn btn-primary btn-small" style="background-color: #16a085;">
-                            <i class="bi bi-magic"></i> Imprimer la liste
-                        </button>
+                            <div id="stores-list-display" style="margin-top: 20px;">
+                                <p class="placeholder">La liste des commerces apparaîtra ici.</p>
+                            </div>
+                        </section>
                     </div>
-                </h2>
-                <p>Comparez votre liste d'épicerie avec les rabais des commerces sélectionnés.</p>
-                <button id="optimizeListBtn" class="btn btn-primary">
-                    <i class="bi bi-magic"></i> Optimiser ma liste
-                </button>
+                </div>
 
-                <div id="price-finder-container" style="margin-top: 25px; display: none;">
-                    <hr style="margin-bottom: 25px;">
-                    <h4><span role="img" aria-label="robot">🤖</span> Trouver les Prix Manquants avec l'IA</h4>
-                    <p>Utilisez l'IA pour rechercher le prix régulier des articles sans rabais sélectionné.</p>
-                    
-                    <div id="price-finder-prompt-output" style="display: none; background-color: #e8f4fd; border: 1px solid #d1e9fc; border-radius: 8px; padding: 20px; margin-bottom: 25px;">
-                        <p><strong>Étape 1 :</strong> Copiez l'instruction. <br><strong>Étape 2 :</strong> Collez-la dans Gemini pour obtenir les prix.</p>
-                        <textarea id="price-finder-prompt-textarea" rows="10" readonly style="width: 100%; box-sizing: border-box; font-family: monospace; padding: 10px; border-radius: 5px; border: 1px solid #ccc; background-color: #f8f9fa;"></textarea>
-                        <div style="margin-top: 10px; display: flex; gap: 10px;">
-                            <button id="copy-price-finder-prompt-btn" class="btn btn-primary" style="background-color: #27ae60;">
-                                <i class="bi bi-magic"></i> Copier l'instruction
+                <!-- WIDGET 3: Optimisation -->
+                <div class="grid-stack-item" gs-id="optimization-widget" gs-w="6" gs-h="5" gs-x="6" gs-y="6">
+                    <div class="grid-stack-item-content">
+                        <section id="optimization-section" class="section">
+                            <h2>
+                                <span>2. Optimisation</span>
+                                <div>
+                                    <button id="findPricesBtn" class="btn btn-primary btn-small" style="background-color: #f39c12; display: none;">
+                                        <i class="bi bi-magic"></i> Chercher prix manquants
+                                    </button>
+                                    <button id="printListBtn" class="btn btn-primary btn-small" style="background-color: #16a085;">
+                                        <i class="bi bi-magic"></i> Imprimer la liste
+                                    </button>
+                                </div>
+                            </h2>
+                            <p>Comparez votre liste d'épicerie avec les rabais des commerces sélectionnés.</p>
+                            <button id="optimizeListBtn" class="btn btn-primary">
+                                <i class="bi bi-magic"></i> Optimiser ma liste
                             </button>
-                            <a href="https://gemini.google.com/app" target="_blank" class="btn btn-primary" style="background-color: #8e44ad; text-decoration: none; text-align: center;">
-                                <i class="bi bi-magic"></i> Ouvrir Gemini
-                            </a>
-                        </div>
+
+                            <div id="price-finder-container" style="margin-top: 25px; display: none;">
+                                <hr style="margin-bottom: 25px;">
+                                <h4><span role="img" aria-label="robot">🤖</span> Trouver les Prix Manquants avec l'IA</h4>
+                                <p>Utilisez l'IA pour rechercher le prix régulier des articles sans rabais sélectionné.</p>
+                                
+                                <div id="price-finder-prompt-output" style="display: none; background-color: #e8f4fd; border: 1px solid #d1e9fc; border-radius: 8px; padding: 20px; margin-bottom: 25px;">
+                                    <p><strong>Étape 1 :</strong> Copiez l'instruction. <br><strong>Étape 2 :</strong> Collez-la dans Gemini pour obtenir les prix.</p>
+                                    <textarea id="price-finder-prompt-textarea" rows="10" readonly style="width: 100%; box-sizing: border-box; font-family: monospace; padding: 10px; border-radius: 5px; border: 1px solid #ccc; background-color: #f8f9fa;"></textarea>
+                                    <div style="margin-top: 10px; display: flex; gap: 10px;">
+                                        <button id="copy-price-finder-prompt-btn" class="btn btn-primary" style="background-color: #27ae60;">
+                                            <i class="bi bi-magic"></i> Copier l'instruction
+                                        </button>
+                                        <a href="https://gemini.google.com/app" target="_blank" class="btn btn-primary" style="background-color: #8e44ad; text-decoration: none; text-align: center;">
+                                            <i class="bi bi-magic"></i> Ouvrir Gemini
+                                        </a>
+                                    </div>
+                                </div>
+                        
+                                <div id="price-importer-section">
+                                    <p><strong>Étape 3 :</strong> Collez le JSON fourni par Gemini ci-dessous.</p>
+                                    <textarea id="import-prices-json" placeholder='[{"name": "Nom De L&#39;article", "price": 4.99}, ...]' style="width: 100%; min-height: 80px; box-sizing: border-box; border: 1px solid #ced4da; border-radius: 4px; padding: 10px; font-family: monospace; margin-bottom: 10px;"></textarea>
+                                    <button id="importPricesBtn" class="btn btn-primary" style="background-color: #16a085;">
+                                        <i class="bi bi-magic"></i> Importer les Prix
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div id="optimization-display" style="margin-top: 20px;">
+                                <p class="placeholder">Votre liste optimisée apparaîtra ici.</p>
+                            </div>
+                        </section>
                     </div>
-            
-                    <div id="price-importer-section">
-                         <p><strong>Étape 3 :</strong> Collez le JSON fourni par Gemini ci-dessous.</p>
-                         <textarea id="import-prices-json" placeholder='[{"name": "Nom De L&#39;article", "price": 4.99}, ...]' style="width: 100%; min-height: 80px; box-sizing: border-box; border: 1px solid #ced4da; border-radius: 4px; padding: 10px; font-family: monospace; margin-bottom: 10px;"></textarea>
-                         <button id="importPricesBtn" class="btn btn-primary" style="background-color: #16a085;">
-                            <i class="bi bi-magic"></i> Importer les Prix
-                        </button>
+                </div>
+
+                <!-- WIDGET 4: Itinéraire -->
+                <div class="grid-stack-item" gs-id="route-widget" gs-w="6" gs-h="3" gs-x="6" gs-y="11">
+                    <div class="grid-stack-item-content">
+                        <section id="route-section" class="section">
+                            <h2>3. Itinéraire d'Achat Suggéré</h2>
+                            <p>Générez un itinéraire simple basé sur les magasins où se trouvent les meilleures offres.</p>
+                            <button id="generateRouteBtn" class="btn btn-primary">
+                                <i class="bi bi-magic"></i> Générer l'itinéraire
+                            </button>
+                            <div id="route-display" style="margin-top: 20px;">
+                                <p class="placeholder">Votre itinéraire apparaîtra ici.</p>
+                            </div>
+                        </section>
                     </div>
                 </div>
-
-                <div id="optimization-display" style="margin-top: 20px;">
-                    <p class="placeholder">Votre liste optimisée apparaîtra ici.</p>
-                </div>
-            </section>
-
-            <section id="route-section" class="section">
-                <h2>3. Itinéraire d'Achat Suggéré</h2>
-                <p>Générez un itinéraire simple basé sur les magasins où se trouvent les meilleures offres.</p>
-                <button id="generateRouteBtn" class="btn btn-primary">
-                    <i class="bi bi-magic"></i> Générer l'itinéraire
-                </button>
-                <div id="route-display" style="margin-top: 20px;">
-                     <p class="placeholder">Votre itinéraire apparaîtra ici.</p>
-                </div>
-            </section>
-
-        </div>
-    </main>
+            </div>
+{% endblock %}
 
     <div id="flyerModal" class="modal">
         <div class="modal-content">
@@ -617,127 +659,58 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
     <!-- ============================================= -->
     <!-- ============== FIN DES MODALES ============== -->
     <!-- ============================================= -->
-{% endblock %}
 
 {% block body_scripts %}
+    <script src="https://cdn.jsdelivr.net/npm/gridstack@10.2.0/dist/gridstack-all.js"></script>
     <script>
     document.addEventListener('DOMContentLoaded', function() {
-        const findStoresBtn = document.getElementById('findStoresBtn');
-        const sortStoresBtn = document.getElementById('sortStoresBtn');
-        const storesListDisplay = document.getElementById('stores-list-display');
-        const optimizeListBtn = document.getElementById('optimizeListBtn');
-        const printListBtn = document.getElementById('printListBtn');
-        const generateRouteBtn = document.getElementById('generateRouteBtn');
-        const optimizationDisplay = document.getElementById('optimization-display');
-        const routeDisplay = document.getElementById('route-display');
-        const addStoreUrlForm = document.getElementById('addStoreUrlForm');
-        const manualStoreUrlInput = document.getElementById('manualStoreUrl');
-        const importFlyerForm = document.getElementById('importFlyerForm');
-        const flyerJsonInput = document.getElementById('flyerJsonInput');
-        
-        const flyerModal = document.getElementById('flyerModal');
-        const modalTitle = document.getElementById('modal-title');
-        const modalBody = document.getElementById('modal-body');
-        const closeBtn = document.querySelector('.close-btn');
+        // --- PARTIE 1 : DÉCLARATION DES VARIABLES ---
+        // Les variables pour les éléments du DOM seront assignées dans initializePage()
+        let findStoresBtn, sortStoresBtn, optimizeListBtn, printListBtn,
+            generateRouteBtn, addStoreUrlForm,
+            manualStoreUrlInput, importFlyerForm, flyerJsonInput, flyerModal, modalTitle,
+            modalBody, closeBtn, manageFlyersBtn, flyerManagerModal, modalManagerBody,
+            closeBtnManager, editStoreModal, closeBtnEdit, editStoreForm, copyAiPromptBtn,
+            aiPromptTextarea, findPricesBtn, priceFinderContainer, priceFinderPromptOutput,
+            priceFinderPromptTextarea, copyPriceFinderPromptBtn, importPricesJsonTextarea,
+            importPricesBtn, priceModal, closePriceModalBtn, submitPriceForm, modalProductName,
+            hiddenProductNameInput, storeSelect, priceInput, addProductModal,
+            closeAddProductModalBtn, addProductForm, newProductNameDisplay,
+            hiddenNewProductNameInput, addDealBtn, submitDealModal, closeDealModalBtn,
+            submitDealForm, reportPriceModal, closeReportModalBtn, reportPriceForm,
+            reportProductName, hiddenReportPriceId, optimizationDisplay;
 
-        const manageFlyersBtn = document.getElementById('manageFlyersBtn');
-        const flyerManagerModal = document.getElementById('flyerManagerModal');
-        const modalManagerBody = document.getElementById('modal-manager-body');
-        const closeBtnManager = document.querySelector('.close-btn-manager');
+        // Variables d'état
+        let optimizedItems = [];
+        let allStores = [];
+        let nearbyStores = [];
+        let manualStores = [];
+        let flyerData = {};
+        let activeDeals = [];
+        let grid;
+        let draggedItemIndex = null;
+        const ACCORDION_STATE_KEY = 'optimiseurAccordionStates';
 
-        const editStoreModal = document.getElementById('editStoreModal');
-        const closeBtnEdit = document.querySelector('.close-btn-edit');
-        const editStoreForm = document.getElementById('editStoreForm');
+        // --- PARTIE 2 : DÉFINITION DES FONCTIONS ---
 
-        const copyAiPromptBtn = document.getElementById('copy-ai-prompt-btn');
-        const aiPromptTextarea = document.getElementById('ai-prompt-textarea');
-        
-        // --- NOUVEAUX ÉLÉMENTS DOM POUR LA RECHERCHE DE PRIX ---
-        const findPricesBtn = document.getElementById('findPricesBtn');
-        const priceFinderContainer = document.getElementById('price-finder-container');
-        const priceFinderPromptOutput = document.getElementById('price-finder-prompt-output');
-        const priceFinderPromptTextarea = document.getElementById('price-finder-prompt-textarea');
-        const copyPriceFinderPromptBtn = document.getElementById('copy-price-finder-prompt-btn');
-        const importPricesJsonTextarea = document.getElementById('import-prices-json');
-        const importPricesBtn = document.getElementById('importPricesBtn');
+        function initializeGrid() {
+            grid = GridStack.init({
+                float: true,
+                cellHeight: '70px',
+                minRow: 1,
+            });
 
-        // --- NOUVEAUX SÉLECTEURS POUR LA MODALE DE PRIX ---
-        const priceModal = document.getElementById('submit-price-modal');
-        const closePriceModalBtn = document.getElementById('close-price-modal-btn');
-        const submitPriceForm = document.getElementById('submit-price-form');
-        const modalProductName = document.getElementById('modal-product-name');
-        const hiddenProductNameInput = document.getElementById('hidden-product-name');
-        const storeSelect = document.getElementById('modal-store-select');
-        const priceInput = document.getElementById('modal-price-input');
-
-        const addProductModal = document.getElementById('add-product-modal');
-        const closeAddProductModalBtn = document.getElementById('close-add-product-modal-btn');
-        const addProductForm = document.getElementById('add-product-form');
-        const newProductNameDisplay = document.getElementById('new-product-name-display');
-        const hiddenNewProductNameInput = document.getElementById('hidden-new-product-name');
-
-        const addDealBtn = document.getElementById('add-deal-btn');
-        const submitDealModal = document.getElementById('submit-deal-modal');
-        const closeDealModalBtn = document.getElementById('close-deal-modal-btn');
-        const submitDealForm = document.getElementById('submit-deal-form');
-
-        // --- NOUVEAUX SÉLECTEURS POUR LA MODALE DE SIGNALEMENT ---
-        const reportPriceModal = document.getElementById('report-price-modal');
-        const closeReportModalBtn = document.getElementById('close-report-modal-btn');
-        const reportPriceForm = document.getElementById('report-price-form');
-        const reportProductName = document.getElementById('report-product-name');
-        const hiddenReportPriceId = document.getElementById('hidden-report-price-id');
-
-        function getCookie(name) {
-            let cookieValue = null;
-            if (document.cookie && document.cookie !== '') {
-                const cookies = document.cookie.split(';');
-                for (let i = 0; i < cookies.length; i++) {
-                    const cookie = cookies[i].trim();
-                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                        break;
+            grid.on('change', async function (event, items) {
+                if (localStorage.getItem('authToken')) {
+                    const serializedData = grid.save();
+                    try {
+                        await apiCall('/api/user/layout/', 'POST', serializedData);
+                    } catch (error) {
+                        console.error("Erreur de sauvegarde de la disposition:", error);
                     }
                 }
-            }
-            return cookieValue;
+            });
         }
-
-        async function apiCall(endpoint, method = 'GET', body = null) {
-            const headers = {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCookie('csrftoken')
-            };
-            const token = localStorage.getItem('authToken');
-            if (token) {
-                headers['Authorization'] = `Token ${token}`;
-            }
-
-            const options = { method, headers };
-            if (body) {
-                options.body = JSON.stringify(body);
-            }
-
-            const response = await fetch(endpoint, options);
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.detail || `Erreur ${response.status}`);
-            }
-            if (response.status === 204) {
-                return null;
-            }
-            return response.json();
-        }
-
-        let optimizedItems = [];
-        let allStores = []; // Pour garder la liste des commerces en mémoire
-        let nearbyStores = []; 
-        let manualStores = [];
-        let flyerData = {}; 
-        let activeDeals = [];
-
-        // --- DÉBUT DES MODIFICATIONS ---
-        const ACCORDION_STATE_KEY = 'optimiseurAccordionStates';
 
         /**
          * Sauvegarde l'état (ouvert/fermé) de chaque accordéon de magasin.
@@ -776,7 +749,6 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
                 }
             });
         }
-        // --- FIN DES MODIFICATIONS ---
 
         function saveFlyerData() { localStorage.setItem('flyerData', JSON.stringify(flyerData)); }
         function loadFlyerData() { flyerData = JSON.parse(localStorage.getItem('flyerData')) || {}; }
@@ -958,17 +930,19 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
         async function findNearbyStores() {
             findStoresBtn.disabled = true;
             sortStoresBtn.style.display = 'none';
-            storesListDisplay.innerHTML = '<p>Recherche des commerces en cours...</p>';
+            const storesListContainer = document.getElementById('stores-list-display');
+            if (!storesListContainer) { console.error("Could not find stores-list-display"); return; }
+            storesListContainer.innerHTML = '<p>Recherche des commerces en cours...</p>';
 
             if (!navigator.geolocation) {
-                storesListDisplay.innerHTML = '<p>La géolocalisation n\'est pas supportée par votre navigateur.</p>';
+                storesListContainer.innerHTML = '<p>La géolocalisation n\'est pas supportée par votre navigateur.</p>';
                 findStoresBtn.disabled = false;
                 return;
             }
 
             const selectedTypes = Array.from(document.querySelectorAll('.store-type-filter:checked')).map(cb => cb.value);
             if (selectedTypes.length === 0) {
-                storesListDisplay.innerHTML = '<p>Veuillez sélectionner au moins un type de commerce.</p>';
+                storesListContainer.innerHTML = '<p>Veuillez sélectionner au moins un type de commerce.</p>';
                 findStoresBtn.disabled = false;
                 return;
             }
@@ -1010,12 +984,12 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
                     processAndDisplayStores(data.elements, latitude, longitude);
                 } catch (error) {
                     console.error("Erreur Overpass:", error);
-                    storesListDisplay.innerHTML = `<p>Impossible de récupérer les données des commerces. Le service externe est peut-être temporairement indisponible. <br>Erreur : ${error.message}</p>`;
+                    storesListContainer.innerHTML = `<p>Impossible de récupérer les données des commerces. Le service externe est peut-être temporairement indisponible. <br>Erreur : ${error.message}</p>`;
                 } finally {
                     findStoresBtn.disabled = false;
                 }
             }, () => {
-                storesListDisplay.innerHTML = '<p>La géolocalisation a été refusée. Veuillez autoriser l\'accès à votre position pour utiliser cette fonctionnalité.</p>';
+                storesListContainer.innerHTML = '<p>La géolocalisation a été refusée. Veuillez autoriser l\'accès à votre position pour utiliser cette fonctionnalité.</p>';
                 findStoresBtn.disabled = false;
             });
         }
@@ -1028,12 +1002,15 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
                 nearbyStores = []; // Vide la liste des commerces à proximité
                 renderAllStores(); // Affiche la liste (qui contiendra les commerces manuels)
                 
+                const storesListContainer = document.getElementById('stores-list-display');
+                if (!storesListContainer) return;
+
                 // Ajoute un message d'information clair pour l'utilisateur
                 const message = document.createElement('p');
                 message.style.color = '#e67e22'; // Orange pour un avertissement
                 message.style.marginBottom = '15px';
                 message.textContent = 'Aucun commerce correspondant aux critères n\'a été trouvé à proximité.';
-                storesListDisplay.prepend(message);
+                storesListContainer.prepend(message);
                 return;
             }
 
@@ -1077,7 +1054,9 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
         }
 
         function renderAllStores() {
-            storesListDisplay.innerHTML = '';
+            const storesListContainer = document.getElementById('stores-list-display');
+            if (!storesListContainer) { console.error("Element #stores-list-display not found!"); return; }
+            storesListContainer.innerHTML = '';
 
             // --- Logique améliorée pour fusionner et dédoublonner les listes ---
             const allStoresMap = new Map();
@@ -1107,7 +1086,7 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
             // --- Fin de la logique améliorée ---
 
             if (allStores.length === 0) {
-                storesListDisplay.innerHTML = '<p class="placeholder">La liste des commerces apparaîtra ici. Utilisez la recherche ou ajoutez des commerces manuellement.</p>';
+                storesListContainer.innerHTML = '<p class="placeholder">La liste des commerces apparaîtra ici. Utilisez la recherche ou ajoutez des commerces manuellement.</p>';
                 return;
             }
 
@@ -1142,7 +1121,7 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
                 </button>` : '';
 
                 storeElement.innerHTML = `<input type="checkbox" class="store-checkbox" value="${store.name}" id="store-${sanitizedId}" checked><label for="store-${sanitizedId}" style="display: flex; justify-content: space-between; align-items: center; width: 100%;"><div><div class="store-name">${store.name}</div>${storeDetailsHtml}</div><div class="store-actions">${editButtonHtml}${deleteButtonHtml}${flyerButtonHtml}</div></label>`;
-                storesListDisplay.appendChild(storeElement);
+                storesListContainer.appendChild(storeElement);
             });
 
             document.querySelectorAll('.btn-edit-manual').forEach(button => button.addEventListener('click', openStoreEditModal));
@@ -1222,7 +1201,7 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
         }
 
         // --- NOUVELLE LOGIQUE D'OUVERTURE DE LA MODALE (AVEC DÉLÉGATION D'ÉVÉNEMENT) ---
-        optimizationDisplay.addEventListener('click', function(event) {
+        function openPriceModal(event) {
             // On vérifie si l'élément cliqué est bien notre bouton
             if (event.target.classList.contains('btn-submit-price')) {
                 const productName = event.target.dataset.itemName;
@@ -1234,17 +1213,20 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
                 // On affiche la modale
                 priceModal.style.display = 'block';
             }
-        });
+        }
+
 
         // --- NOUVELLE LOGIQUE DE FERMETURE DE LA MODALE ---
         function closePriceModal() {
             priceModal.style.display = 'none';
-            submitPriceForm.reset(); // Vide le formulaire
+            if (submitPriceForm) {
+                submitPriceForm.reset(); // Vide le formulaire
+            }
         }
-        closePriceModalBtn.addEventListener('click', closePriceModal);
+
         
         // --- NOUVELLE LOGIQUE DE SOUMISSION DU PRIX ---
-        submitPriceForm.addEventListener('submit', async function(event) {
+        async function handlePriceSubmit(event) {
             event.preventDefault();
             
             const productName = hiddenProductNameInput.value;
@@ -1286,7 +1268,8 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
                 console.error("Erreur lors de la soumission :", error);
                 alert(error.message);
             }
-        });
+        }
+
 
         // Fonction séparée pour la soumission de prix, pour la réutiliser
         async function submitPrice(productId, commerceId, price, token) {
@@ -1312,7 +1295,7 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
         // --- DEBUT DES NOUVELLES FONCTIONS ---
 
         // Gère la soumission du formulaire d'ajout de produit
-        addProductForm.addEventListener('submit', async function(event) {
+        async function handleAddProductSubmit(event) {
             event.preventDefault();
             const token = localStorage.getItem('authToken');
             const productName = hiddenNewProductNameInput.value;
@@ -1350,10 +1333,11 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
             } catch (error) {
                 alert(error.message);
             }
-        });
+        }
+
         
         // Gère la soumission du formulaire de rabais simple
-        submitDealForm.addEventListener('submit', async function(event) {
+        async function handleDealSubmit(event) {
             event.preventDefault();
             const token = localStorage.getItem('authToken');
             if (!token) {
@@ -1394,21 +1378,17 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
             } catch (error) {
                 alert(error.message);
             }
-        });
-       
-        // Événements pour ouvrir/fermer les nouvelles modales
-        addDealBtn.addEventListener('click', () => {
-            submitDealModal.style.display = 'block';
-        });
-        closeAddProductModalBtn.addEventListener('click', () => addProductModal.style.display = 'none');
-        closeDealModalBtn.addEventListener('click', () => submitDealModal.style.display = 'none');
-        
+        }
 
+       
         // --- FONCTION DE RENDU MODIFIÉE ---
         function renderOptimizedList() {
-            optimizationDisplay.innerHTML = '';
+            const optimizationDisplayContainer = document.getElementById('optimization-display');
+            if (!optimizationDisplayContainer) { console.error("Element #optimization-display not found!"); return; }
+            optimizationDisplayContainer.innerHTML = '';
+
             if (optimizedItems.length === 0) {
-                optimizationDisplay.innerHTML = '<p class="placeholder">Votre liste d\'épicerie est vide ou n\'a pas encore été optimisée.</p>';
+                optimizationDisplayContainer.innerHTML = '<p class="placeholder">Votre liste d\'épicerie est vide ou n\'a pas encore été optimisée.</p>';
                 findPricesBtn.style.display = 'none';
                 return;
             }
@@ -1506,7 +1486,7 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
                         <input type="text" id="price-${itemIndex}" class="item-price-input" data-item-index="${itemIndex}" value="${priceValue}" placeholder="0.00" style="width: 80px; text-align: right; padding: 5px; border: 1px solid #ccc; border-radius: 4px;">
                     </div>
                 `;
-                optimizationDisplay.appendChild(itemElement);
+                optimizationDisplayContainer.appendChild(itemElement);
             });
 
             // Gérer la visibilité du bouton de recherche de prix
@@ -1521,7 +1501,7 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
             totalElement.style.fontSize = '1.2em';
             totalElement.style.fontWeight = 'bold';
             totalElement.innerHTML = `Total estimé: <span style="color: #27ae60;">${total.toFixed(2)} $</span>`;
-            optimizationDisplay.appendChild(totalElement);
+            optimizationDisplayContainer.appendChild(totalElement);
         }
 
         async function handleConfirmPrice(event) {
@@ -1569,9 +1549,6 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
                 button.textContent = 'Confirmer'; // Réinitialiser le bouton en cas d'erreur
             }
         }
-
-        optimizationDisplay.addEventListener('click', handleConfirmPrice);
-        document.getElementById('rabais-actifs-display').addEventListener('click', handleConfirmPrice);
 
         // --- NOUVELLES FONCTIONS POUR LE SIGNALEMENT ---
 
@@ -1634,11 +1611,6 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
             }
         }
         
-        // On utilise la délégation d'événements pour les boutons de signalement
-        optimizationDisplay.addEventListener('click', openReportModal);
-        closeReportModalBtn.addEventListener('click', closeReportModal);
-        reportPriceForm.addEventListener('submit', handleReportSubmit);
-
         function saveOptimizedList() {
             localStorage.setItem('savedOptimizedList', JSON.stringify(optimizedItems));
         }
@@ -1853,7 +1825,10 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
         async function optimizeShoppingList() {
             const shoppingList = JSON.parse(localStorage.getItem('shoppingList')) || [];
             if (shoppingList.length === 0) {
-                optimizationDisplay.innerHTML = '<p class="placeholder">Votre liste d\'épicerie est vide. Ajoutez des articles depuis la page principale.</p>';
+                const optimizationDisplayContainer = document.getElementById('optimization-display');
+                if (optimizationDisplayContainer) {
+                    optimizationDisplayContainer.innerHTML = '<p class="placeholder">Votre liste d\'épicerie est vide. Ajoutez des articles depuis la page principale.</p>';
+                }
                 return;
             }
 
@@ -1920,18 +1895,21 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
         }
 
         function generateRoute() {
+            const routeDisplayContainer = document.getElementById('route-display');
+            if (!routeDisplayContainer) { console.error("Element #route-display not found!"); return; }
+
             if (optimizedItems.length === 0) {
-                routeDisplay.innerHTML = '<p>Veuillez d\'abord optimiser votre liste.</p>';
+                routeDisplayContainer.innerHTML = '<p>Veuillez d\'abord optimiser votre liste.</p>';
                 return;
             }
             const storesToVisit = [...new Set(optimizedItems.filter(item => item.selectedDeal && item.selectedDeal.store).map(item => item.selectedDeal.store))];
 
             if (storesToVisit.length === 0) {
-                routeDisplay.innerHTML = '<p>Aucune offre sélectionnée. Choisissez des articles dans la liste optimisée pour générer un itinéraire.</p>';
+                routeDisplayContainer.innerHTML = '<p>Aucune offre sélectionnée. Choisissez des articles dans la liste optimisée pour générer un itinéraire.</p>';
                 return;
             }
             
-            routeDisplay.innerHTML = '<h3>Magasins à visiter :</h3>';
+            routeDisplayContainer.innerHTML = '<h3>Magasins à visiter :</h3>';
             const routeList = document.createElement('ol');
             routeList.id = 'route-list';
             storesToVisit.forEach(store => {
@@ -1939,7 +1917,7 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
                 li.textContent = store;
                 routeList.appendChild(li);
             });
-            routeDisplay.appendChild(routeList);
+            routeDisplayContainer.appendChild(routeList);
         }
 
         function formatPrice(item) {
@@ -2042,61 +2020,43 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
                 });
         }
 
-        function importFlyerData(event) {
+        async function importFlyerData(event) {
             event.preventDefault();
             const jsonString = flyerJsonInput.value.trim();
             if (!jsonString) {
-                alert("Veuillez coller le contenu JSON.");
+                alert("Veuillez coller le contenu JSON de la circulaire.");
                 return;
             }
 
-            const apiUrl = '/api/import-flyer/';
-            
-            const csrftoken = getCookie('csrftoken');
+            let dataToImport;
+            try {
+                // Étape 1 : Valider que le texte est un JSON correct
+                dataToImport = JSON.parse(jsonString);
+            } catch (error) {
+                alert("Le texte fourni n'est pas un JSON valide. Veuillez vérifier le format.");
+                console.error("Erreur de parsing JSON:", error);
+                return;
+            }
 
-            apiCall(apiUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': csrftoken 
-                },
-                body: jsonString
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'succès') {
-                    alert(data.message);
-                    flyerJsonInput.value = '';
-                    
-                    Promise.all([
-                        chargerCommerces(),
-                        chargerCirculairesActives(),
-                        chargerRabaisActifs()
-                    ]).then(() => {
-                        renderAllStores();
-                    });
-                } else {
-                    throw new Error(data.message);
-                }
-            })
-            .catch(error => {
-                console.error('Erreur lors de l\'importation:', error);
-                alert('Une erreur est survenue : ' + error.message);
-            });
-
-            function getCookie(name) {
-                let cookieValue = null;
-                if (document.cookie && document.cookie !== '') {
-                    const cookies = document.cookie.split(';');
-                    for (let i = 0; i < cookies.length; i++) {
-                        const cookie = cookies[i].trim();
-                        if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                            break;
-                        }
-                    }
-                }
-                return cookieValue;
+            try {
+                // Étape 2 : Utiliser correctement la fonction `apiCall`
+                const result = await apiCall('/api/import-flyer/', 'POST', dataToImport);
+                
+                alert(result.message);
+                flyerJsonInput.value = '';
+                
+                // Étape 3 : Recharger toutes les données pour mettre à jour la page
+                await Promise.all([
+                    chargerCommercesDepuisDB(false),
+                    chargerCirculairesActives(),
+                    chargerRabaisActifs()
+                ]);
+                
+                renderAllStores();
+                
+            } catch (error) {
+                console.error('Erreur lors de l\'importation via API:', error);
+                alert(`Une erreur est survenue lors de l'importation : ${error.message}`);
             }
         }
         
@@ -2232,54 +2192,6 @@ Maintenant, génère le JSON pour la liste que je t'ai fournie.`;
             }
         }
         
-        let draggedItemIndex = null;
-        optimizationDisplay.addEventListener('dragstart', (e) => { if (e.target.classList.contains('optimized-item')) { draggedItemIndex = parseInt(e.target.dataset.index, 10); e.target.classList.add('dragging'); } });
-        optimizationDisplay.addEventListener('dragover', (e) => { e.preventDefault(); const target = e.target.closest('.optimized-item'); if (target && parseInt(target.dataset.index, 10) !== draggedItemIndex) { document.querySelectorAll('.optimized-item.drag-over').forEach(el => el.classList.remove('drag-over')); target.classList.add('drag-over'); } });
-        optimizationDisplay.addEventListener('dragleave', (e) => { if (e.target.classList.contains('optimized-item')) { e.target.classList.remove('drag-over'); } });
-        optimizationDisplay.addEventListener('drop', (e) => { e.preventDefault(); const dropTarget = e.target.closest('.optimized-item'); if (dropTarget) { const dropIndex = parseInt(dropTarget.dataset.index, 10); const itemToMove = optimizedItems.splice(draggedItemIndex, 1)[0]; optimizedItems.splice(dropIndex, 0, itemToMove); saveOptimizedList(); renderOptimizedList(); } });
-        optimizationDisplay.addEventListener('dragend', (e) => { document.querySelectorAll('.optimized-item.dragging, .optimized-item.drag-over').forEach(el => el.classList.remove('dragging', 'drag-over')); draggedItemIndex = null; });
-
-        findStoresBtn.addEventListener('click', findNearbyStores);
-        sortStoresBtn.addEventListener('click', sortStoresByDistance);
-        optimizeListBtn.addEventListener('click', optimizeShoppingList);
-        printListBtn.addEventListener('click', printOptimizedList);
-        generateRouteBtn.addEventListener('click', generateRoute);
-        addStoreUrlForm.addEventListener('submit', addStoreFromUrl);
-        importFlyerForm.addEventListener('submit', importFlyerData);
-        optimizationDisplay.addEventListener('change', handleDealSelection);
-        optimizationDisplay.addEventListener('input', handlePriceChange);
-        copyAiPromptBtn.addEventListener('click', copyAiPrompt);
-        closeBtn.addEventListener('click', closeFlyerModal);
-        manageFlyersBtn.addEventListener('click', openFlyerManagerModal);
-        closeBtnManager.addEventListener('click', closeFlyerManagerModal);
-        closeBtnEdit.addEventListener('click', closeStoreEditModal);
-        editStoreForm.addEventListener('submit', handleStoreEditFormSubmit);
-
-        // --- NOUVEAUX ÉVÉNEMENTS POUR LA RECHERCHE DE PRIX ---
-        findPricesBtn.addEventListener('click', () => {
-            const isVisible = priceFinderContainer.style.display === 'block';
-            priceFinderContainer.style.display = isVisible ? 'none' : 'block';
-            if (!isVisible) {
-                generatePriceFinderPrompt();
-            }
-        });
-
-        copyPriceFinderPromptBtn.addEventListener('click', () => {
-             priceFinderPromptTextarea.select();
-             document.execCommand('copy');
-             const originalText = copyPriceFinderPromptBtn.textContent;
-             copyPriceFinderPromptBtn.textContent = 'Copié !';
-             setTimeout(() => { copyPriceFinderPromptBtn.textContent = originalText; }, 2000);
-        });
-
-        importPricesBtn.addEventListener('click', importPricesFromJson);
-
-        window.addEventListener('click', (event) => { 
-            if (event.target == flyerModal) closeFlyerModal();
-            if (event.target == flyerManagerModal) closeFlyerManagerModal();
-            if (event.target == editStoreModal) closeStoreEditModal();
-        });
-
         // --- MISE À JOUR DE LA FONCTION DE RENDU DES RABAIS ---
         function renderRabaisGrid(rabais) {
             const container = document.getElementById('rabais-actifs-display');
@@ -2376,82 +2288,176 @@ Maintenant, génère le JSON pour la liste que je t'ai fournie.`;
         }
 
         async function initializePage() {
-            // Charger les données qui ne dépendent de rien
+            // 1. Initialiser les bibliothèques qui manipulent le DOM
+            initializeGrid();
+
+            // 2. Capturer toutes les références aux éléments du DOM
+            findStoresBtn = document.getElementById('findStoresBtn');
+            sortStoresBtn = document.getElementById('sortStoresBtn');
+            optimizeListBtn = document.getElementById('optimizeListBtn');
+            printListBtn = document.getElementById('printListBtn');
+            generateRouteBtn = document.getElementById('generateRouteBtn');
+            addStoreUrlForm = document.getElementById('addStoreUrlForm');
+            manualStoreUrlInput = document.getElementById('manualStoreUrl');
+            importFlyerForm = document.getElementById('importFlyerForm');
+            flyerJsonInput = document.getElementById('flyerJsonInput');
+            flyerModal = document.getElementById('flyerModal');
+            modalTitle = document.getElementById('modal-title');
+            modalBody = document.getElementById('modal-body');
+            closeBtn = document.querySelector('.close-btn');
+            manageFlyersBtn = document.getElementById('manageFlyersBtn');
+            flyerManagerModal = document.getElementById('flyerManagerModal');
+            modalManagerBody = document.getElementById('modal-manager-body');
+            closeBtnManager = document.querySelector('.close-btn-manager');
+            editStoreModal = document.getElementById('editStoreModal');
+            closeBtnEdit = document.querySelector('.close-btn-edit');
+            editStoreForm = document.getElementById('editStoreForm');
+            copyAiPromptBtn = document.getElementById('copy-ai-prompt-btn');
+            aiPromptTextarea = document.getElementById('ai-prompt-textarea');
+            findPricesBtn = document.getElementById('findPricesBtn');
+            priceFinderContainer = document.getElementById('price-finder-container');
+            priceFinderPromptOutput = document.getElementById('price-finder-prompt-output');
+            priceFinderPromptTextarea = document.getElementById('price-finder-prompt-textarea');
+            copyPriceFinderPromptBtn = document.getElementById('copy-price-finder-prompt-btn');
+            importPricesJsonTextarea = document.getElementById('import-prices-json');
+            importPricesBtn = document.getElementById('importPricesBtn');
+            priceModal = document.getElementById('submit-price-modal');
+            closePriceModalBtn = document.getElementById('close-price-modal-btn');
+            submitPriceForm = document.getElementById('submit-price-form');
+            modalProductName = document.getElementById('modal-product-name');
+            hiddenProductNameInput = document.getElementById('hidden-product-name');
+            storeSelect = document.getElementById('modal-store-select');
+            priceInput = document.getElementById('modal-price-input');
+            addProductModal = document.getElementById('add-product-modal');
+            closeAddProductModalBtn = document.getElementById('close-add-product-modal-btn');
+            addProductForm = document.getElementById('add-product-form');
+            newProductNameDisplay = document.getElementById('new-product-name-display');
+            hiddenNewProductNameInput = document.getElementById('hidden-new-product-name');
+            addDealBtn = document.getElementById('add-deal-btn');
+            submitDealModal = document.getElementById('submit-deal-modal');
+            closeDealModalBtn = document.getElementById('close-deal-modal-btn');
+            submitDealForm = document.getElementById('submit-deal-form');
+            reportPriceModal = document.getElementById('report-price-modal');
+            closeReportModalBtn = document.getElementById('close-report-modal-btn');
+            reportPriceForm = document.getElementById('report-price-form');
+            reportProductName = document.getElementById('report-product-name');
+            hiddenReportPriceId = document.getElementById('hidden-report-price-id');
+            optimizationDisplay = document.getElementById('optimization-display');
+
+            // 3. Attacher les écouteurs d'événements (avec vérification pour plus de robustesse)
+            if (findStoresBtn) findStoresBtn.addEventListener('click', findNearbyStores);
+            if (sortStoresBtn) sortStoresBtn.addEventListener('click', sortStoresByDistance);
+            if (optimizeListBtn) optimizeListBtn.addEventListener('click', optimizeShoppingList);
+            if (printListBtn) printListBtn.addEventListener('click', printOptimizedList);
+            if (generateRouteBtn) generateRouteBtn.addEventListener('click', generateRoute);
+            if (addStoreUrlForm) addStoreUrlForm.addEventListener('submit', addStoreFromUrl);
+            if (importFlyerForm) importFlyerForm.addEventListener('submit', importFlyerData);
+            if (optimizationDisplay) {
+                optimizationDisplay.addEventListener('change', handleDealSelection);
+                optimizationDisplay.addEventListener('input', handlePriceChange);
+                optimizationDisplay.addEventListener('dragstart', (e) => { if (e.target.classList.contains('optimized-item')) { draggedItemIndex = parseInt(e.target.dataset.index, 10); e.target.classList.add('dragging'); } });
+                optimizationDisplay.addEventListener('dragover', (e) => { e.preventDefault(); const target = e.target.closest('.optimized-item'); if (target && parseInt(target.dataset.index, 10) !== draggedItemIndex) { document.querySelectorAll('.optimized-item.drag-over').forEach(el => el.classList.remove('drag-over')); target.classList.add('drag-over'); } });
+                optimizationDisplay.addEventListener('dragleave', (e) => { if (e.target.classList.contains('optimized-item')) { e.target.classList.remove('drag-over'); } });
+                optimizationDisplay.addEventListener('drop', (e) => { e.preventDefault(); const dropTarget = e.target.closest('.optimized-item'); if (dropTarget) { const dropIndex = parseInt(dropTarget.dataset.index, 10); const itemToMove = optimizedItems.splice(draggedItemIndex, 1)[0]; optimizedItems.splice(dropIndex, 0, itemToMove); saveOptimizedList(); renderOptimizedList(); } });
+                optimizationDisplay.addEventListener('dragend', (e) => { document.querySelectorAll('.optimized-item.dragging, .optimized-item.drag-over').forEach(el => el.classList.remove('dragging', 'drag-over')); draggedItemIndex = null; });
+                optimizationDisplay.addEventListener('click', openPriceModal);
+            }
+            if (copyAiPromptBtn) copyAiPromptBtn.addEventListener('click', copyAiPrompt);
+            if (closeBtn) closeBtn.addEventListener('click', closeFlyerModal);
+            if (manageFlyersBtn) manageFlyersBtn.addEventListener('click', openFlyerManagerModal);
+            if (closeBtnManager) closeBtnManager.addEventListener('click', closeFlyerManagerModal);
+            if (closeBtnEdit) closeBtnEdit.addEventListener('click', closeStoreEditModal);
+            if (editStoreForm) editStoreForm.addEventListener('submit', handleStoreEditFormSubmit);
+            if (findPricesBtn) findPricesBtn.addEventListener('click', () => {
+                const isVisible = priceFinderContainer.style.display === 'block';
+                priceFinderContainer.style.display = isVisible ? 'none' : 'block';
+                if (!isVisible) {
+                    generatePriceFinderPrompt();
+                }
+            });
+            if (copyPriceFinderPromptBtn) copyPriceFinderPromptBtn.addEventListener('click', () => {
+                priceFinderPromptTextarea.select();
+                document.execCommand('copy');
+                const originalText = copyPriceFinderPromptBtn.textContent;
+                copyPriceFinderPromptBtn.textContent = 'Copié !';
+                setTimeout(() => { copyPriceFinderPromptBtn.textContent = originalText; }, 2000);
+            });
+            if (importPricesBtn) importPricesBtn.addEventListener('click', importPricesFromJson);
+
+            if (optimizationDisplay) optimizationDisplay.addEventListener('click', openReportModal);
+            if (optimizationDisplay) optimizationDisplay.addEventListener('click', handleConfirmPrice);
+            
+            if (closePriceModalBtn) closePriceModalBtn.addEventListener('click', closePriceModal);
+            if (submitPriceForm) submitPriceForm.addEventListener('submit', handlePriceSubmit);
+            if (addProductForm) addProductForm.addEventListener('submit', handleAddProductSubmit);
+            if (submitDealForm) submitDealForm.addEventListener('submit', handleDealSubmit);
+
+            if (addDealBtn) addDealBtn.addEventListener('click', () => submitDealModal.style.display = 'block');
+            if (closeAddProductModalBtn) closeAddProductModalBtn.addEventListener('click', () => addProductModal.style.display = 'none');
+            if (closeDealModalBtn) closeDealModalBtn.addEventListener('click', () => submitDealModal.style.display = 'none');
+            if (closeReportModalBtn) closeReportModalBtn.addEventListener('click', closeReportModal);
+            if (reportPriceForm) reportPriceForm.addEventListener('submit', handleReportSubmit);
+
+            const rabaisActifsDisplay = document.getElementById('rabais-actifs-display');
+            if (rabaisActifsDisplay) {
+                rabaisActifsDisplay.addEventListener('click', handleConfirmPrice);
+                rabaisActifsDisplay.addEventListener('toggle', (event) => {
+                    if (event.target.classList.contains('store-rabais-group')) {
+                        saveAccordionStates();
+                    }
+                }, true); // Important : la phase de capture est nécessaire pour l'événement 'toggle'
+            }
+ 
+            const searchRabaisInput = document.getElementById('search-rabais-input');
+            if (searchRabaisInput) {
+                searchRabaisInput.addEventListener('input', (e) => {
+                    const searchTerm = e.target.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                    const filteredDeals = activeDeals.filter(deal => 
+                        deal.produit_nom.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes(searchTerm)
+                    );
+                    renderRabaisGrid(filteredDeals);
+
+                    if (searchTerm.length > 1) {
+                        document.querySelectorAll('#rabais-actifs-display details').forEach(details => {
+                            details.open = true;
+                        });
+                    }
+                });
+            }
+            
+            // 4. Charger les données initiales
             loadFlyerData();
             loadManualStores();
             loadSavedOptimizedList();
-
-            // 1. Charger les commerces et attendre la fin. Cela remplit `allStores` et les listes déroulantes.
             await loadStoresIntoModal();
 
-            // 2. Maintenant, charger toutes les autres données en parallèle
-            // --- DÉBUT DE LA MODIFICATION ---
             Promise.all([
                 chargerCirculairesActives(),
                 chargerRabaisActifs(),
-                // AJOUT CRUCIAL : On charge aussi la liste des commerces depuis la DB.
-                // Le 'false' empêche un rendu prématuré avant que tout soit prêt.
-                chargerCommercesDepuisDB(false) 
+                chargerCommercesDepuisDB(false)
             ]).then(() => {
                 console.log("Données de circulaires, rabais et commerces chargées.");
-                // 3. Enfin, afficher la liste principale des commerces, qui est maintenant complète.
-                renderAllStores(); 
+                renderAllStores();
             }).catch(error => {
                 console.error("Une erreur est survenue lors du chargement des données initiales:", error);
             });
-            // --- FIN DE LA MODIFICATION ---
             
-            // Lier les formulaires et les filtres
-            if (importFlyerForm) {
-                importFlyerForm.addEventListener('submit', importFlyerData);
-            } else {
-                console.error("L'élément de formulaire avec l'id 'importFlyerForm' n'a pas été trouvé.");
+            if (localStorage.getItem('authToken')) {
+                try {
+                    const layout = await apiCall('/api/user/layout/', 'GET');
+                    if (grid && layout && layout.length > 0) {
+                        grid.load(layout);
+                    }
+                } catch (error) {
+                    console.error("Erreur de chargement de la disposition:", error);
+                }
             }
-            
-            // --- MISE À JOUR DE LA LOGIQUE DE RECHERCHE ---
-            const searchRabaisInput = document.getElementById('search-rabais-input');
-            searchRabaisInput.addEventListener('input', (e) => {
-                const searchTerm = e.target.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                
-                const filteredDeals = activeDeals.filter(deal => 
-                    deal.produit_nom.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes(searchTerm)
-                );
-                
-                renderRabaisGrid(filteredDeals);
-
-                // Si un terme de recherche est actif, déplier TOUS les accordéons
-                if (searchTerm.length > 1) {
-                    document.querySelectorAll('#rabais-actifs-display details').forEach(details => {
-                        details.open = true;
-                    });
-                }
-            });
-
-            // --- DÉBUT DE LA MODIFICATION ---
-            // Ajoute un écouteur global pour sauvegarder l'état des accordéons lors d'un changement
-            document.getElementById('rabais-actifs-display').addEventListener('toggle', (event) => {
-                // S'assure que l'événement vient bien d'un accordéon de magasin
-                if (event.target.classList.contains('store-rabais-group')) {
-                    saveAccordionStates();
-                }
-            }, true); // Utilise la phase de capture pour plus de fiabilité
-            
-            // Ajoute un écouteur global pour sauvegarder l'état des accordéons lors d'un changement
-            document.getElementById('rabais-actifs-display').addEventListener('toggle', (event) => {
-                // S'assure que l'événement vient bien d'un accordéon de magasin
-                if (event.target.classList.contains('store-rabais-group')) {
-                    saveAccordionStates();
-                }
-            }, true); // Utilise la phase de capture pour plus de fiabilité
-        }
-
-        if (importFlyerForm) {
-            importFlyerForm.addEventListener('submit', importFlyerData);
-        } else {
-            console.error("L'élément de formulaire avec l'id 'importFlyerForm' n'a pas été trouvé.");
         }
         
-        // Gérer la fermeture des modales en cliquant à l'extérieur
+        // --- PARTIE 4 : DÉMARRAGE ---
+        initializePage();
+        
+        // Écouteur global pour fermer les modales en cliquant à l'extérieur
         window.addEventListener('click', (event) => {
             if (event.target == flyerModal) closeFlyerModal();
             if (event.target == flyerManagerModal) closeFlyerManagerModal();
@@ -2459,31 +2465,8 @@ Maintenant, génère le JSON pour la liste que je t'ai fournie.`;
             if (event.target == priceModal) closePriceModal();
             if (event.target == addProductModal) addProductModal.style.display = 'none';
             if (event.target == submitDealModal) submitDealModal.style.display = 'none';
-            // --- LIGNE AJOUTÉE ---
             if (event.target == reportPriceModal) closeReportModal();
         });
-
-        // --- MISE À JOUR DE LA LOGIQUE DE RECHERCHE ---
-        const searchRabaisInput = document.getElementById('search-rabais-input');
-        searchRabaisInput.addEventListener('input', (e) => {
-            const searchTerm = e.target.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-            
-            const filteredDeals = activeDeals.filter(deal => 
-                deal.produit_nom.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes(searchTerm)
-            );
-            
-            renderRabaisGrid(filteredDeals);
-
-            // Si un terme de recherche est actif, déplier tous les accordéons
-            if (searchTerm.length > 1) {
-                document.querySelectorAll('#rabais-actifs-display .store-rabais-group').forEach(details => {
-                    details.open = true;
-                });
-            }
-        });
-
-        // Démarrer toute l'application avec un seul appel
-        initializePage();
     });
     </script>
 {% endblock %}
