@@ -674,6 +674,7 @@ Maintenant, analyse la recette suivante :
             let grid;
             let draggedShoppingItemIndex = null;
             let draggedInventoryItemIndex = null;
+            let draggedItemId = null;
             let userCategories = [];
 
             let inventoryDisplay, shoppingListDisplay, addItemForm, addShoppingItemForm, 
@@ -786,6 +787,9 @@ Maintenant, analyse la recette suivante :
                     float: true,
                     cellHeight: '70px',
                     minRow: 1,
+                    draggable: {
+                        cancel: '#inventory-display, #shopping-list-display'
+                    }
                 });
 
                 // Attache l'événement de sauvegarde une seule fois, à la création.
@@ -819,28 +823,34 @@ Maintenant, analyse la recette suivante :
 
                 // On groupe les items par catégorie pour le rendu
                 const itemsByCategory = inventory.reduce((acc, item) => {
-                    const categoryName = item.category_name || 'Sans catégorie';
-                    if (!acc[categoryName]) {
-                        acc[categoryName] = [];
+                    const categoryId = item.category === null ? 'null_category' : item.category;
+                    if (!acc[categoryId]) {
+                        acc[categoryId] = { name: item.category_name || 'Sans catégorie', items: [] };
                     }
-                    acc[categoryName].push(item);
+                    acc[categoryId].items.push(item);
                     return acc;
                 }, {});
 
-                const sortedCategories = Object.keys(itemsByCategory).sort();
+                const sortedCategories = Object.keys(itemsByCategory).sort((a,b) => {
+                    if (a === 'null_category') return 1;
+                    if (b === 'null_category') return -1;
+                    return itemsByCategory[a].name.localeCompare(itemsByCategory[b].name);
+                });
 
-                sortedCategories.forEach(categoryName => {
+                sortedCategories.forEach(categoryId => {
+                    const categoryData = itemsByCategory[categoryId];
                     const section = document.createElement('div');
                     section.className = 'inventory-section';
+                    section.dataset.categoryId = categoryId;
                     
                     const title = document.createElement('h3');
                     title.className = 'category-title';
-                    title.textContent = categoryName;
+                    title.textContent = categoryData.name;
                     section.appendChild(title);
 
                     const list = document.createElement('ul');
 
-                    itemsByCategory[categoryName].forEach(item => {
+                    categoryData.items.forEach(item => {
                         const index = inventory.findIndex(invItem => invItem.id === item.id);
                         const li = document.createElement('li');
                         li.dataset.itemId = item.id;
@@ -1582,13 +1592,79 @@ Maintenant, analyse la recette suivante :
                 
             // --- PARTIE 3 : INITIALISATION ET ATTACHEMENT DES ÉVÉNEMENTS (LA PARTIE CORRIGÉE) ---
             function attachInventoryListeners() {
+                // --- Écouteurs pour les actions sur les items (clics, changements) ---
                 document.querySelectorAll('.btn-delete').forEach(b => b.addEventListener('click', deleteItem));
                 document.querySelectorAll('.item-quantity-input').forEach(i => i.addEventListener('change', updateQuantity));
                 document.querySelectorAll('.item-threshold-input').forEach(i => i.addEventListener('change', updateItemThreshold));
                 document.querySelectorAll('.include-item').forEach(c => c.addEventListener('change', toggleInclusion));
                 document.querySelectorAll('.btn-quantity-change').forEach(b => b.addEventListener('click', changeQuantity));
                 document.querySelectorAll('.inventory-item-name').forEach(span => span.addEventListener('click', startEditInventoryItemName));
+
+                // ================== DÉBUT DE LA CORRECTION DRAG-AND-DROP ==================
+                // On attache les écouteurs au conteneur principal une seule fois
+                // pour éviter les doublons à chaque re-rendu, grâce au data-attribute.
+                const inventoryContainer = document.getElementById('inventory-display');
+                if (inventoryContainer && !inventoryContainer.dataset.dragListenersAttached) {
+                    
+                    inventoryContainer.addEventListener('dragstart', (e) => {
+                        const target = e.target.closest('.inventory-item');
+                        if (target) {
+                            draggedItemId = target.dataset.itemId;
+                            setTimeout(() => { target.classList.add('dragging'); }, 0);
+                        }
+                    });
+
+                    inventoryContainer.addEventListener('dragover', (e) => {
+                        e.preventDefault();
+                        document.querySelectorAll('.inventory-item.drag-over, .inventory-section.drag-over').forEach(el => el.classList.remove('drag-over'));
+                        
+                        const targetItem = e.target.closest('.inventory-item');
+                        const targetSection = e.target.closest('.inventory-section');
+
+                        if (targetItem && targetItem.dataset.itemId !== draggedItemId) {
+                            targetItem.classList.add('drag-over');
+                        } else if (!targetItem && targetSection) {
+                            targetSection.classList.add('drag-over');
+                        }
+                    });
+                    
+                    inventoryContainer.addEventListener('dragleave', (e) => {
+                        e.target.closest('.inventory-item')?.classList.remove('drag-over');
+                        e.target.closest('.inventory-section')?.classList.remove('drag-over');
+                    });
+
+                    inventoryContainer.addEventListener('drop', async e => {
+                        e.preventDefault();
+                        if (!draggedItemId) return;
+
+                        const dropSectionTarget = e.target.closest('.inventory-section');
+                        if (!dropSectionTarget) return;
+
+                        const itemToMove = inventory.find(item => item.id == draggedItemId);
+                        if (!itemToMove) return;
+
+                        const targetCategoryIdStr = dropSectionTarget.dataset.categoryId;
+                        const targetCategoryId = (targetCategoryIdStr === 'null_category' || !targetCategoryIdStr) ? null : parseInt(targetCategoryIdStr, 10);
+                        
+                        if (itemToMove.category !== targetCategoryId) {
+                            await updateItem(draggedItemId, { category: targetCategoryId });
+                            // On ne recharge plus toute la page, on met à jour l'état local pour un effet instantané
+                            // avant de rafraîchir en arrière-plan si nécessaire.
+                            await loadServerData(); // Recharge les données pour une synchro parfaite.
+                        }
+                    });
+
+                    inventoryContainer.addEventListener('dragend', () => {
+                        document.querySelectorAll('.inventory-item.dragging, .inventory-item.drag-over, .inventory-section.drag-over').forEach(el => el.classList.remove('dragging', 'drag-over'));
+                        draggedItemId = null;
+                    });
+
+                    // On marque le conteneur pour ne pas rattacher les écouteurs
+                    inventoryContainer.dataset.dragListenersAttached = 'true';
+                }
+                // =================== FIN DE LA CORRECTION DRAG-AND-DROP ===================
             }
+            
             function attachShoppingListListeners() {
                 document.querySelectorAll('.btn-delete-shopping').forEach(b => b.addEventListener('click', deleteShoppingItem));
                 document.querySelectorAll('.btn-move').forEach(b => b.addEventListener('click', moveItemToInventory));
@@ -1624,7 +1700,7 @@ Maintenant, analyse la recette suivante :
             }
 
             function initializeApp() {
-                //console.log("Initialisation de l'application...");
+                console.log("Initialisation de l'application...");
 
                 initializeGrid();
                         
@@ -1714,50 +1790,6 @@ Maintenant, analyse la recette suivante :
                     shoppingListDisplay.addEventListener('dragleave', (e) => { const target = e.target.closest('.shopping-list-item'); if (target) { target.classList.remove('drag-over'); } });
                     shoppingListDisplay.addEventListener('drop', (e) => { e.preventDefault(); const dropTarget = e.target.closest('.shopping-list-item'); if (dropTarget && draggedShoppingItemIndex !== null) { const dropIndex = parseInt(dropTarget.dataset.index, 10); const itemToMove = shoppingList.splice(draggedShoppingItemIndex, 1)[0]; shoppingList.splice(dropIndex, 0, itemToMove); saveShoppingList(); renderShoppingList(); } });
                     shoppingListDisplay.addEventListener('dragend', (e) => { document.querySelectorAll('.shopping-list-item.dragging, .shopping-list-item.drag-over').forEach(el => el.classList.remove('dragging', 'drag-over')); draggedShoppingItemIndex = null; });
-                }
-
-                if (inventoryDisplay) {
-                    inventoryDisplay.addEventListener('dragstart', (e) => {
-                        if (e.target.classList.contains('inventory-item')) {
-                            draggedInventoryItemIndex = parseInt(e.target.dataset.index, 10);
-                            setTimeout(() => { e.target.classList.add('dragging'); }, 0);
-                        }
-                    });
-                    inventoryDisplay.addEventListener('dragover', (e) => {
-                        e.preventDefault();
-                        const target = e.target.closest('.inventory-item');
-                        if (target && parseInt(target.dataset.index, 10) !== draggedInventoryItemIndex) {
-                            document.querySelectorAll('.inventory-item.drag-over').forEach(el => el.classList.remove('drag-over'));
-                            target.classList.add('drag-over');
-                        }
-                    });
-                    inventoryDisplay.addEventListener('dragleave', (e) => {
-                        const target = e.target.closest('.inventory-item');
-                        if (target) { target.classList.remove('drag-over'); }
-                    });
-                    inventoryDisplay.addEventListener('drop', e => {
-                        e.preventDefault();
-                        const dropTarget = e.target.closest('.inventory-item');
-                        if (dropTarget && draggedInventoryItemIndex !== null) {
-                            const dropIndex = parseInt(dropTarget.dataset.index, 10);
-                            if (dropIndex === draggedInventoryItemIndex) return;
-                            const newCategory = inventory[dropIndex].category;
-                            const [itemToMove] = inventory.splice(draggedInventoryItemIndex, 1);
-                            const categoryChanged = itemToMove.category !== newCategory;
-                            itemToMove.category = newCategory;
-                            const newDropIndex = (draggedInventoryItemIndex < dropIndex) ? dropIndex - 1 : dropIndex;
-                            inventory.splice(newDropIndex, 0, itemToMove);
-                            if (categoryChanged) {
-                                updateItem(itemToMove.id, { category: newCategory });
-                            } else {
-                                renderInventory();
-                            }
-                        }
-                    });
-                    inventoryDisplay.addEventListener('dragend', () => {
-                        document.querySelectorAll('.inventory-item.dragging, .inventory-item.drag-over').forEach(el => el.classList.remove('dragging', 'drag-over'));
-                        draggedInventoryItemIndex = null;
-                    });
                 }
             }
 

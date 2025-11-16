@@ -19,9 +19,10 @@ class InventoryItemSerializer(serializers.ModelSerializer):
         model = InventoryItem
         # On expose 'category' pour l'écriture (l'ID) et 'category_name' pour la lecture
         fields = ['id', 'name', 'quantity', 'category', 'category_name', 'alert_threshold']
-        # 'category' sera utilisé pour recevoir un ID lors de la création/mise à jour
+        # On retire 'write_only': True pour que l'ID de la catégorie soit retourné
+        # lors de la lecture, ce qui est crucial pour le regroupement en JavaScript.
         extra_kwargs = {
-            'category': {'write_only': True, 'required': False, 'allow_null': True}
+            'category': {'required': False, 'allow_null': True}
         }
             
     def __init__(self, *args, **kwargs):
