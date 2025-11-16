@@ -1,7 +1,10 @@
+# Fichier: core/models.py
+
 from django.db import models
 from django.contrib.auth.models import User
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from django.core.validators import MinValueValidator
 
 # Create your models here.
 
@@ -150,7 +153,7 @@ class InventoryItem(models.Model):
     category = models.CharField(max_length=100, default="Épicerie")
     # Le champ 'include' n'est plus utile, car on ne gère plus les ingrédients pour la recette IA de cette façon
     # On garde alertThreshold car il est propre à la gestion de l'utilisateur
-    alert_threshold = models.PositiveIntegerField(default=2)
+    alert_threshold = models.IntegerField(default=2, validators=[MinValueValidator(0)])
     
     # La date est automatiquement ajoutée à la création
     date_added = models.DateTimeField(auto_now_add=True)

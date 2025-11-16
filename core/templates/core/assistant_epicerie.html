@@ -18,6 +18,7 @@
         .grid-stack-item-content {
             background-color: #ffffff;
             border-radius: 8px;
+            border: 1px solid #e0e0e0;
             box-shadow: 0 2px 8px rgba(0,0,0,0.08);
             overflow: auto !important;
             padding: 20px;
@@ -803,7 +804,7 @@ Maintenant, analyse la recette suivante :
                                     <input type="text" value="${item.quantity}" data-item-id="${item.id}" class="item-quantity-input">
                                     <button class="btn btn-quantity-change" data-item-id="${item.id}" data-amount="1">+</button>
                                     <label style="font-size: 0.8em; color: #7f8c8d; margin-left: 8px;">Alerte:</label>
-                                    <input type="number" value="${item.alert_threshold || 2}" data-item-id="${item.id}" class="item-threshold-input" min="0" style="width: 45px;">
+                                    <input type="number" value="${item.alert_threshold !== null ? item.alert_threshold : 2}" data-item-id="${item.id}" class="item-threshold-input" min="0" style="width: 45px;">
                                     <button class="btn btn-delete" data-item-id="${item.id}">Supprimer</button>
                                 </div>`;
                             list.appendChild(li);

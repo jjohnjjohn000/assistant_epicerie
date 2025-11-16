@@ -33,10 +33,22 @@ async function apiCall(endpoint, method, body = null) {
     // 2. On retire un éventuel slash au début.
     cleanEndpoint = cleanEndpoint.startsWith('/') ? cleanEndpoint.substring(1) : cleanEndpoint;
     
-    // 3. On reconstruit l'URL. On ajoute le slash final seulement si l'endpoint ne se termine pas
-    //    déjà par un slash et ne contient pas de paramètres de requête.
-    const needsTrailingSlash = !cleanEndpoint.endsWith('/') && !cleanEndpoint.includes('?');
-    const url = `/api/${cleanEndpoint}${needsTrailingSlash ? '/' : ''}`;
+    // 3. On reconstruit l'URL en s'assurant que le slash final est au bon endroit (avant les paramètres)
+    let pathPart = cleanEndpoint;
+    let queryPart = '';
+    const queryIndex = cleanEndpoint.indexOf('?');
+
+    if (queryIndex !== -1) {
+        pathPart = cleanEndpoint.substring(0, queryIndex);
+        queryPart = cleanEndpoint.substring(queryIndex);
+    }
+
+    // On ajoute le slash final seulement si la partie "chemin" ne se termine pas déjà par un slash.
+    if (!pathPart.endsWith('/')) {
+        pathPart += '/';
+    }
+
+    const url = `/api/${pathPart}${queryPart}`;
 
     const response = await fetch(url, options);
 

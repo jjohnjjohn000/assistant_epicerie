@@ -59,7 +59,7 @@
         .item-store { font-size: 0.9em; color: #7f8c8d; }
         #route-list { list-style-type: decimal; padding-left: 20px; }
         #route-list li { padding: 8px 0; font-size: 1.1em; color: #34495e; }
-        .placeholder { color: #7f8c8d; font-style: italic; }
+        .placeholder-text { color: #7f8c8d; font-style: italic; }
         .store-item { background-color: #f8f9fa; border: 1px solid #e9ecef; border-radius: 5px; padding: 12px; margin-bottom: 8px; display: flex; align-items: center; }
         .store-item input[type="checkbox"] { margin-right: 12px; transform: scale(1.2); }
         .store-item label { flex-grow: 1; cursor: pointer; }
@@ -215,6 +215,7 @@
             /* Style de base pour chaque "widget" */
             background-color: #ffffff;
             border-radius: 8px;
+            border: 1px solid #e0e0e0;
             box-shadow: 0 2px 8px rgba(0,0,0,0.08);
             overflow: auto !important; /* Permet le défilement interne */
             padding: 20px;
@@ -242,7 +243,7 @@
                             <h2>Rabais Actifs des Circulaires</h2>
                             <input type="search" id="search-rabais-input" class="form-control form-control-lg mb-3" placeholder="Filtrer les rabais par nom de produit...">
                             <div id="rabais-actifs-display">
-                                <p class="placeholder">Chargement des rabais en cours...</p>
+                                <p class="placeholder-text">Chargement des rabais en cours...</p>
                             </div>
                         </section>
                     </div>
@@ -366,7 +367,7 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
                             </div>
                 
                             <div id="stores-list-display" style="margin-top: 20px;">
-                                <p class="placeholder">La liste des commerces apparaîtra ici.</p>
+                                <p class="placeholder-text">La liste des commerces apparaîtra ici.</p>
                             </div>
                         </section>
                     </div>
@@ -420,7 +421,7 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
                             </div>
 
                             <div id="optimization-display" style="margin-top: 20px;">
-                                <p class="placeholder">Votre liste optimisée apparaîtra ici.</p>
+                                <p class="placeholder-text">Votre liste optimisée apparaîtra ici.</p>
                             </div>
                         </section>
                     </div>
@@ -436,7 +437,7 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
                                 <i class="bi bi-magic"></i> Générer l'itinéraire
                             </button>
                             <div id="route-display" style="margin-top: 20px;">
-                                <p class="placeholder">Votre itinéraire apparaîtra ici.</p>
+                                <p class="placeholder-text">Votre itinéraire apparaîtra ici.</p>
                             </div>
                         </section>
                     </div>
@@ -797,7 +798,7 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
             const savedFlyers = Object.keys(flyerData);
 
             if (savedFlyers.length === 0) {
-                modalManagerBody.innerHTML = '<p class="placeholder">Aucune circulaire sauvegardée.</p>';
+                modalManagerBody.innerHTML = '<p class="placeholder-text">Aucune circulaire sauvegardée.</p>';
                 return;
             }
 
@@ -1114,7 +1115,7 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
             // --- Fin de la logique améliorée ---
 
             if (allStores.length === 0) {
-                storesListContainer.innerHTML = '<p class="placeholder">La liste des commerces apparaîtra ici. Utilisez la recherche ou ajoutez des commerces manuellement.</p>';
+                storesListContainer.innerHTML = '<p class="placeholder-text">La liste des commerces apparaîtra ici. Utilisez la recherche ou ajoutez des commerces manuellement.</p>';
                 return;
             }
 
@@ -1416,7 +1417,7 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
             optimizationDisplayContainer.innerHTML = '';
 
             if (optimizedItems.length === 0) {
-                optimizationDisplayContainer.innerHTML = '<p class="placeholder">Votre liste d\'épicerie est vide ou n\'a pas encore été optimisée.</p>';
+                optimizationDisplayContainer.innerHTML = '<p class="placeholder-text">Votre liste d\'épicerie est vide ou n\'a pas encore été optimisée.</p>';
                 findPricesBtn.style.display = 'none';
                 return;
             }
@@ -1855,7 +1856,7 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
             if (shoppingList.length === 0) {
                 const optimizationDisplayContainer = document.getElementById('optimization-display');
                 if (optimizationDisplayContainer) {
-                    optimizationDisplayContainer.innerHTML = '<p class="placeholder">Votre liste d\'épicerie est vide. Ajoutez des articles depuis la page principale.</p>';
+                    optimizationDisplayContainer.innerHTML = '<p class="placeholder-text">Votre liste d\'épicerie est vide. Ajoutez des articles depuis la page principale.</p>';
                 }
                 return;
             }
@@ -1927,13 +1928,13 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
             if (!routeDisplayContainer) { console.error("Element #route-display not found!"); return; }
 
             if (optimizedItems.length === 0) {
-                routeDisplayContainer.innerHTML = '<p>Veuillez d\'abord optimiser votre liste.</p>';
+                routeDisplayContainer.innerHTML = '<p class="placeholder-text">Veuillez d\'abord optimiser votre liste.</p>';
                 return;
             }
             const storesToVisit = [...new Set(optimizedItems.filter(item => item.selectedDeal && item.selectedDeal.store).map(item => item.selectedDeal.store))];
 
             if (storesToVisit.length === 0) {
-                routeDisplayContainer.innerHTML = '<p>Aucune offre sélectionnée. Choisissez des articles dans la liste optimisée pour générer un itinéraire.</p>';
+                routeDisplayContainer.innerHTML = '<p class="placeholder-text">Aucune offre sélectionnée. Choisissez des articles dans la liste optimisée pour générer un itinéraire.</p>';
                 return;
             }
             
@@ -2101,7 +2102,7 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
             modalBody.innerHTML = '';
 
             if (flyerContent.categories.length === 0) {
-                 modalBody.innerHTML = '<p class="placeholder">Cette circulaire ne contient aucun article.</p>';
+                 modalBody.innerHTML = '<p class="placeholder-text">Cette circulaire ne contient aucun article.</p>';
             } else {
                 flyerContent.categories.forEach(category => {
                     if(category.category_name) {
@@ -2225,7 +2226,7 @@ Maintenant, génère le JSON pour la liste que je t'ai fournie.`;
             const container = document.getElementById('rabais-actifs-display');
             container.innerHTML = '';
             if (rabais.length === 0) {
-                container.innerHTML = '<p class="placeholder">Aucun rabais actif trouvé.</p>';
+                container.innerHTML = '<p class="placeholder-text">Aucun rabais actif trouvé.</p>';
                 return;
             }
 
@@ -2298,7 +2299,7 @@ Maintenant, génère le JSON pour la liste que je t'ai fournie.`;
                 .catch(error => {
                     console.error("Erreur chargement rabais:", error);
                     const container = document.getElementById('rabais-actifs-display');
-                    container.innerHTML = '<p class="placeholder" style="color: red;">Impossible de charger les rabais pour le moment.</p>';
+                    container.innerHTML = '<p class="placeholder-text" style="color: red;">Impossible de charger les rabais pour le moment.</p>';
                 });
         }
 
@@ -2311,7 +2312,7 @@ Maintenant, génère le JSON pour la liste que je t'ai fournie.`;
                 .catch(error => {
                     console.error("Erreur:", error);
                     const container = document.getElementById('rabais-actifs-display');
-                    container.innerHTML = '<p class="placeholder" style="color: red;">Impossible de charger les prix pour le moment.</p>';
+                    container.innerHTML = '<p class="placeholder-text" style="color: red;">Impossible de charger les prix pour le moment.</p>';
                 });
         }
 
