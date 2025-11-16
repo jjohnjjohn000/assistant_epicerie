@@ -12,9 +12,6 @@
             background: transparent !important;
             box-shadow: none !important;
         }
-        .grid-stack {
-            /* background: #f0f0f0; */ /* Optionnel: pour voir la grille pendant le dev */
-        }
         .grid-stack-item-content {
             background-color: #ffffff;
             border-radius: 8px;
@@ -428,16 +425,17 @@
                                     <label for="itemQuantity" class="visually-hidden">Quantité</label>
                                     <input type="text" class="form-control" id="itemQuantity" value="1" placeholder="Quantité">
                                 </div>
+                                <!-- DÉBUT DES MODIFICATIONS DU FORMULAIRE -->
                                 <div class="col-sm-3">
                                     <label for="itemCategory" class="visually-hidden">Catégorie</label>
-                                    <select id="itemCategory" class="form-select">
-                                        <option value="Épicerie" selected>Épicerie</option>
-                                        <option value="Produits Frais">Produits Frais</option>
-                                        <option value="Viandes et Poissons">Viandes et Poissons</option>
-                                        <option value="Conserves">Conserves</option>
-                                        <option value="Autre">Autre</option>
-                                    </select>
+                                    <div class="input-group">
+                                        <select id="itemCategory" class="form-select">
+                                            <!-- Les catégories seront chargées ici par JS -->
+                                        </select>
+                                    <button class="btn btn-outline-secondary" type="button" id="add-category-btn" title="Ajouter une catégorie">+</button>
+                                    </div>
                                 </div>
+                                <!-- FIN DES MODIFICATIONS DU FORMULAIRE -->
                                 <div class="col-auto">
                                     <button type="submit" class="btn btn-primary"><i class="bi bi-plus-circle"></i> Ajouter</button>
                                 </div>
@@ -676,6 +674,7 @@ Maintenant, analyse la recette suivante :
             let grid;
             let draggedShoppingItemIndex = null;
             let draggedInventoryItemIndex = null;
+            let userCategories = [];
 
             let inventoryDisplay, shoppingListDisplay, addItemForm, addShoppingItemForm, 
             generateRecipeBtn, generateShoppingListBtn, toggleAllCheckbox, 
@@ -685,9 +684,39 @@ Maintenant, analyse la recette suivante :
             closeRecipeFormBtn, closeRecipeViewBtn, recipeForm, recipeModalTitle, 
             copyRecipePromptBtn, importRecipeJsonBtn, viewOldInventoryBtn, 
             exportInventoryBtn, importInventoryBtn, inventoryFileInput, 
-            viewOldDataModal, closeOldDataModalBtn, oldDataContent, autoArrangeBtn, reorganizeBtn, compactBtn;
+            viewOldDataModal, closeOldDataModalBtn, oldDataContent, autoArrangeBtn, reorganizeBtn, compactBtn, addCategoryBtn;
 
             // --- PARTIE 2 : FONCTIONS (ELLES NE S'EXÉCUTENT PAS ENCORE) ---
+            
+            async function loadUserCategories() {
+                if (!localStorage.getItem('authToken')) return;
+                try {
+                    userCategories = await apiCall('inventory/categories', 'GET');
+                    const categorySelect = document.getElementById('itemCategory');
+                    categorySelect.innerHTML = '<option value="">Aucune catégorie</option>'; // Option par défaut
+                    userCategories.forEach(cat => {
+                        const option = document.createElement('option');
+                        option.value = cat.id;
+                        option.textContent = cat.name;
+                        categorySelect.appendChild(option);
+                    });
+                } catch (error) {
+                    console.error("Erreur de chargement des catégories:", error);
+                }
+            }
+
+            async function handleAddNewCategory() {
+                const newCategoryName = prompt("Entrez le nom de la nouvelle catégorie :");
+                if (newCategoryName && newCategoryName.trim() !== '') {
+                    try {
+                        await apiCall('inventory/categories', 'POST', { name: newCategoryName.trim() });
+                        await loadUserCategories(); // Recharger la liste
+                    } catch (error) {
+                        alert(`Erreur : ${error.message}`);
+                    }
+                }
+            }
+
             async function loadServerData() {
                 const token = localStorage.getItem('authToken');
                 //console.log("1. Tentative de chargement des données. Jeton trouvé:", token ? "Oui" : "Non");
@@ -698,11 +727,12 @@ Maintenant, analyse la recette suivante :
                 }
 
                 try {
-                    const [inv, sl, rec, layout] = await Promise.all([
+                    const [inv, sl, rec, layout, cats] = await Promise.all([
                         apiCall('inventory', 'GET'),
                         apiCall('shopping-list', 'GET'),
                         apiCall('recipes', 'GET'),
-                        apiCall('user/layout?page=assistant', 'GET')
+                        apiCall('user/layout?page=assistant', 'GET'),
+                        apiCall('inventory/categories', 'GET')
                     ]);
                     
                     /*console.log("2. Données reçues du serveur:", { 
@@ -714,6 +744,7 @@ Maintenant, analyse la recette suivante :
                     inventory = inv.map(item => ({ ...item, include: true }));
                     shoppingList = sl;
                     recipes = rec;
+                    userCategories = cats;
                     
                     if (grid && layout && layout.length > 0) {
                         //console.log("5. Application de la disposition Gridstack sauvegardée.");
@@ -727,6 +758,18 @@ Maintenant, analyse la recette suivante :
                     renderShoppingList();
                     renderRecipeBook();
                     //console.log("4. Rendu terminé.");
+
+                    // On peuple la liste déroulante après avoir récupéré les catégories
+                    const categorySelect = document.getElementById('itemCategory');
+                    categorySelect.innerHTML = '<option value="">Aucune catégorie</option>';
+                    userCategories.forEach(cat => {
+                        const option = document.createElement('option');
+                        option.value = cat.id;
+                        option.textContent = cat.name;
+                        categorySelect.appendChild(option);
+                    });
+
+                    attachStaticListeners();
 
                 } catch (error) {
                     console.error("ERREUR CRITIQUE lors du chargement des données:", error);
@@ -762,60 +805,134 @@ Maintenant, analyse la recette suivante :
 
             // --- FONCTIONS DE RENDU ---
             function renderInventory() {
-                // SOLUTION : On récupère l'élément à chaque appel pour garantir une référence valide.
                 const inventoryDisplay = document.getElementById('inventory-display');
-
-                //console.log("--- Exécution de renderInventory ---");
-                //console.log("Element 'inventoryDisplay' frais:", inventoryDisplay); // DEBUG
-                //console.log("Données à afficher:", inventory); // DEBUG
-
                 if (!inventoryDisplay) {
-                    console.error("ERREUR: 'inventoryDisplay' n'a pas été trouvé dans le DOM au moment du rendu.");
+                    console.error("ERREUR: 'inventoryDisplay' n'a pas été trouvé.");
                     return;
                 }
 
-                inventoryDisplay.innerHTML = '';
+                inventoryDisplay.innerHTML = ''; // On vide l'affichage
                 if (!localStorage.getItem('authToken')) {
-                    inventoryDisplay.innerHTML = "<p>Veuillez vous connecter pour voir votre inventaire.</p>"; return;
+                    inventoryDisplay.innerHTML = "<p>Veuillez vous connecter pour voir votre inventaire.</p>";
+                    return;
                 }
-                const categories = [...new Set(inventory.map(item => item.category))].sort();
-                categories.forEach(category => {
+
+                // On groupe les items par catégorie pour le rendu
+                const itemsByCategory = inventory.reduce((acc, item) => {
+                    const categoryName = item.category_name || 'Sans catégorie';
+                    if (!acc[categoryName]) {
+                        acc[categoryName] = [];
+                    }
+                    acc[categoryName].push(item);
+                    return acc;
+                }, {});
+
+                const sortedCategories = Object.keys(itemsByCategory).sort();
+
+                sortedCategories.forEach(categoryName => {
                     const section = document.createElement('div');
                     section.className = 'inventory-section';
+                    
                     const title = document.createElement('h3');
-                    title.className = 'category-title'; title.textContent = category;
+                    title.className = 'category-title';
+                    title.textContent = categoryName;
                     section.appendChild(title);
+
                     const list = document.createElement('ul');
-                    inventory.forEach((item, index) => {
-                        if (item.category === category) {
-                            const li = document.createElement('li');
-                            li.dataset.itemId = item.id; li.dataset.index = index; li.draggable = true;
-                            let liClasses = 'inventory-item';
-                            const quantityValue = parseQuantity(item.quantity);
-                            if (item.alert_threshold && quantityValue < item.alert_threshold) liClasses += ' low-quantity-warning';
-                            li.className = liClasses;
-                            li.innerHTML = `
-                                <div class="item-details">
-                                    <input type="checkbox" class="include-item" data-index="${index}" ${item.include ? 'checked' : ''} style="margin-right: 10px; transform: scale(1.2);">
-                                    <span class="inventory-item-name">${item.name}</span>
-                                </div>
-                                <div class="item-controls">
-                                    <button class="btn btn-quantity-change" data-item-id="${item.id}" data-amount="-1">-</button>
-                                    <input type="text" value="${item.quantity}" data-item-id="${item.id}" class="item-quantity-input">
-                                    <button class="btn btn-quantity-change" data-item-id="${item.id}" data-amount="1">+</button>
-                                    <label style="font-size: 0.8em; color: #7f8c8d; margin-left: 8px;">Alerte:</label>
-                                    <input type="number" value="${item.alert_threshold !== null ? item.alert_threshold : 2}" data-item-id="${item.id}" class="item-threshold-input" min="0" style="width: 45px;">
-                                    <button class="btn btn-delete" data-item-id="${item.id}">Supprimer</button>
-                                </div>`;
-                            list.appendChild(li);
+
+                    itemsByCategory[categoryName].forEach(item => {
+                        const index = inventory.findIndex(invItem => invItem.id === item.id);
+                        const li = document.createElement('li');
+                        li.dataset.itemId = item.id;
+                        li.dataset.index = index;
+                        li.draggable = true;
+                        
+                        let liClasses = 'inventory-item';
+                        const quantityValue = parseQuantity(item.quantity);
+                        if (item.alert_threshold && quantityValue < item.alert_threshold) {
+                            liClasses += ' low-quantity-warning';
                         }
+                        li.className = liClasses;
+
+                        // --- Construction robuste du contenu du <li> ---
+
+                        // 1. Section des détails (checkbox, nom)
+                        const itemDetails = document.createElement('div');
+                        itemDetails.className = 'item-details';
+
+                        const checkbox = document.createElement('input');
+                        checkbox.type = 'checkbox';
+                        checkbox.className = 'include-item';
+                        checkbox.dataset.index = index;
+                        checkbox.checked = item.include;
+                        checkbox.style.marginRight = '10px';
+                        checkbox.style.transform = 'scale(1.2)';
+                        
+                        const itemNameSpan = document.createElement('span');
+                        itemNameSpan.className = 'inventory-item-name';
+                        // On ajoute le data-index ici pour corriger le bug de l'édition
+                        itemNameSpan.dataset.index = index; 
+                        itemNameSpan.textContent = item.name;
+
+                        itemDetails.appendChild(checkbox);
+                        itemDetails.appendChild(itemNameSpan);
+
+                        // 2. Section des contrôles (boutons, inputs)
+                        const itemControls = document.createElement('div');
+                        itemControls.className = 'item-controls';
+
+                        // Boutons et inputs
+                        const btnMinus = document.createElement('button');
+                        btnMinus.className = 'btn btn-quantity-change';
+                        btnMinus.dataset.itemId = item.id;
+                        btnMinus.dataset.amount = '-1';
+                        btnMinus.textContent = '-';
+
+                        const quantityInput = document.createElement('input');
+                        quantityInput.type = 'text';
+                        quantityInput.value = item.quantity;
+                        quantityInput.dataset.itemId = item.id;
+                        quantityInput.className = 'item-quantity-input';
+
+                        const btnPlus = document.createElement('button');
+                        btnPlus.className = 'btn btn-quantity-change';
+                        btnPlus.dataset.itemId = item.id;
+                        btnPlus.dataset.amount = '1';
+                        btnPlus.textContent = '+';
+                        
+                        const alertLabel = document.createElement('label');
+                        alertLabel.style.cssText = 'font-size: 0.8em; color: #7f8c8d; margin-left: 8px;';
+                        alertLabel.textContent = 'Alerte:';
+
+                        const thresholdInput = document.createElement('input');
+                        thresholdInput.type = 'number';
+                        thresholdInput.value = item.alert_threshold !== null ? item.alert_threshold : 2;
+                        thresholdInput.dataset.itemId = item.id;
+                        thresholdInput.className = 'item-threshold-input';
+                        thresholdInput.min = '0';
+                        thresholdInput.style.width = '45px';
+                        
+                        const deleteBtn = document.createElement('button');
+                        deleteBtn.className = 'btn btn-delete';
+                        deleteBtn.dataset.itemId = item.id;
+                        deleteBtn.textContent = 'Supprimer';
+
+                        // Ajout des contrôles à leur conteneur
+                        itemControls.append(btnMinus, quantityInput, btnPlus, alertLabel, thresholdInput, deleteBtn);
+                        
+                        // 3. Ajout des deux sections principales au <li>
+                        li.appendChild(itemDetails);
+                        li.appendChild(itemControls);
+                        
+                        list.appendChild(li);
                     });
+                    
                     section.appendChild(list);
                     inventoryDisplay.appendChild(section);
                 });
+
                 attachInventoryListeners();
                 updateToggleAllCheckboxState();
-                //console.log("--- Fin de renderInventory ---");
             }
             
             function renderShoppingList() {
@@ -897,19 +1014,32 @@ Maintenant, analyse la recette suivante :
    
             async function addItem(e) {
                 e.preventDefault();
+                const categoryId = document.getElementById('itemCategory').value;
                 const newItem = {
                     name: document.getElementById('itemName').value.trim(),
                     quantity: document.getElementById('itemQuantity').value.trim(),
-                    category: document.getElementById('itemCategory').value,
+                    category: categoryId ? parseInt(categoryId, 10) : null,
                     alert_threshold: 2
                 };
                 if (!newItem.name) return;
+
                 try {
                     const addedItem = await apiCall('inventory', 'POST', newItem);
-                    inventory.push({ ...addedItem, include: true });
-                    renderInventory();
+                    
+                    // --- AMÉLIORATION : Mettre à jour l'état local au lieu de tout recharger ---
+                    // La réponse de l'API (`addedItem`) contient maintenant le `category_name` grâce au serializer.
+                    inventory.push(addedItem); 
+                    renderInventory(); // On redessine juste l'inventaire, c'est instantané.
+                    
                     addItemForm.reset();
-                } catch (error) { alert("Erreur : L'article existe déjà dans votre inventaire."); }
+
+                } catch (error) { 
+                    if (String(error).includes('UNIQUE constraint failed')) {
+                        alert("Erreur : L'article existe déjà dans votre inventaire.");
+                    } else {
+                        alert("Une erreur est survenue lors de l'ajout.");
+                    }
+                }
             }
 
             async function deleteItem(e) {
@@ -977,11 +1107,40 @@ Maintenant, analyse la recette suivante :
                 const itemId = e.currentTarget.dataset.itemId;
                 const itemToMove = shoppingList.find(item => item.id == itemId);
                 if (!itemToMove) return;
+
                 try {
-                    await apiCall('inventory', 'POST', { name: itemToMove.name, quantity: itemToMove.quantity, category: 'Épicerie' });
+                    // --- DÉBUT DE LA CORRECTION ---
+                    // On envoie les données de l'article à l'inventaire SANS spécifier de catégorie.
+                    // Le backend assignera la catégorie par défaut ou la laissera nulle.
+                    // Le champ 'category' attend un ID, pas un nom. En ne l'envoyant pas, on évite l'erreur.
+                    const newItemData = { 
+                        name: itemToMove.name, 
+                        quantity: itemToMove.quantity 
+                        // Pas de 'category: "Épicerie"' ici !
+                    };
+                    
+                    // On ajoute d'abord à l'inventaire
+                    const addedToInventory = await apiCall('inventory', 'POST', newItemData);
+                    
+                    // Ensuite, on supprime de la liste d'épicerie
                     await apiCall(`shopping-list/${itemId}`, 'DELETE');
-                    await loadServerData();
-                } catch (error) { alert("Erreur: L'article est peut-être déjà dans l'inventaire."); }
+                    
+                    // On met à jour l'état local au lieu de tout recharger
+                    inventory.push(addedToInventory);
+                    shoppingList = shoppingList.filter(item => item.id != itemId);
+                    
+                    renderInventory();
+                    renderShoppingList();
+                    // --- FIN DE LA CORRECTION ---
+
+                } catch (error) { 
+                    // Affiche une alerte plus utile si l'article existe déjà
+                    if (String(error).includes('UNIQUE constraint failed')) {
+                        alert("Erreur: Cet article existe déjà dans votre inventaire.");
+                    } else {
+                        alert("Une erreur est survenue lors du déplacement de l'article.");
+                    }
+                }
             }
 
             async function handleRecipeFormSubmit(e) {
@@ -1404,6 +1563,22 @@ Maintenant, analyse la recette suivante :
                 button.textContent = 'Copié!';
                 setTimeout(() => { button.textContent = originalText; }, 2000);
             }
+
+            function attachStaticListeners() {
+                // On ré-attache les écouteurs sur les éléments qui ne sont pas re-créés dynamiquement
+                // mais qui peuvent perdre leurs écouteurs à cause d'un re-rendu du DOM.
+                
+                // On s'assure de capturer à nouveau la référence au cas où l'élément a été recréé
+                const addCategoryBtn = document.getElementById('add-category-btn');
+                if (addCategoryBtn) {
+                    addCategoryBtn.addEventListener('click', handleAddNewCategory);
+                }
+
+                const addItemForm = document.getElementById('addItemForm');
+                if (addItemForm) {
+                    addItemForm.addEventListener('submit', addItem);
+                }
+            }
                 
             // --- PARTIE 3 : INITIALISATION ET ATTACHEMENT DES ÉVÉNEMENTS (LA PARTIE CORRIGÉE) ---
             function attachInventoryListeners() {
@@ -1493,9 +1668,10 @@ Maintenant, analyse la recette suivante :
                 autoArrangeBtn = document.getElementById('auto-arrange-btn');
                 reorganizeBtn = document.getElementById('reorganize-layout-btn');
                 compactBtn = document.getElementById('compact-layout-btn');
+                addCategoryBtn = document.getElementById('add-category-btn');
 
                 // ÉTAPE 3 : On attache tous les écouteurs d'événements
-                if (addItemForm) addItemForm.addEventListener('submit', addItem);
+                //if (addItemForm) addItemForm.addEventListener('submit', addItem);
                 if (addShoppingItemForm) addShoppingItemForm.addEventListener('submit', addShoppingItem);
                 if (toggleAllCheckbox) toggleAllCheckbox.addEventListener('change', toggleAll);
                 if (generateShoppingListBtn) generateShoppingListBtn.addEventListener('click', generateShoppingListPrompt);
@@ -1513,6 +1689,9 @@ Maintenant, analyse la recette suivante :
                 if (exportInventoryBtn) exportInventoryBtn.addEventListener('click', exportOldInventory);
                 if (importInventoryBtn) importInventoryBtn.addEventListener('click', () => inventoryFileInput.click());
                 if (inventoryFileInput) inventoryFileInput.addEventListener('change', handleFileImport);
+                //if (addCategoryBtn) addCategoryBtn.addEventListener('click', handleAddNewCategory);
+
+                attachStaticListeners();
                 
                 if (reorganizeBtn) {
                     reorganizeBtn.addEventListener('click', (e) => { e.preventDefault(); applyLayoutPreset(ASSISTANT_LAYOUT_PRESET); });
