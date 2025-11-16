@@ -15,8 +15,8 @@ from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login, logout
 from rest_framework.authtoken.models import Token
 from rest_framework.views import APIView
-from .models import InventoryItem, ShoppingListItem, Recipe
-from .serializers import InventoryItemSerializer, ShoppingListItemSerializer, RecipeSerializer, ProduitSerializer, PrixSubmissionSerializer
+from .models import InventoryItem, ShoppingListItem, Recipe, InventoryCategory
+from .serializers import InventoryItemSerializer, ShoppingListItemSerializer, RecipeSerializer, ProduitSerializer, PrixSubmissionSerializer, InventoryCategorySerializer
 from datetime import timedelta, date
 from django.contrib.admin.views.decorators import staff_member_required
 from django.template.response import TemplateResponse
@@ -299,8 +299,35 @@ def logout_user(request):
 
     return Response({'message': 'Déconnexion réussie.'}, status=status.HTTP_200_OK)
 
+# --- VUES POUR L'INVENTAIRE ET CATÉGORIES ---
 
-# --- NOUVELLE VUE POUR LA GESTION DE L'INVENTAIRE ---
+class InventoryCategoryView(APIView):
+    """ API pour gérer les catégories d'inventaire de l'utilisateur. """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """ Retourne la liste des catégories de l'utilisateur connecté. """
+        categories = InventoryCategory.objects.filter(user=request.user)
+        serializer = InventoryCategorySerializer(categories, many=True)
+        return Response(serializer.data)
+
+    def post(self, request):
+        """ Crée une nouvelle catégorie pour l'utilisateur. """
+        serializer = InventoryCategorySerializer(data=request.data)
+        if serializer.is_valid():
+            # Vérifie si la catégorie existe déjà pour cet utilisateur
+            if InventoryCategory.objects.filter(user=request.user, name__iexact=serializer.validated_data['name']).exists():
+                return Response({'error': 'Cette catégorie existe déjà.'}, status=status.HTTP_409_CONFLICT)
+            serializer.save(user=request.user)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, category_id):
+        """ Supprime une catégorie de l'utilisateur. """
+        category = get_object_or_404(InventoryCategory, id=category_id, user=request.user)
+        category.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
 
 class InventoryView(APIView):
     """
@@ -309,31 +336,28 @@ class InventoryView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        """ Retourne la liste complète de l'inventaire de l'utilisateur. """
-        # CETTE VUE DOIT INTERROGER LE MODÈLE 'InventoryItem'.
-        items = InventoryItem.objects.filter(user=request.user)
+        items = InventoryItem.objects.filter(user=request.user).select_related('category')
         serializer = InventoryItemSerializer(items, many=True)
         return Response(serializer.data)
 
     def post(self, request):
-        """ Ajoute un nouvel article à l'inventaire de l'utilisateur. """
-        serializer = InventoryItemSerializer(data=request.data)
+        # On passe le contexte pour que le sérialiseur puisse accéder à l'utilisateur
+        serializer = InventoryItemSerializer(data=request.data, context={'request': request})
         if serializer.is_valid():
             serializer.save(user=request.user)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def put(self, request, item_id):
-        """ Met à jour un article existant. """
         item = get_object_or_404(InventoryItem, id=item_id, user=request.user)
-        serializer = InventoryItemSerializer(item, data=request.data, partial=True)
+        # On passe aussi le contexte ici
+        serializer = InventoryItemSerializer(item, data=request.data, partial=True, context={'request': request})
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, item_id):
-        """ Supprime un article de l'inventaire. """
         item = get_object_or_404(InventoryItem, id=item_id, user=request.user)
         item.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -360,6 +384,16 @@ def import_inventory(request):
         if not item_name:
             continue # On ignore les articles sans nom
 
+        category_obj = None
+        # On récupère le nom de la catégorie depuis les données JSON importées
+        category_name_from_data = item_data.get('category') 
+        if category_name_from_data:
+            # On cherche ou on crée la catégorie pour l'utilisateur
+            category_obj, _ = InventoryCategory.objects.get_or_create(
+                user=request.user, 
+                name=category_name_from_data
+            )
+
         # update_or_create est parfait pour ça :
         # Il cherche un article avec ce nom pour cet utilisateur.
         # S'il le trouve, il le met à jour. Sinon, il le crée.
@@ -368,7 +402,7 @@ def import_inventory(request):
             name=item_name,
             defaults={
                 'quantity': item_data.get('quantity', '1'),
-                'category': item_data.get('category', 'Épicerie'),
+                'category': category_obj,
                 'alert_threshold': item_data.get('alertThreshold', 2) # Notez le camelCase du JS
             }
         )

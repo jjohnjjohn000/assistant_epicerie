@@ -51,8 +51,9 @@ urlpatterns = [
     path('api/commerces/', views.get_commerces, name='api_get_commerces'),
     path('api/circulaires-actives/', views.get_circulaires_actives, name='api_get_circulaires_actives'),
 
-        
-    # --- NOUVELLES URLS POUR L'INVENTAIRE ---
+    # --- URLS POUR L'INVENTAIRE ET CATÉGORIES ---
+    path('api/inventory/categories/', views.InventoryCategoryView.as_view(), name='inventory_category_list'),
+    path('api/inventory/categories/<int:category_id>/', views.InventoryCategoryView.as_view(), name='inventory_category_detail'),
     path('api/inventory/', views.InventoryView.as_view(), name='inventory_list'),
     path('api/inventory/<int:item_id>/', views.InventoryView.as_view(), name='inventory_detail'),
     path('api/inventory/import/', views.import_inventory, name='inventory_import'),

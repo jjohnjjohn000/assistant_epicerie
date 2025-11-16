@@ -1,14 +1,36 @@
 # Fichier: core/serializers.py
 
 from rest_framework import serializers
-from .models import InventoryItem, ShoppingListItem, Recipe, Produit, Prix, Commerce
+from .models import InventoryItem, ShoppingListItem, Recipe, Produit, Prix, Commerce, InventoryCategory
+
+# --- SÉRIALISEURS D'INVENTAIRE ---
+
+class InventoryCategorySerializer(serializers.ModelSerializer):
+    """ Sérialiseur pour les catégories d'inventaire personnalisées. """
+    class Meta:
+        model = InventoryCategory
+        fields = ['id', 'name']
 
 class InventoryItemSerializer(serializers.ModelSerializer):
+    # Champ pour afficher le nom de la catégorie en lecture seule
+    category_name = serializers.CharField(source='category.name', read_only=True, allow_null=True)
+
     class Meta:
         model = InventoryItem
-        # On liste les champs qu'on veut exposer dans notre API
-        fields = ['id', 'name', 'quantity', 'category', 'alert_threshold']
-        
+        # On expose 'category' pour l'écriture (l'ID) et 'category_name' pour la lecture
+        fields = ['id', 'name', 'quantity', 'category', 'category_name', 'alert_threshold']
+        # 'category' sera utilisé pour recevoir un ID lors de la création/mise à jour
+        extra_kwargs = {
+            'category': {'write_only': True, 'required': False, 'allow_null': True}
+        }
+            
+    def __init__(self, *args, **kwargs):
+        """ S'assure que l'utilisateur ne peut assigner que ses propres catégories. """
+        super().__init__(*args, **kwargs)
+        request = self.context.get('request')
+        if request and hasattr(request, 'user'):
+            self.fields['category'].queryset = InventoryCategory.objects.filter(user=request.user)
+
 # --- NOUVEAU SERIALIZER POUR LA LISTE D'ÉPICERIE ---
 class ShoppingListItemSerializer(serializers.ModelSerializer):
     class Meta:

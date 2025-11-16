@@ -145,26 +145,40 @@ class Report(models.Model):
         unique_together = ('price_entry', 'reported_by')
 
 # --- NOUVEAU MODÈLE POUR L'INVENTAIRE ---
+class InventoryCategory(models.Model):
+    """ Représente une catégorie d'inventaire personnalisée pour un utilisateur. """
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="inventory_categories")
+    name = models.CharField(max_length=100)
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        # Un utilisateur ne peut pas avoir deux catégories avec le même nom
+        unique_together = ('user', 'name')
+        ordering = ['name']
+        verbose_name = "Catégorie d'inventaire"
+        verbose_name_plural = "Catégories d'inventaire"
+
+
 class InventoryItem(models.Model):
     """ Représente un article dans l'inventaire personnel d'un utilisateur. """
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="inventory_items")
     name = models.CharField(max_length=200)
     quantity = models.CharField(max_length=50, default="1")
-    category = models.CharField(max_length=100, default="Épicerie")
-    # Le champ 'include' n'est plus utile, car on ne gère plus les ingrédients pour la recette IA de cette façon
-    # On garde alertThreshold car il est propre à la gestion de l'utilisateur
-    alert_threshold = models.IntegerField(default=2, validators=[MinValueValidator(0)])
     
-    # La date est automatiquement ajoutée à la création
+    # On remplace le CharField par une clé étrangère vers les catégories de l'utilisateur
+    category = models.ForeignKey(InventoryCategory, on_delete=models.SET_NULL, null=True, blank=True, related_name="items")
+
+    alert_threshold = models.IntegerField(default=2, validators=[MinValueValidator(0)])
     date_added = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"{self.name} ({self.quantity}) pour {self.user.username}"
 
     class Meta:
-        # Assure qu'un utilisateur ne peut pas avoir deux fois le même article (nom exact)
         unique_together = ('user', 'name')
-        ordering = ['category', 'name']
+        ordering = ['category__name', 'name']
         
 # --- NOUVEAU MODÈLE POUR LA LISTE D'ÉPICERIE ---
 class ShoppingListItem(models.Model):
