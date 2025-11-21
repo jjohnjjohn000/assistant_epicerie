@@ -1,107 +1,142 @@
-// Fichier: core/static/core/js/auth.js
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+async function apiCall(endpoint, method, body = null) {
+    const headers = {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCookie('csrftoken')
+    };
+    const token = localStorage.getItem('authToken');
+    if (token) {
+        headers['Authorization'] = `Token ${token}`;
+    }
+    const options = { method, headers };
+    if (body) {
+        options.body = JSON.stringify(body);
+    }
+    
+    // 1. On retire un préfixe /api/ si l'appelant l'a inclus par erreur.
+    let cleanEndpoint = endpoint.startsWith('/api/') ? endpoint.substring(5) : endpoint;
+    
+    // 2. On retire un éventuel slash au début.
+    cleanEndpoint = cleanEndpoint.startsWith('/') ? cleanEndpoint.substring(1) : cleanEndpoint;
+    
+    // 3. On reconstruit l'URL en s'assurant que le slash final est au bon endroit (avant les paramètres)
+    let pathPart = cleanEndpoint;
+    let queryPart = '';
+    const queryIndex = cleanEndpoint.indexOf('?');
+
+    if (queryIndex !== -1) {
+        pathPart = cleanEndpoint.substring(0, queryIndex);
+        queryPart = cleanEndpoint.substring(queryIndex);
+    }
+
+    // On ajoute le slash final seulement si la partie "chemin" ne se termine pas déjà par un slash.
+    if (!pathPart.endsWith('/')) {
+        pathPart += '/';
+    }
+
+    const url = `/api/${pathPart}${queryPart}`;
+
+    const response = await fetch(url, options);
+
+    if (!response.ok) {
+        let errorData;
+        try {
+            errorData = await response.json();
+        } catch (e) {
+            // Fournit un message d'erreur plus clair pour les erreurs 404
+            errorData = { detail: `Erreur ${response.status}: ${response.statusText}` };
+        }
+        // S'assure qu'on lance une erreur avec un message
+        throw new Error(errorData.detail || errorData.error || `Erreur ${response.status}`);
+    }
+    if (response.status === 204) {
+        return null;
+    }
+    return response.json();
+}
+
+async function handleLogout() {
+    try {
+        await apiCall('logout', 'POST');
+    } catch (error) {
+        console.error("Erreur lors de la déconnexion:", error);
+    } finally {
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('username');
+        localStorage.removeItem('shoppingList');
+        localStorage.removeItem('savedOptimizedList');
+        window.location.reload();
+    }
+}
+
+// --- GESTION DU DOM (RESTE DANS DOMCONTENTLOADED) ---
 
 document.addEventListener('DOMContentLoaded', function() {
     // --- SÉLECTEURS D'ÉLÉMENTS DOM ---
-    const loggedOutView = document.getElementById('logged-out-view');
-    const loggedInView = document.getElementById('logged-in-view');
-    const loginForm = document.getElementById('login-form');
-    const registerForm = document.getElementById('register-form');
-    const userStatus = document.getElementById('user-status');
-    const logoutBtn = document.getElementById('logout-btn');
-    const authError = document.getElementById('auth-error');
-    const toggleToRegister = document.getElementById('toggle-to-register');
-    const toggleToLogin = document.getElementById('toggle-to-login');
+    const navLoggedOutView = document.getElementById('nav-logged-out-view');
+    const navLoggedInView = document.getElementById('nav-logged-in-view');
+    const navUserStatus = document.getElementById('nav-user-status');
+    const navLogoutBtn = document.getElementById('nav-logout-btn');
 
-    // Assurez-vous que les éléments existent avant d'ajouter des écouteurs
-    if (!loginForm || !logoutBtn) {
-        // Si les éléments d'auth ne sont pas sur la page, ne rien faire.
-        return;
-    }
+    // Éléments de la modale
+    const authModal = document.getElementById('authModal');
+    const authModalTitle = document.getElementById('authModalTitle');
+    const loginFormModal = document.getElementById('login-form-modal');
+    const registerFormModal = document.getElementById('register-form-modal');
+    const authErrorModal = document.getElementById('auth-error-modal');
+    const toggleToRegisterModal = document.getElementById('toggle-to-register-modal');
+    const toggleToLoginModal = document.getElementById('toggle-to-login-modal');
 
-    // --- FONCTIONS D'API ET D'AUTHENTIFICATION ---
-
-    function getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
-            }
-        }
-        return cookieValue;
-    }
-
-    async function apiCall(endpoint, method, body = null) {
-        const headers = {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': getCookie('csrftoken')
-        };
-        const token = localStorage.getItem('authToken');
-        if (token) {
-            headers['Authorization'] = `Token ${token}`;
-        }
-        const options = { method, headers };
-        if (body) {
-            options.body = JSON.stringify(body);
-        }
-        const response = await fetch(`/api/${endpoint}/`, options);
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || `Erreur ${response.status}`);
-        }
-        if (response.status === 204) {
-            return null;
-        }
-        return response.json();
-    }
+    // --- FONCTIONS SPÉCIFIQUES À L'INSCRIPTION/CONNEXION ---
 
     async function handleRegister(e) {
         e.preventDefault();
-        authError.textContent = '';
-        const username = document.getElementById('register-username').value;
-        const email = document.getElementById('register-email').value;
-        const password = document.getElementById('register-password').value;
+        authErrorModal.textContent = '';
+        authErrorModal.classList.add('d-none');
+
+        const username = document.getElementById('register-username-modal').value;
+        const email = document.getElementById('register-email-modal').value;
+        const password = document.getElementById('register-password-modal').value;
         try {
             const data = await apiCall('register', 'POST', { username, email, password });
             localStorage.setItem('authToken', data.token);
             localStorage.setItem('username', data.username);
-            window.location.reload(); // Recharger la page pour charger les données de l'utilisateur
+            window.location.reload();
         } catch (error) {
-            authError.textContent = error.message;
+            authErrorModal.textContent = error.message;
+            authErrorModal.classList.remove('d-none');
         }
     }
 
     async function handleLogin(e) {
         e.preventDefault();
-        authError.textContent = '';
-        const username = document.getElementById('login-username').value;
-        const password = document.getElementById('login-password').value;
+        authErrorModal.textContent = '';
+        authErrorModal.classList.add('d-none');
+
+        const username = document.getElementById('login-username-modal').value;
+        const password = document.getElementById('login-password-modal').value;
         try {
             const data = await apiCall('login', 'POST', { username, password });
             localStorage.setItem('authToken', data.token);
             localStorage.setItem('username', data.username);
-            window.location.reload(); // Recharger la page pour charger les données de l'utilisateur
+            window.location.reload();
         } catch (error) {
-            authError.textContent = error.message;
-        }
-    }
-
-    async function handleLogout() {
-        try {
-            await apiCall('logout', 'POST');
-        } catch (error) {
-            console.error("Erreur lors de la déconnexion:", error);
-        } finally {
-            localStorage.removeItem('authToken');
-            localStorage.removeItem('username');
-            // Nettoyer toutes les données locales pour éviter les fuites de données
-            localStorage.removeItem('shoppingList');
-            localStorage.removeItem('savedOptimizedList');
-            window.location.href = '/'; // Rediriger vers l'accueil en mode déconnecté
+            authErrorModal.textContent = error.message;
+            authErrorModal.classList.remove('d-none');
         }
     }
 
@@ -110,38 +145,61 @@ document.addEventListener('DOMContentLoaded', function() {
         const username = localStorage.getItem('username');
 
         if (token && username) {
-            loggedInView.classList.remove('hidden');
-            loggedOutView.classList.add('hidden');
-            userStatus.textContent = `Connecté : ${username}`;
-            authError.textContent = '';
-            // Le rechargement de page s'occupe de charger les bonnes données
+            // Gère la navbar pour un utilisateur connecté
+            if (navLoggedInView) navLoggedInView.classList.remove('d-none');
+            if (navLoggedOutView) navLoggedOutView.classList.add('d-none');
+            if (navUserStatus) navUserStatus.textContent = `Connecté : ${username}`;
+
         } else {
-            loggedInView.classList.add('hidden');
-            loggedOutView.classList.remove('hidden');
-            userStatus.textContent = '';
+            // Gère la navbar pour un utilisateur déconnecté
+            if (navLoggedInView) navLoggedInView.classList.add('d-none');
+            if (navLoggedOutView) navLoggedOutView.classList.remove('d-none');
+            if (navUserStatus) navUserStatus.textContent = '';
         }
     }
 
     // --- ÉCOUTEURS D'ÉVÉNEMENTS ---
-    loginForm.addEventListener('submit', handleLogin);
-    registerForm.addEventListener('submit', handleRegister);
-    logoutBtn.addEventListener('click', handleLogout);
+    if (loginFormModal) loginFormModal.addEventListener('submit', handleLogin);
+    if (registerFormModal) registerFormModal.addEventListener('submit', handleRegister);
+    if (navLogoutBtn) navLogoutBtn.addEventListener('click', handleLogout);
 
-    toggleToRegister.addEventListener('click', () => {
-        loginForm.classList.add('hidden');
-        toggleToRegister.classList.add('hidden');
-        registerForm.classList.remove('hidden');
-        toggleToLogin.classList.remove('hidden');
-        authError.textContent = '';
-    });
+    if (toggleToRegisterModal) {
+        toggleToRegisterModal.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (loginFormModal) loginFormModal.classList.add('d-none');
+            if (registerFormModal) registerFormModal.classList.remove('d-none');
+            if (authModalTitle) authModalTitle.textContent = "Inscription";
+            if (toggleToRegisterModal) toggleToRegisterModal.classList.add('d-none');
+            if (toggleToLoginModal) toggleToLoginModal.classList.remove('d-none');
+            if (authErrorModal) authErrorModal.classList.add('d-none');
+        });
+    }
 
-    toggleToLogin.addEventListener('click', () => {
-        registerForm.classList.add('hidden');
-        toggleToLogin.classList.add('hidden');
-        loginForm.classList.remove('hidden');
-        toggleToRegister.classList.remove('hidden');
-        authError.textContent = '';
-    });
+    if (toggleToLoginModal) {
+        toggleToLoginModal.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (registerFormModal) registerFormModal.classList.add('d-none');
+            if (loginFormModal) loginFormModal.classList.remove('d-none');
+            if (authModalTitle) authModalTitle.textContent = "Connexion";
+            if (toggleToLoginModal) toggleToLoginModal.classList.add('d-none');
+            if (toggleToRegisterModal) toggleToRegisterModal.classList.remove('d-none');
+            if (authErrorModal) authErrorModal.classList.add('d-none');
+        });
+    }
+    
+    // Réinitialise l'état de la modale quand elle est fermée
+    if (authModal) {
+        authModal.addEventListener('hidden.bs.modal', function () {
+            if (registerFormModal) registerFormModal.classList.add('d-none');
+            if (loginFormModal) loginFormModal.classList.remove('d-none');
+            if (authModalTitle) authModalTitle.textContent = "Connexion";
+            if (toggleToLoginModal) toggleToLoginModal.classList.add('d-none');
+            if (toggleToRegisterModal) toggleToRegisterModal.classList.remove('d-none');
+            if (authErrorModal) authErrorModal.classList.add('d-none');
+            if(loginFormModal) loginFormModal.reset();
+            if(registerFormModal) registerFormModal.reset();
+        });
+    }
 
     // --- INITIALISATION ---
     updateAuthUI();
