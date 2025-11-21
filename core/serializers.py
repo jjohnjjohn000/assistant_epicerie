@@ -12,23 +12,31 @@ class InventoryCategorySerializer(serializers.ModelSerializer):
         fields = ['id', 'name']
 
 class InventoryItemSerializer(serializers.ModelSerializer):
-    # Champ pour afficher le nom de la catégorie en lecture seule
-    category_name = serializers.CharField(source='category.name', read_only=True, allow_null=True)
+    # Remplacer le CharField par un SerializerMethodField pour une gestion plus sûre des valeurs nulles.
+    category_name = serializers.SerializerMethodField()
 
     class Meta:
         model = InventoryItem
-        # On expose 'category' pour l'écriture (l'ID) et 'category_name' pour la lecture
         fields = ['id', 'name', 'quantity', 'category', 'category_name', 'alert_threshold']
-        # On retire 'write_only': True pour que l'ID de la catégorie soit retourné
-        # lors de la lecture, ce qui est crucial pour le regroupement en JavaScript.
         extra_kwargs = {
+            # 'category' est le champ en écriture (ID), il peut être nul.
             'category': {'required': False, 'allow_null': True}
         }
+    
+    # Nouvelle méthode pour obtenir le nom de la catégorie en toute sécurité.
+    # Elle sera appelée pour chaque objet InventoryItem.
+    def get_category_name(self, obj):
+        # Si l'objet a une catégorie, on retourne son nom.
+        if obj.category:
+            return obj.category.name
+        # Sinon, on retourne None (qui deviendra 'null' en JSON).
+        return None
             
     def __init__(self, *args, **kwargs):
-        """ S'assure que l'utilisateur ne peut assigner que ses propres catégories. """
+        """ S'assure que l'utilisateur ne peut assigner que ses propres catégories lors de la création/mise à jour. """
         super().__init__(*args, **kwargs)
         request = self.context.get('request')
+        # Cette logique est pour la validation (écriture) et reste correcte.
         if request and hasattr(request, 'user'):
             self.fields['category'].queryset = InventoryCategory.objects.filter(user=request.user)
 

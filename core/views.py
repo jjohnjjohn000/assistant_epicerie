@@ -22,6 +22,9 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.template.response import TemplateResponse
 from django.http import HttpResponseRedirect
 from django.contrib import messages, admin
+from django.db import transaction, models
+# MODIFICATION : Importation de F pour le tri avancé
+from django.db.models import F
 
 
 def assistant_epicerie(request):
@@ -336,15 +339,31 @@ class InventoryView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        items = InventoryItem.objects.filter(user=request.user).select_related('category')
-        serializer = InventoryItemSerializer(items, many=True)
+        # DÉBUT DE LA CORRECTION
+        # On trie d'abord par catégorie (en mettant les articles sans catégorie à la fin),
+        # puis par l'ordre personnalisé à l'intérieur de chaque catégorie.
+        items = InventoryItem.objects.filter(user=request.user) \
+                                     .select_related('category') \
+                                     .order_by(F('category_id').asc(nulls_last=True), 'order')
+        # FIN DE LA CORRECTION
+        serializer = InventoryItemSerializer(items, many=True, context={'request': request})
         return Response(serializer.data)
 
     def post(self, request):
-        # On passe le contexte pour que le sérialiseur puisse accéder à l'utilisateur
         serializer = InventoryItemSerializer(data=request.data, context={'request': request})
         if serializer.is_valid():
-            serializer.save(user=request.user)
+            # LOGIQUE AJOUTÉE pour définir l'ordre à la création
+            category = serializer.validated_data.get('category')
+            last_item_order = InventoryItem.objects.filter(
+                user=request.user, 
+                category=category
+            ).aggregate(max_order=models.Max('order'))['max_order']
+            
+            new_order = 0
+            if last_item_order is not None:
+                new_order = last_item_order + 1
+            
+            serializer.save(user=request.user, order=new_order)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -363,6 +382,34 @@ class InventoryView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
             
 # --- NOUVELLE VUE POUR L'IMPORTATION EN BLOC ---
+
+# NOUVELLE VUE AJOUTÉE pour gérer la réorganisation
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+@transaction.atomic
+def reorder_inventory(request):
+    """
+    Réorganise les articles d'inventaire en fonction d'une liste d'IDs ordonnée
+    et met à jour leur catégorie si nécessaire.
+    """
+    data = request.data
+    ordered_ids = data.get('ordered_ids')
+    target_category_id = data.get('category_id')
+
+    if not isinstance(ordered_ids, list):
+        return Response({'error': 'ordered_ids doit être une liste.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    target_category = None
+    if target_category_id:
+        target_category = get_object_or_404(InventoryCategory, id=target_category_id, user=request.user)
+
+    for index, item_id in enumerate(ordered_ids):
+        item = get_object_or_404(InventoryItem.objects.select_for_update(), id=item_id, user=request.user)
+        item.order = index
+        item.category = target_category
+        item.save()
+
+    return Response({'status': 'succès'}, status=status.HTTP_200_OK)
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])

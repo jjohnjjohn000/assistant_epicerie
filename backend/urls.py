@@ -54,6 +54,7 @@ urlpatterns = [
     # --- URLS POUR L'INVENTAIRE ET CATÉGORIES ---
     path('api/inventory/categories/', views.InventoryCategoryView.as_view(), name='inventory_category_list'),
     path('api/inventory/categories/<int:category_id>/', views.InventoryCategoryView.as_view(), name='inventory_category_detail'),
+    path('api/inventory/reorder/', views.reorder_inventory, name='inventory_reorder'),
     path('api/inventory/', views.InventoryView.as_view(), name='inventory_list'),
     path('api/inventory/<int:item_id>/', views.InventoryView.as_view(), name='inventory_detail'),
     path('api/inventory/import/', views.import_inventory, name='inventory_import'),

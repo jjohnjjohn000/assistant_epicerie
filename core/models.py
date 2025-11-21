@@ -5,6 +5,7 @@ from django.contrib.auth.models import User
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.core.validators import MinValueValidator
+from django.db.models import F
 
 # Create your models here.
 
@@ -167,8 +168,10 @@ class InventoryItem(models.Model):
     name = models.CharField(max_length=200)
     quantity = models.CharField(max_length=50, default="1")
     
-    # On remplace le CharField par une clé étrangère vers les catégories de l'utilisateur
     category = models.ForeignKey(InventoryCategory, on_delete=models.SET_NULL, null=True, blank=True, related_name="items")
+
+    # CHAMP AJOUTÉ pour gérer l'ordre
+    order = models.IntegerField(default=0, help_text="Définit l'ordre d'affichage de l'article")
 
     alert_threshold = models.IntegerField(default=2, validators=[MinValueValidator(0)])
     date_added = models.DateTimeField(auto_now_add=True)
@@ -178,7 +181,8 @@ class InventoryItem(models.Model):
 
     class Meta:
         unique_together = ('user', 'name')
-        ordering = ['category__name', 'name']
+        # TRI MODIFIÉ pour utiliser le nouveau champ 'order'
+        ordering = ['order', 'name']
         
 # --- NOUVEAU MODÈLE POUR LA LISTE D'ÉPICERIE ---
 class ShoppingListItem(models.Model):
