@@ -7,13 +7,14 @@ from rest_framework.views import APIView
 from rest_framework import status
 from django.shortcuts import get_object_or_404
 from datetime import datetime, timedelta
-from django.db.models import Prefetch, Count
+from django.db.models import Prefetch, Count, Q
 from collections import defaultdict
+import difflib # Nécessaire pour l'optimisation
 
 from core.models import Commerce, Produit, Circulaire, Prix, Categorie, Profile, Report
 from core.serializers import ProduitSerializer, PrixSubmissionSerializer
 
-
+# --- IMPORTATION DE CIRCULAIRE ---
 @api_view(['POST'])
 def importer_circulaire(request):
     try:
@@ -37,7 +38,7 @@ def importer_circulaire(request):
         date_fin_str = data.get("date_fin")
         
         if not date_debut_str or not date_fin_str:
-            raise ValueError("Les clés 'date_debut' et 'date_fin' sont manquantes ou vides dans le JSON.")
+            raise ValueError("Les clés 'date_debut' et 'date_fin' sont manquantes.")
 
         circulaire_obj = Circulaire.objects.create(
             commerce=commerce_obj,
@@ -46,24 +47,17 @@ def importer_circulaire(request):
         )
         items_ajoutes = 0
         for categorie in data.get("categories", []):
-            categorie_nom = categorie.get("category_name", "Divers")
-            if not categorie_nom:
-                categorie_nom = "Divers"
-            
-            # On récupère ou on crée l'OBJET Categorie, pas juste le nom.
+            categorie_nom = categorie.get("category_name", "Divers") or "Divers"
             categorie_obj, _ = Categorie.objects.get_or_create(nom=categorie_nom)
 
             for item in categorie.get("items", []):
-                # On utilise l'objet 'categorie_obj' pour créer le produit.
                 produit_obj, created_produit = Produit.objects.get_or_create(
                     nom=item["name"],
                     defaults={
                         "marque": item.get("brand", ""),
-                        "categorie": categorie_obj, # On assigne l'objet Categorie
+                        "categorie": categorie_obj,
                     },
                 )
-                
-                # Bonus : Mettre à jour la catégorie si le produit existait déjà
                 if not created_produit and produit_obj.categorie != categorie_obj:
                     produit_obj.categorie = categorie_obj
                     produit_obj.save()
@@ -75,30 +69,26 @@ def importer_circulaire(request):
                     produit=produit_obj,
                     commerce=commerce_obj,
                     circulaire=circulaire_obj,
-                    prix=float(prix_value), # Assurer que le prix est un nombre
+                    prix=float(prix_value),
                     details_prix=item.get("price", ""),
                 )
                 items_ajoutes += 1
         
         return Response(
-            { "status": "succès", "message": f"{items_ajoutes} articles importés pour la circulaire de {commerce_obj.nom}." },
+            { "status": "succès", "message": f"{items_ajoutes} articles importés pour {commerce_obj.nom}." },
             status=status.HTTP_201_CREATED,
         )
-
     except Exception as e:
-        # Affiche une erreur plus détaillée pour le débogage
         import traceback
         traceback.print_exc()
-        return Response(
-            {"status": "erreur", "message": str(e)}, status=status.HTTP_400_BAD_REQUEST
-        )
+        return Response({"status": "erreur", "message": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
+# --- AFFICHAGE (GET) ---
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def get_circulaires_actives(request):
     today = timezone.now().date()
-    # On optimise la requête en préchargeant aussi la catégorie du produit
     circulaires_actives = Circulaire.objects.filter(
         date_debut__lte=today,
         date_fin__gte=today
@@ -111,11 +101,7 @@ def get_circulaires_actives(request):
         commerce_nom = circulaire.commerce.nom
         items_par_categorie = defaultdict(list)
         for prix_obj in circulaire.prix.all():
-            if prix_obj.produit.categorie:
-                categorie_nom = prix_obj.produit.categorie.nom
-            else:
-                categorie_nom = "Divers"
-                
+            categorie_nom = prix_obj.produit.categorie.nom if prix_obj.produit.categorie else "Divers"
             items_par_categorie[categorie_nom].append({
                 "name": prix_obj.produit.nom,
                 "brand": prix_obj.produit.marque,
@@ -129,37 +115,50 @@ def get_circulaires_actives(request):
             ]
         }
     return JsonResponse(data)
-    
+
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def get_commerces(request):
-    """
-    Retourne la liste de tous les commerces avec leur ID, nom, adresse et site web.
-    """
     commerces = Commerce.objects.all().values('id', 'nom', 'adresse', 'site_web')
-    data = list(commerces)
-    return JsonResponse(data, safe=False)
+    return JsonResponse(list(commerces), safe=False)
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def get_rabais_actifs(request):
     today = timezone.now().date()
-    # On ajoute 'produit__categorie' pour optimiser la requête et l'inclure
+    
+    # --- DEBUG LOGS (Regarde le terminal) ---
+    print(f"--- DEBUG RABAIS ACTIFS ---")
+    print(f"1. Date utilisée par le serveur : {today}")
+    
+    # Compte total des prix liés à une circulaire (peu importe la date)
+    total_circulaire = Prix.objects.filter(circulaire__isnull=False).count()
+    print(f"2. Total prix de type 'Circulaire' en DB : {total_circulaire}")
+
+    # On regarde s'il y a des circulaires qui couvrent "aujourd'hui"
+    circulaires_valides = Circulaire.objects.filter(date_debut__lte=today, date_fin__gte=today)
+    print(f"3. Nombre de circulaires valides pour cette date : {circulaires_valides.count()}")
+    for c in circulaires_valides:
+        print(f"   - Circulaire trouvée : {c.commerce.nom} ({c.date_debut} au {c.date_fin})")
+
+    # La requête finale
     prix_en_rabais = Prix.objects.select_related("produit", "commerce", "submitted_by", "produit__categorie").filter(
         circulaire__isnull=False,
         circulaire__date_debut__lte=today,
         circulaire__date_fin__gte=today,
     )
+    
+    count_result = prix_en_rabais.count()
+    print(f"4. Résultat final renvoyé au JS : {count_result} articles")
+    # ---------------------------------------
+
     data = []
     for prix_obj in prix_en_rabais:
         details = f"🔥 {prix_obj.details_prix or str(prix_obj.prix) + ' $'}"
-        
-        submitter_username = None
-        if prix_obj.submitted_by:
-            details += f" (Ajouté par 👤 {prix_obj.submitted_by.username})"
-            submitter_username = prix_obj.submitted_by.username
+        submitter_username = prix_obj.submitted_by.username if prix_obj.submitted_by else None
+        if submitter_username:
+            details += f" (Ajouté par 👤 {submitter_username})"
 
-        # On récupère le nom de la catégorie, avec une valeur par défaut
         categorie_nom = "Non classé"
         if prix_obj.produit.categorie:
             categorie_nom = prix_obj.produit.categorie.nom
@@ -168,19 +167,17 @@ def get_rabais_actifs(request):
             "price_id": prix_obj.id,
             "produit_nom": prix_obj.produit.nom,
             "commerce_nom": prix_obj.commerce.nom,
-            "categorie_nom": categorie_nom, # On ajoute la catégorie au JSON
+            "categorie_nom": categorie_nom,
             "details_prix": details,
             "prix": str(prix_obj.prix),
             "submitted_by_username": submitter_username
         })
     return JsonResponse(data, safe=False)
 
-
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def get_community_prices(request):
     one_week_ago = timezone.now() - timedelta(days=7)
-    
     prix_communautaires = Prix.objects.filter(
         circulaire__isnull=True,
         date_mise_a_jour__gte=one_week_ago
@@ -191,12 +188,8 @@ def get_community_prices(request):
     data = []
     for prix_obj in prix_communautaires:
         confirmation_text = f"({prix_obj.confirmations_count} ✓)" if prix_obj.confirmations_count > 0 else ""
-        submitter_username = None
-        submitter_text = ""
-
-        if prix_obj.submitted_by:
-            submitter_username = prix_obj.submitted_by.username
-            submitter_text = f" (Ajouté par 👤 {submitter_username})"
+        submitter_username = prix_obj.submitted_by.username if prix_obj.submitted_by else None
+        submitter_text = f" (Ajouté par 👤 {submitter_username})" if submitter_username else ""
 
         data.append({
             "price_id": prix_obj.id,
@@ -206,181 +199,202 @@ def get_community_prices(request):
             "prix": str(prix_obj.prix),
             "submitted_by_username": submitter_username
         })
-        
     return Response(data)
+
+# --- CONTRIBUTION COMMUNAUTAIRE ---
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def search_products(request):
-    """
-    Recherche des produits dans le catalogue global.
-    Utilisation: /api/products/search/?q=lait
-    """
     query = request.query_params.get('q', None)
     if query:
-        # Recherche simple qui regarde si le nom ou la marque contient la requête
         produits = Produit.objects.filter(nom__icontains=query) | Produit.objects.filter(marque__icontains=query)
         serializer = ProduitSerializer(produits, many=True)
         return Response(serializer.data)
     return Response([], status=status.HTTP_200_OK)
 
-
 class ProductView(APIView):
-    """
-    API pour créer un nouveau produit dans le catalogue global.
-    """
     permission_classes = [IsAuthenticated]
-
     def post(self, request):
-        """ Crée un nouveau produit s'il n'existe pas déjà. """
         serializer = ProduitSerializer(data=request.data)
         if serializer.is_valid():
-            # Vérifier si un produit similaire existe déjà pour éviter les doublons
             nom = serializer.validated_data.get('nom')
             marque = serializer.validated_data.get('marque')
             if Produit.objects.filter(nom__iexact=nom, marque__iexact=marque).exists():
                 return Response({'error': 'Ce produit existe déjà.'}, status=status.HTTP_409_CONFLICT)
-            
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class PriceSubmissionView(APIView):
-    """
-    API pour soumettre un nouveau prix.
-    """
     permission_classes = [IsAuthenticated]
-
     def post(self, request):
-        """ Crée une nouvelle entrée de prix pour un produit dans un commerce. """
         serializer = PrixSubmissionSerializer(data=request.data, context={'request': request})
         if serializer.is_valid():
             serializer.save()
             return Response({'message': 'Prix soumis avec succès !'}, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def submit_deal(request):
-    """
-    Permet à un utilisateur de soumettre un seul rabais via un formulaire simple.
-    La vue gère la création du produit et de la circulaire si nécessaire.
-    """
     data = request.data
-    
-    # --- Validation des données requises ---
     required_fields = ['product_name', 'commerce_id', 'price_details', 'single_price', 'date_debut', 'date_fin']
     if not all(field in data for field in required_fields):
         return Response({'error': 'Tous les champs sont requis.'}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
-        # --- 1. Gérer le Produit ---
         product_name = data['product_name'].strip()
         brand = data.get('brand', '').strip()
-        
-        # On cherche le produit. S'il n'existe pas, on le crée.
         produit_obj, _ = Produit.objects.get_or_create(
             nom__iexact=product_name, 
             marque__iexact=brand,
             defaults={'nom': product_name, 'marque': brand}
         )
-
-        # --- 2. Gérer le Commerce ---
-        commerce_id = data['commerce_id']
-        commerce_obj = get_object_or_404(Commerce, id=commerce_id)
-
-        # --- 3. Gérer la Circulaire ---
+        commerce_obj = get_object_or_404(Commerce, id=data['commerce_id'])
         date_debut = datetime.strptime(data['date_debut'], '%Y-%m-%d').date()
         date_fin = datetime.strptime(data['date_fin'], '%Y-%m-%d').date()
 
-        # On cherche une circulaire pour ce magasin et ces dates. Si elle n'existe pas, on la crée.
         circulaire_obj, _ = Circulaire.objects.get_or_create(
-            commerce=commerce_obj,
-            date_debut=date_debut,
-            date_fin=date_fin
+            commerce=commerce_obj, date_debut=date_debut, date_fin=date_fin
         )
-
-        # --- 4. Créer le Prix (le rabais) ---
         Prix.objects.create(
-            produit=produit_obj,
-            commerce=commerce_obj,
-            circulaire=circulaire_obj,
-            prix=data['single_price'],
-            details_prix=data['price_details'],
-            submitted_by=request.user # On associe la soumission à l'utilisateur
+            produit=produit_obj, commerce=commerce_obj, circulaire=circulaire_obj,
+            prix=data['single_price'], details_prix=data['price_details'], submitted_by=request.user
         )
-        
         return Response({'message': 'Rabais soumis avec succès !'}, status=status.HTTP_201_CREATED)
-
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def confirm_price(request, price_id):
-    """
-    Permet à un utilisateur de confirmer un prix soumis par un autre utilisateur
-    et augmente la réputation du soumissionnaire original.
-    """
     price_entry = get_object_or_404(Prix, id=price_id)
     user = request.user
-
     if price_entry.submitted_by == user:
-        return Response(
-            {'error': 'Vous ne pouvez pas confirmer votre propre soumission de prix.'},
-            status=status.HTTP_403_FORBIDDEN
-        )
-    
+        return Response({'error': 'Vous ne pouvez pas confirmer votre propre prix.'}, status=status.HTTP_403_FORBIDDEN)
     if price_entry.confirmations.filter(id=user.id).exists():
-        return Response(
-            {'message': 'Vous avez déjà confirmé ce prix.'},
-            status=status.HTTP_200_OK
-        )
+        return Response({'message': 'Déjà confirmé.'}, status=status.HTTP_200_OK)
 
     price_entry.confirmations.add(user)
-    
-    
-    # On vérifie si un utilisateur a soumis ce prix
     if price_entry.submitted_by:
-        # On utilise get_or_create pour éviter une erreur si le profil n'existe pas
-        submitter_profile, created = Profile.objects.get_or_create(user=price_entry.submitted_by)
-        # On augmente sa réputation de 5 points
+        submitter_profile, _ = Profile.objects.get_or_create(user=price_entry.submitted_by)
         submitter_profile.reputation += 5
         submitter_profile.save()
-            
-    return Response(
-        {'status': 'succès', 'message': 'Prix confirmé avec succès !'},
-        status=status.HTTP_200_OK
-    )
-
+    
+    return Response({'status': 'succès', 'message': 'Prix confirmé !'}, status=status.HTTP_200_OK)
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def report_price(request, price_id):
-    """
-    Permet à un utilisateur de signaler une entrée de prix.
-    """
     price_entry = get_object_or_404(Prix, id=price_id)
     user = request.user
-    
-    # On récupère la raison du signalement depuis le corps de la requête
     reason = request.data.get('reason')
     comments = request.data.get('comments', '')
 
     if not reason:
-        return Response({'error': 'Une raison pour le signalement est requise.'}, status=status.HTTP_400_BAD_REQUEST)
-        
-    # Vérifie si l'utilisateur a déjà signalé ce prix
+        return Response({'error': 'Raison requise.'}, status=status.HTTP_400_BAD_REQUEST)
     if Report.objects.filter(price_entry=price_entry, reported_by=user).exists():
-        return Response({'message': 'Vous avez déjà signalé ce prix.'}, status=status.HTTP_200_OK)
+        return Response({'message': 'Déjà signalé.'}, status=status.HTTP_200_OK)
 
-    # Crée le signalement
-    Report.objects.create(
-        price_entry=price_entry,
-        reported_by=user,
-        reason=reason,
-        comments=comments
-    )
+    Report.objects.create(price_entry=price_entry, reported_by=user, reason=reason, comments=comments)
+    return Response({'status': 'succès', 'message': 'Signalement envoyé.'}, status=status.HTTP_201_CREATED)
+
+# --- OPTIMISATION (Backend Intelligence) ---
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def optimize_shopping_list(request):
+    shopping_list = request.data.get('items', [])
+    selected_stores = request.data.get('stores', [])
     
-    return Response({'status': 'succès', 'message': 'Le prix a été signalé. Merci de votre contribution !'}, status=status.HTTP_201_CREATED)
+    # --- DEBUG PRINTS (Regarde ton terminal après avoir cliqué) ---
+    print(f"--- DÉBUT OPTIMISATION ---")
+    print(f"1. Magasins demandés par le client : {selected_stores}")
+    print(f"2. Articles à chercher : {len(shopping_list)}")
+
+    if not shopping_list:
+        return Response([])
+
+    today = timezone.now().date()
+    one_week_ago = timezone.now() - timedelta(days=7)
+
+    # CORRECTION : On filtre moins strictement sur les magasins
+    # Au lieu de chercher le nom EXACT, on cherche si le nom contient la chaîne
+    # Exemple : "IGA" trouvera "IGA Extra"
+    # On construit une requête Q complexe pour ça
+    store_filter = Q()
+    for store_name in selected_stores:
+        store_filter |= Q(commerce__nom__icontains=store_name)
+
+    base_query = Prix.objects.filter(store_filter).select_related('produit', 'commerce', 'submitted_by')
+    
+    # DEBUG : Vérifier combien de prix on trouve avant date
+    count_total = base_query.count()
+    print(f"3. Prix trouvés pour ces magasins (Total historique) : {count_total}")
+
+    condition_flyer = Q(circulaire__isnull=False, circulaire__date_debut__lte=today, circulaire__date_fin__gte=today)
+    condition_community = Q(circulaire__isnull=True, date_mise_a_jour__gte=one_week_ago)
+    
+    available_prices = base_query.filter(condition_flyer | condition_community)
+
+    # DEBUG : Vérifier combien de prix actifs
+    print(f"4. Prix ACTIFS trouvés (après filtre date) : {available_prices.count()}")
+
+    prices_db = []
+    for p in available_prices:
+        prices_db.append({
+            'obj': p,
+            'norm_name': p.produit.nom.lower(),
+            'type': 'rabais' if p.circulaire else 'communautaire'
+        })
+
+    optimized_results = []
+
+    for item in shopping_list:
+        item_name = item.get('name', '').strip()
+        if not item_name: continue
+            
+        item_norm = item_name.lower()
+        found_deals = []
+
+        # 1. Match exact
+        for entry in prices_db:
+            if item_norm in entry['norm_name']: # "Lait" est dans "Lait 2%"
+                found_deals.append(format_deal_response(entry['obj'], entry['type']))
+
+        # 2. Match flou
+        if len(found_deals) < 3:
+            all_names = [p['norm_name'] for p in prices_db]
+            matches = difflib.get_close_matches(item_norm, all_names, n=5, cutoff=0.5) # Seuil baissé à 0.5
+            for match_name in matches:
+                for entry in prices_db:
+                    if entry['norm_name'] == match_name:
+                        deal_data = format_deal_response(entry['obj'], entry['type'])
+                        # Éviter doublons (basé sur ID prix)
+                        if not any(d['price_id'] == deal_data['price_id'] for d in found_deals):
+                            found_deals.append(deal_data)
+
+        optimized_results.append({
+            "name": item_name,
+            "quantity": item.get('quantity', '1'),
+            "deals": found_deals,
+            "selectedDeal": None,
+            "selectedPrice": ""
+        })
+
+    print(f"--- FIN OPTIMISATION ---")
+    return Response(optimized_results)
+
+def format_deal_response(price_obj, deal_type):
+    details = price_obj.details_prix or f"{price_obj.prix} $"
+    details = f"🔥 {details}" if deal_type == 'rabais' else f"👥 {details}"
+    return {
+        "type": deal_type,
+        "price_id": price_obj.id,
+        "store": price_obj.commerce.nom,
+        "name": price_obj.produit.nom,
+        "price": str(price_obj.prix),
+        "details": details,
+        "submitted_by_username": price_obj.submitted_by.username if price_obj.submitted_by else None
+    }

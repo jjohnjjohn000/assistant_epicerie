@@ -43,6 +43,7 @@ urlpatterns = [
     path('api/submit-deal/', market_api.submit_deal, name='api_submit_deal'),
     path('api/prices/<int:price_id>/confirm/', market_api.confirm_price, name='price_confirm'),
     path('api/prices/<int:price_id>/report/', market_api.report_price, name='price_report'),
+    path('api/optimize/', market_api.optimize_shopping_list, name='api_optimize_list'),
 
     # --- API : INVENTAIRE (inventory_api) ---
     path('api/inventory/categories/', inventory_api.InventoryCategoryView.as_view(), name='inventory_category_list'),

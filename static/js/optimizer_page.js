@@ -813,10 +813,23 @@ document.addEventListener('DOMContentLoaded', function() {
                             </button>`;
                         }
                         return `
-                        <div style="display: flex; align-items: center; padding: 5px 0;">
+                        <div style="display: flex; align-items: center; padding: 5px 0; border-bottom: 1px solid #f0f0f0;">
                             <input type="radio" name="deal-radio-${itemIndex}" id="deal-${itemIndex}-${dealIndex}" class="deal-selector-radio" data-item-index="${itemIndex}" data-deal-index="${dealIndex}" ${isSelected ? 'checked' : ''}>
-                            <label for="deal-${itemIndex}-${dealIndex}" style="flex-grow: 1; margin-left: 5px;">${deal.details} - ${deal.store}</label>
+                            
+                            <label for="deal-${itemIndex}-${dealIndex}" style="flex-grow: 1; margin-left: 8px; cursor: pointer; line-height: 1.2;">
+                                <div style="font-weight: 600; color: #2c3e50; font-size: 0.95em;">${deal.name}</div>
+                                <div style="font-size: 0.9em; color: #555;">
+                                    ${deal.details} <span style="color: #ccc;">|</span> ${deal.store}
+                                </div>
+                            </label>
+                            <i class="bi bi-info-circle text-primary btn-view-deal-details" 
+                               style="cursor: pointer; font-size: 1.2em; margin-left: 10px;" 
+                               data-item-index="${itemIndex}" 
+                               data-deal-index="${dealIndex}"
+                               title="Voir les détails du rabais">
+                            </i>
                             ${confirmButtonHtml}
+                            ${actionButtonsHtml}
                         </div>
                     `;
                 }).join('');
@@ -1191,9 +1204,30 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     async function optimizeShoppingList() {
-        const shoppingList = JSON.parse(localStorage.getItem('shoppingList')) || [];
+        const optimizationDisplayContainer = document.getElementById('optimization-display');
+        let shoppingList = [];
+
+        if (optimizationDisplayContainer) {
+            optimizationDisplayContainer.innerHTML = '<div class="text-center p-4"><div class="spinner-border text-primary" role="status"></div><p>Récupération de votre liste...</p></div>';
+        }
+
+        // 1. Tenter de récupérer depuis le serveur
+        try {
+            const serverList = await apiCall('shopping-list', 'GET');
+            if (Array.isArray(serverList) && serverList.length > 0) {
+                console.log("Utilisation de la liste SERVEUR");
+                shoppingList = serverList;
+            } else {
+                throw new Error("Liste serveur vide"); // Force le passage au catch pour le fallback
+            }
+        } catch (error) {
+            console.log("Serveur vide ou erreur, utilisation du CACHE LOCAL");
+            // 2. Fallback sur le LocalStorage
+            shoppingList = JSON.parse(localStorage.getItem('shoppingList')) || [];
+        }
+
+        // 3. Si toujours vide, on arrête
         if (shoppingList.length === 0) {
-            const optimizationDisplayContainer = document.getElementById('optimization-display');
             if (optimizationDisplayContainer) {
                 optimizationDisplayContainer.innerHTML = '<p class="placeholder-text">Votre liste d\'épicerie est vide. Ajoutez des articles depuis la page principale.</p>';
             }
@@ -1203,63 +1237,30 @@ document.addEventListener('DOMContentLoaded', function() {
         const selectedStores = Array.from(document.querySelectorAll('.store-checkbox:checked')).map(node => node.value);
         if (selectedStores.length === 0) {
             alert("Veuillez sélectionner au moins un commerce pour lancer l'optimisation.");
+            if (optimizationDisplayContainer) optimizationDisplayContainer.innerHTML = '';
             return;
         }
 
-        // On ajoute un paramètre unique pour forcer le navigateur à ne pas utiliser de cache
-        const cacheBuster = `?t=${new Date().getTime()}`;
-        const [flyerDeals, communityPrices] = await Promise.all([
-            apiCall(`/api/rabais-actifs/${cacheBuster}`),
-            apiCall(`/api/community-prices/${cacheBuster}`)
-        ]);
-        
-        // On fusionne les deux listes en une seule
-        const allAvailablePrices = [
-            ...flyerDeals.map(d => ({ ...d, type: 'rabais' })), // On ajoute le type 'rabais'
-            ...communityPrices.map(p => ({ ...p, type: 'communautaire' })) // On ajoute le type 'communautaire'
-        ];
-        // --- FIN DE LA NOUVELLE LOGIQUE ---
+        if (optimizationDisplayContainer) {
+            optimizationDisplayContainer.innerHTML = '<div class="text-center p-4"><div class="spinner-border text-success" role="status"></div><p>L\'IA cherche les meilleurs prix...</p></div>';
+        }
 
-        optimizedItems = [];
-        shoppingList.forEach(shoppingItem => {
-            const potentialDeals = [];
-            const shoppingItemNameLower = shoppingItem.name.toLowerCase().normalize("NFD").replace(/[\u00-[\u036f]/g, "");
-
-            // On cherche dans la liste fusionnée
-            // La logique a été grandement simplifiée pour éviter toute erreur.
-            allAvailablePrices.forEach(deal => {
-                const storeIsSelected = selectedStores.some(selectedStore => deal.commerce_nom.includes(selectedStore));
-                
-                if (storeIsSelected) {
-                    const dealNameLower = deal.produit_nom.toLowerCase().normalize("NFD").replace(/[\u00-[\u036f]/g, "");
-                    
-                    if (dealNameLower.includes(shoppingItemNameLower)) {
-                        // On crée un objet unique qui contient TOUTES les informations nécessaires,
-                        // y compris le 'submitted_by_username' qui était perdu auparavant.
-                        potentialDeals.push({
-                            type: deal.type,
-                            price_id: deal.price_id,
-                            store: deal.commerce_nom,
-                            name: deal.produit_nom,
-                            price: deal.prix,
-                            details: deal.details_prix,
-                            submitted_by_username: deal.submitted_by_username // L'information cruciale est maintenant préservée.
-                        });
-                    }
-                }
+        try {
+            const response = await apiCall('optimize', 'POST', {
+                items: shoppingList,
+                stores: selectedStores
             });
-                
-            optimizedItems.push({
-                name: shoppingItem.name,
-                quantity: shoppingItem.quantity,
-                deals: potentialDeals,
-                selectedDeal: null,
-                selectedPrice: '',
-            });
-        });
 
-        renderOptimizedList();
-        saveOptimizedList();
+            optimizedItems = response;
+            renderOptimizedList();
+            saveOptimizedList();
+
+        } catch (error) {
+            console.error("Erreur lors de l'optimisation:", error);
+            if (optimizationDisplayContainer) {
+                optimizationDisplayContainer.innerHTML = `<p class="text-danger">Une erreur est survenue lors de l'optimisation : ${error.message}</p>`;
+            }
+        }
     }
 
     function generateRoute() {
@@ -1655,11 +1656,193 @@ Maintenant, génère le JSON pour la liste que je t'ai fournie.`;
             });
     }
 
+    function viewDealDetails(event) {
+        event.stopPropagation(); // Empêche la sélection du bouton radio
+        
+        const icon = event.target;
+        if (!icon.classList.contains('btn-view-deal-details')) return;
+
+        const itemIndex = parseInt(icon.dataset.itemIndex, 10);
+        const dealIndex = parseInt(icon.dataset.dealIndex, 10);
+        
+        // Vérification de sécurité
+        if (!optimizedItems[itemIndex] || !optimizedItems[itemIndex].deals[dealIndex]) {
+            console.error("Données du rabais introuvables");
+            return;
+        }
+
+        const deal = optimizedItems[itemIndex].deals[dealIndex];
+        
+        // --- Debug : Voir toutes les données disponibles dans la console ---
+        console.log("Détails complets du rabais :", deal);
+
+        // 1. En-tête (Magasin, Nom)
+        document.getElementById('detail-modal-store').textContent = deal.store;
+        document.getElementById('detail-modal-product').textContent = deal.name || deal.product_name || "Produit inconnu";
+
+        // 2. Badges (Marque, Catégorie)
+        const brandEl = document.getElementById('detail-modal-brand');
+        if (deal.brand && deal.brand !== 'null') {
+            brandEl.textContent = deal.brand;
+            brandEl.style.display = 'inline-block';
+        } else {
+            brandEl.style.display = 'none';
+        }
+
+        const catEl = document.getElementById('detail-modal-category');
+        if (deal.category_name || deal.categorie_nom) {
+            catEl.textContent = deal.category_name || deal.categorie_nom;
+            catEl.style.display = 'inline-block';
+        } else {
+            catEl.style.display = 'none';
+        }
+
+        // 3. Prix
+        // On affiche le prix principal (price ou details)
+        let mainPrice = deal.price ? `${deal.price} $` : deal.details;
+        // Si c'est un texte genre "2 / 5.00$", on l'affiche tel quel
+        if (deal.details && deal.details.includes('/')) {
+            mainPrice = deal.details;
+        }
+        document.getElementById('detail-modal-price').textContent = mainPrice;
+
+        // Unité (ex: "l'unité", "/lb")
+        const unitEl = document.getElementById('detail-modal-price-unit');
+        if (deal.unit) {
+            unitEl.textContent = `(${deal.unit})`;
+        } else {
+            unitEl.textContent = '';
+        }
+
+        // 4. Prix comparatifs (Régulier / Membre)
+        const rowReg = document.getElementById('detail-row-regular');
+        if (deal.regular_price) {
+            document.getElementById('detail-val-regular').textContent = `${deal.regular_price} $`;
+            rowReg.style.display = 'block';
+        } else {
+            rowReg.style.display = 'none';
+        }
+
+        const rowMem = document.getElementById('detail-row-member');
+        if (deal.member_price) {
+            document.getElementById('detail-val-member').textContent = `${deal.member_price} $`;
+            rowMem.style.display = 'block';
+        } else {
+            rowMem.style.display = 'none';
+        }
+
+        // 5. Quantité physique (g, ml, paquet)
+        const rowQty = document.getElementById('detail-row-quantity');
+        if (deal.quantity) {
+            document.getElementById('detail-val-quantity').textContent = deal.quantity;
+            rowQty.style.display = 'block';
+        } else {
+            rowQty.style.display = 'none';
+        }
+
+        // 6. Description
+        const desc = deal.description || deal.details || "";
+        const descEl = document.getElementById('detail-modal-desc');
+        if (desc && desc !== mainPrice) { // Éviter de répéter le prix s'il est dans details
+            descEl.textContent = desc;
+            descEl.parentElement.style.display = 'block';
+        } else {
+            descEl.parentElement.style.display = 'none';
+        }
+
+        // 7. Dates
+        const dateDebut = deal.date_debut || deal.start_date || "?";
+        const dateFin = deal.date_fin || deal.end_date || "?";
+        document.getElementById('detail-modal-dates').textContent = `Du ${dateDebut} au ${dateFin}`;
+
+        // 8. Source
+        const typeText = deal.type === 'communautaire' ? "Communautaire (Utilisateur)" : "Circulaire";
+        document.getElementById('detail-modal-source').textContent = typeText;
+
+        // Afficher la modale
+        document.getElementById('deal-details-modal').style.display = 'block';
+    }
+
+    /**
+     * Injecte les boutons de minimisation et gère la logique Gridstack
+     */
+    function setupWidgetMinimization() {
+        const items = document.querySelectorAll('.grid-stack-item-content');
+        
+        items.forEach(content => {
+            // Éviter les doublons si on réappelle la fonction
+            if (content.querySelector('.widget-controls')) return;
+
+            // Création du conteneur de bouton
+            const controls = document.createElement('div');
+            controls.className = 'widget-controls';
+            
+            const btn = document.createElement('button');
+            btn.className = 'btn-minimize';
+            btn.innerHTML = '<i class="bi bi-dash-lg"></i>'; // Icône tiret
+            btn.title = "Minimiser / Restaurer";
+            
+            // Gestion du clic
+            btn.addEventListener('click', function(e) {
+                // Empêcher le drag and drop de se déclencher sur le clic
+                e.stopPropagation(); 
+                
+                const widget = content.closest('.grid-stack-item');
+                const gsNode = widget.gridstackNode; // Accès interne à Gridstack
+
+                if (content.classList.contains('minimized')) {
+                    // --- ACTION : RESTAURER ---
+                    content.classList.remove('minimized');
+                    btn.innerHTML = '<i class="bi bi-dash-lg"></i>';
+                    
+                    // Récupérer la hauteur sauvegardée ou utiliser une valeur par défaut
+                    const originalH = parseInt(widget.dataset.savedHeight) || 4;
+                    
+                    // Mise à jour Gridstack
+                    grid.update(widget, { h: originalH });
+                    
+                } else {
+                    // --- ACTION : MINIMISER ---
+                    // Sauvegarder la hauteur actuelle
+                    widget.dataset.savedHeight = gsNode.h;
+                    
+                    content.classList.add('minimized');
+                    btn.innerHTML = '<i class="bi bi-square"></i>'; // Icône carré pour agrandir
+                    
+                    // Mise à jour Gridstack vers hauteur 1
+                    grid.update(widget, { h: 1 });
+                }
+            });
+
+            controls.appendChild(btn);
+            content.appendChild(controls); // Ajout en haut à droite (via CSS absolute)
+        });
+    }
+
     async function initializePage() {
-        // 1. Initialiser les bibliothèques qui manipulent le DOM
+        // 1. Initialiser GridStack (la coquille vide)
         initializeGrid();
 
-        // 2. Capturer toutes les références aux éléments du DOM
+        // 2. ÉTAPE CRITIQUE : Charger la disposition AVANT de toucher au contenu
+        // On attend que GridStack ait fini de bouger les boîtes avant de les remplir.
+        if (localStorage.getItem('authToken')) {
+            try {
+                const layout = await apiCall('/api/user/layout?page=optimiseur', 'GET');
+                if (grid && layout && layout.length > 0) {
+                    // grid.load(layout) est synchrone dans son exécution, mais change le DOM.
+                    // On le fait ici pour que le DOM soit stabilisé pour la suite.
+                    grid.load(layout);
+                }
+            } catch (error) {
+                console.error("Erreur de chargement de la disposition:", error);
+                if (String(error).includes('401') || String(error).includes('403')) {
+                    handleLogout();
+                }
+            }
+        }
+
+        // 3. Capturer les références aux éléments du DOM
+        // (On le fait MAINTENANT, car GridStack a peut-être recréé certains conteneurs)
         findStoresBtn = document.getElementById('findStoresBtn');
         sortStoresBtn = document.getElementById('sortStoresBtn');
         optimizeListBtn = document.getElementById('optimizeListBtn');
@@ -1712,8 +1895,8 @@ Maintenant, génère le JSON pour la liste que je t'ai fournie.`;
         hiddenReportPriceId = document.getElementById('hidden-report-price-id');
         optimizationDisplay = document.getElementById('optimization-display');
         autoArrangeBtn = document.getElementById('auto-arrange-btn');
-    
-        // 3. Attacher les écouteurs d'événements (avec vérification pour plus de robustesse)
+        
+        // 4. Attacher les écouteurs d'événements
         if (findStoresBtn) findStoresBtn.addEventListener('click', findNearbyStores);
         if (sortStoresBtn) sortStoresBtn.addEventListener('click', sortStoresByDistance);
         if (optimizeListBtn) optimizeListBtn.addEventListener('click', optimizeShoppingList);
@@ -1730,6 +1913,7 @@ Maintenant, génère le JSON pour la liste que je t'ai fournie.`;
             optimizationDisplay.addEventListener('drop', (e) => { e.preventDefault(); const dropTarget = e.target.closest('.optimized-item'); if (dropTarget) { const dropIndex = parseInt(dropTarget.dataset.index, 10); const itemToMove = optimizedItems.splice(draggedItemIndex, 1)[0]; optimizedItems.splice(dropIndex, 0, itemToMove); saveOptimizedList(); renderOptimizedList(); } });
             optimizationDisplay.addEventListener('dragend', (e) => { document.querySelectorAll('.optimized-item.dragging, .optimized-item.drag-over').forEach(el => el.classList.remove('dragging', 'drag-over')); draggedItemIndex = null; });
             optimizationDisplay.addEventListener('click', openPriceModal);
+            optimizationDisplay.addEventListener('click', viewDealDetails); 
         }
         if (copyAiPromptBtn) copyAiPromptBtn.addEventListener('click', copyAiPrompt);
         if (closeBtn) closeBtn.addEventListener('click', closeFlyerModal);
@@ -1774,7 +1958,7 @@ Maintenant, génère le JSON pour la liste que je t'ai fournie.`;
                 if (event.target.classList.contains('store-rabais-group')) {
                     saveAccordionStates();
                 }
-            }, true); // Important : la phase de capture est nécessaire pour l'événement 'toggle'
+            }, true);
         }
 
         const searchRabaisInput = document.getElementById('search-rabais-input');
@@ -1794,7 +1978,8 @@ Maintenant, génère le JSON pour la liste que je t'ai fournie.`;
             });
         }
         
-        // 4. Charger les données initiales
+        // 5. Charger les données initiales
+        // MAINTENANT que le GridStack est stable, on peut remplir les cases.
         loadFlyerData();
         loadManualStores();
         loadSavedOptimizedList();
@@ -1810,25 +1995,23 @@ Maintenant, génère le JSON pour la liste que je t'ai fournie.`;
         }).catch(error => {
             console.error("Une erreur est survenue lors du chargement des données initiales:", error);
         });
-        
-        if (localStorage.getItem('authToken')) {
-            try {
-                const layout = await apiCall('/api/user/layout?page=optimiseur', 'GET');
-                if (grid && layout && layout.length > 0) {
-                    grid.load(layout);
-                }
-            } catch (error) {
-                console.error("Erreur de chargement de la disposition:", error);
-                if (String(error).includes('401') || String(error).includes('403')) {
-                    handleLogout();
-                }
-            }
-        }
+
+        // On attend un petit délai pour s'assurer que le DOM est rendu
+        setTimeout(() => {
+            setupWidgetMinimization();
+        }, 100);
     }
     
     // --- PARTIE 4 : DÉMARRAGE ---
     initializePage();
     
+    const dealDetailsModal = document.getElementById('deal-details-modal');
+    const closeDetailModalBtn = document.getElementById('close-detail-modal-btn');
+    const btnCloseDetailModal = document.getElementById('btn-close-detail-modal');
+
+    if (closeDetailModalBtn) closeDetailModalBtn.addEventListener('click', () => dealDetailsModal.style.display = 'none');
+    if (btnCloseDetailModal) btnCloseDetailModal.addEventListener('click', () => dealDetailsModal.style.display = 'none');
+
     // Écouteur global pour fermer les modales en cliquant à l'extérieur
     window.addEventListener('click', (event) => {
         if (event.target == flyerModal) closeFlyerModal();
@@ -1838,6 +2021,7 @@ Maintenant, génère le JSON pour la liste que je t'ai fournie.`;
         if (event.target == addProductModal) addProductModal.style.display = 'none';
         if (event.target == submitDealModal) submitDealModal.style.display = 'none';
         if (event.target == reportPriceModal) closeReportModal();
+        if (event.target == dealDetailsModal) dealDetailsModal.style.display = 'none';
     });
     reorganizeBtn = document.getElementById('reorganize-layout-btn');
     compactBtn = document.getElementById('compact-layout-btn');

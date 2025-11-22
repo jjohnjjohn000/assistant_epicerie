@@ -4,390 +4,224 @@
 {% block title %}Gestion d'Inventaire et Liste d'Épicerie{% endblock %}
 
 {% block head_styles %}
-    <style>
-        .container {
-            width: 100%;
-            max-width: 1400px !important;
-            padding: 0 !important;
-            background: transparent !important;
-            box-shadow: none !important;
-        }
-        .grid-stack-item-content {
-            background-color: #ffffff;
-            border-radius: 8px;
-            border: 1px solid #e0e0e0;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            overflow: auto !important;
-            padding: 20px;
-            height: 100%;
-            box-sizing: border-box;
-            display: flex;
-            flex-direction: column;
-        }
-        .grid-stack-item-content section {
-            flex-grow: 1;
-        }
-        .grid-stack-item-content h1, .grid-stack-item-content h2, .grid-stack-item-content h3 {
-            margin-top: 0;
-            color: #2c3e50;
-            border-bottom: 2px solid #e0e0e0;
-            padding-bottom: 10px;
-        }
-        .ui-resizable-handle {
-            filter: brightness(0.8);
-        }
+<style>
+    :root {
+        --bg-color: #f3f4f6;
+        --card-bg: #ffffff;
+        --primary-color: #4f46e5; /* Indigo moderne */
+        --primary-hover: #4338ca;
+        --danger-color: #ef4444;
+        --text-main: #1f2937;
+        --text-muted: #6b7280;
+        --border-color: #e5e7eb;
+        --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        --radius: 12px;
+    }
 
+    body {
+        background-color: var(--bg-color);
+        color: var(--text-main);
+        font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            line-height: 1.6;
-            background-color: #f4f7f9;
-            color: #333;
-            margin: 0;
-            padding: 0;
-        }
-        .content-wrapper {
-            padding: 20px;
-            display: flex;
-            justify-content: center;
-        }
-        h1, h2 {
-            color: #2c3e50;
-            border-bottom: 2px solid #e0e0e0;
-            padding-bottom: 10px;
-        }
-        h3.category-title {
-             scroll-margin-top: 20px;
-        }
-        .inventory-section, .shopping-list-section {
-            margin-bottom: 30px;
-        }
-        .category-title {
-            color: #3498db;
-            margin-top: 20px;
-            margin-bottom: 10px;
-        }
-        ul {
-            list-style: none;
-            padding: 0;
-        }
-        li {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px 0;
-            border-bottom: 1px solid #eee;
-        }
-        li:last-child {
-            border-bottom: none;
-        }
-        .shopping-list-item {
-            cursor: grab;
-        }
-        .shopping-list-item.dragging {
-            opacity: 0.5;
-            background-color: #ecf0f1;
-        }
-        .shopping-list-item.drag-over {
-            border-top: 2px solid #3498db;
-        }
-        .inventory-item {
-            cursor: grab;
-        }
-        .inventory-item.dragging {
-            opacity: 0.5;
-            background-color: #ecf0f1;
-        }
-        .inventory-item.drag-over {
-            border-top: 2px solid #3498db;
-        }
-        .inventory-section.drag-over {
-            background-color: #e8f4fd; /* Bleu clair pour indiquer une zone de dépôt */
-            border-radius: 8px;
-        }
-        .low-quantity-warning {
-            background-color: #fcf8e3; /* Jaune pâle */
-            border-left: 4px solid #f39c12; /* Bordure orange */
-            padding-left: 10px; /* Ajouter un peu d'espace */
-            margin-left: -14px; /* Compenser le padding et la bordure */
-        }
-        li.low-quantity-warning {
-             border-bottom: 1px solid #e0d9c3;
-        }
-        .item-details {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            flex-grow: 1; /* Permet aux détails de prendre l'espace */
-        }
-        .item-name {
-            font-weight: 500;
-        }
-        .inventory-item-name {
-             cursor: pointer;
-             font-weight: 500;
-        }
-        .inventory-item-name:hover {
-            text-decoration: underline;
-            color: #3498db;
-        }
-        .item-controls, .shopping-item-controls {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .item-controls input[type="text"] {
-            width: 50px;
-            text-align: center;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            padding: 5px;
-        }
-        .btn {
-            padding: 8px 15px;
-            border: none;
-            border-radius: 5px;
-            color: white;
-            cursor: pointer;
-            font-size: 14px;
-            white-space: nowrap;
-        }
-        .btn-delete { background-color: #e74c3c; }
-        .btn-delete:hover { background-color: #c0392b; }
-        .btn-move { background-color: #3498db; }
-        .btn-move:hover { background-color: #2980b9; }
-        .add-item-form {
-            background-color: #ecf0f1;
-            padding: 20px;
-            border-radius: 8px;
-            display: flex;
-            gap: 15px;
-            flex-wrap: wrap;
-            margin-bottom: 20px;
-        }
-        .add-item-form input, .add-item-form select, .add-item-form button {
-            padding: 10px;
-            border-radius: 5px;
-            border: 1px solid #bdc3c7;
-            font-size: 16px;
-        }
-        .add-item-form input[type="text"] { flex: 2; }
-        .add-item-form input[type="text"], .add-item-form select { min-width: 150px; }
-        .add-item-form button {
-            background-color: #2ecc71;
-            color: white;
-            border: none;
-            cursor: pointer;
-            flex: 1;
-            min-width: 100px;
-        }
-        .add-item-form button:hover { background-color: #27ae60; }
-        .recipe-section {
-            text-align: center;
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 2px solid #e0e0e0;
-        }
-        .recipe-options {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 15px;
-            color: #555;
-        }
-        .btn-recipe {
-            background-color: #8e44ad;
-            color: white;
-            padding: 12px 25px;
-            border: none;
-            border-radius: 5px;
-            font-size: 16px;
-            cursor: pointer;
-            transition: background-color 0.3s;
-        }
-        .btn-recipe:hover { background-color: #9b59b6; }
-        .inventory-controls {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-bottom: 15px;
-        }
-        #prompt-output-section {
-            background-color: #e8f4fd;
-            border: 1px solid #d1e9fc;
-            border-radius: 8px;
-            padding: 20px;
-            margin-top: 25px;
-        }
-        .import-section {
-            background-color: #f8f9fa;
-            border: 1px solid #e9ecef;
-            padding: 20px;
-            border-radius: 8px;
-            margin-top: 20px;
-        }
-        .import-section textarea {
-            width: 100%;
-            min-height: 100px;
-            box-sizing: border-box;
-            border: 1px solid #ced4da;
-            border-radius: 5px;
-            padding: 10px;
-            font-family: monospace;
-            margin-bottom: 10px;
-        }
-        .import-section button {
-            width: 100%;
-            background-color: #16a085;
-        }
-        .import-section button:hover {
-            background-color: #117a65;
-        }
-        #recipe-list-display {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-            gap: 15px;
-        }
-        .recipe-card {
-            background-color: #f8f9fa;
-            border: 1px solid #e9ecef;
-            border-radius: 8px;
-            padding: 15px;
-            cursor: pointer;
-            transition: box-shadow 0.3s, transform 0.3s;
-        }
-        .recipe-card:hover {
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            transform: translateY(-3px);
-        }
-        .recipe-card h3 {
-            margin: 0 0 10px 0;
-            color: #34495e;
-            font-size: 1.1em;
-        }
-        .modal {
-            display: none; position: fixed; z-index: 1056; left: 0; top: 0;
-            width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.6);
-            animation: fadeIn 0.3s;
-        }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        .modal-content {
-            background-color: #fefefe; margin: 5% auto; padding: 25px;
-            border: 1px solid #888; width: 90%; max-width: 700px; /* Largeur augmentée */
-            border-radius: 10px; box-shadow: 0 5px 20px rgba(0,0,0,0.3);
-            animation: slideIn 0.4s;
-        }
-        @keyframes slideIn { from { transform: translateY(-50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-        .modal-header {
-            display: flex; justify-content: space-between; align-items: center;
-            border-bottom: 1px solid #ddd; padding-bottom: 15px; margin-bottom: 20px;
-        }
-        .modal-header h2 { margin: 0; color: #2c3e50; border: none; }
-        .close-btn { color: #aaa; font-size: 28px; font-weight: bold; cursor: pointer; }
-        .close-btn:hover { color: black; }
-        .modal-body label { display: block; margin-bottom: 8px; font-weight: 500; color: #555; }
-        .modal-body textarea, .modal-body input {
-            width: 100%; padding: 10px; margin-bottom: 15px; border-radius: 5px;
-            border: 1px solid #ccc; font-size: 1em; box-sizing: border-box;
-        }
-        .modal-body textarea { min-height: 120px; resize: vertical; }
-        .modal-footer { text-align: right; margin-top: 20px; }
-        .recipe-view-content h3 { color: #3498db; margin-top: 15px; }
-        .recipe-view-content pre {
-            background-color: #f4f7f9; padding: 10px; border-radius: 5px;
-            white-space: pre-wrap; word-wrap: break-word; font-family: inherit;
-        }
-        .ai-importer-section {
-            background-color: #e8f4fd;
-            border: 1px solid #d1e9fc;
-            border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 25px;
-        }
-        .ai-importer-section h4 {
-            margin-top: 0;
-            color: #2c3e50;
-        }
-        .ai-importer-section textarea {
-            font-family: monospace;
-            background-color: #f8f9fa;
-        }
-        .ai-importer-section .btn-group {
-            display: flex;
-            gap: 10px;
-            margin-top: 10px;
-        }
-        .json-importer-section {
-             background-color: #f8f9fa;
-            border: 1px solid #e9ecef;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 25px;
-        }
-        /* --- STYLES POUR L'AUTHENTIFICATION --- */
-        #auth-section {
-            background-color: #ecf0f1;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 25px;
-            border: 1px solid #bdc3c7;
-        }
-        .auth-container {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        #user-status {
-            font-weight: 500;
-        }
-        #user-status button {
-            margin-left: 10px;
-        }
-        #auth-forms {
-            display: flex;
-            gap: 10px;
-        }
-        #auth-forms input {
-            padding: 8px;
-            border-radius: 4px;
-            border: 1px solid #bdc3c7;
-        }
-        .auth-toggle {
-            margin-top: 10px;
-            font-size: 0.9em;
-        }
-        .auth-toggle a {
-            color: #3498db;
-            cursor: pointer;
-            text-decoration: underline;
-        }
+    h1, h2, h3 {
+        color: var(--text-main);
+        font-weight: 600;
+        margin-bottom: 1rem;
+        border: none !important; /* On enlève les lignes moches */
+    }
 
-        /* --- STYLES POUR CACHER/AFFICHER LES ÉLÉMENTS --- */
-        .hidden {
-            display: none !important;
-        }
-           
-        /* Styles pour la section de gestion */
-        .data-management-section {
-            background-color: #f8f9fa;
-            border: 1px solid #e9ecef;
-            padding: 20px;
-            border-radius: 8px;
-            margin-top: 30px;
-        }
-        .data-management-section h3 {
-            margin-top: 0;
-            color: #34495e;
-        }
-        .data-management-buttons {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-    </style>
+    h1 { font-size: 1.5rem; }
+    h2 { font-size: 1.25rem; }
+    h3 { font-size: 1.1rem; color: var(--primary-color); margin-top: 1.5rem; }
+
+    /* --- Style des Widgets (Cartes) --- */
+    .grid-stack-item-content {
+        background-color: var(--card-bg);
+        border-radius: var(--radius);
+        border: 1px solid var(--border-color);
+        box-shadow: var(--shadow-sm);
+        padding: 24px !important;
+        transition: box-shadow 0.3s ease;
+        /* --- AJOUTS IMPORTANTS POUR L'AFFICHAGE --- */
+        display: flex;
+        flex-direction: column;
+        overflow: auto !important; /* Restaure la barre de défilement */
+    }
+
+    .grid-stack-item-content:hover {
+        box-shadow: var(--shadow-md);
+    }
+
+    /* --- Liste d'inventaire --- */
+    ul { padding: 0; }
+    
+    .inventory-item {
+        display: flex;
+        align-items: center;
+        padding: 12px 0;
+        border-bottom: 1px solid var(--border-color);
+        transition: background-color 0.2s;
+    }
+
+    .inventory-item:hover {
+        background-color: #f9fafb;
+    }
+
+    .item-details {
+        flex-grow: 1;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .inventory-item-name {
+        font-weight: 500;
+        font-size: 1rem;
+        color: var(--text-main);
+        cursor: pointer;
+    }
+
+    /* --- Contrôles (Boutons et Inputs) --- */
+    .item-controls {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    /* Inputs minimalistes */
+    .item-quantity-input, .item-threshold-input {
+        width: 45px;
+        text-align: center;
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        padding: 4px;
+        font-weight: 600;
+        color: var(--primary-color);
+        background: #f9fafb;
+    }
+
+    /* Boutons d'actions discrets (Icônes) */
+    .btn-icon {
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 6px;
+        border-radius: 6px;
+        color: var(--text-muted);
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .btn-icon:hover {
+        background-color: #f3f4f6;
+        color: var(--primary-color);
+    }
+
+    .btn-icon.delete:hover {
+        color: var(--danger-color);
+        background-color: #fee2e2;
+    }
+
+    /* Boutons principaux */
+    .btn-primary {
+        background-color: var(--primary-color);
+        border: none;
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-weight: 500;
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .btn-primary:hover {
+        background-color: var(--primary-hover);
+        transform: translateY(-1px);
+    }
+
+    /* --- Formulaire Ajout --- */
+    #addItemForm {
+        background-color: #f8fafc;
+        border: 1px solid var(--border-color);
+        box-shadow: none;
+        padding: 20px;
+    }
+    
+    .form-control, .form-select {
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+        padding: 10px;
+    }
+
+    .form-control:focus {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    }
+
+    /* Alerte stock bas */
+    .low-quantity-warning {
+        border-left: 4px solid #f59e0b; /* Orange ambré */
+        background-color: #fffbeb;
+        padding-left: 12px;
+    }
+    
+    /* Checkbox custom */
+    input[type="checkbox"] {
+        accent-color: var(--primary-color);
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+    }
+    
+    /* --- Style pour la minimisation des widgets --- */
+    .widget-controls {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        z-index: 10;
+    }
+
+    .btn-minimize {
+        background: transparent;
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        cursor: pointer;
+        padding: 2px 6px;
+        color: var(--text-muted);
+        transition: all 0.2s;
+        font-size: 0.9rem;
+    }
+
+    .btn-minimize:hover {
+        background-color: #e5e7eb;
+        color: var(--primary-color);
+    }
+
+    /* État minimisé */
+    .grid-stack-item-content.minimized {
+        overflow: hidden !important;
+        padding: 10px 20px !important; /* Réduire le padding */
+        justify-content: center;
+    }
+
+    /* Quand minimisé, on cache tout dans la section SAUF les titres */
+    .grid-stack-item-content.minimized section > *:not(h1):not(h2):not(h3) {
+        display: none !important;
+    }
+
+    .grid-stack-item-content.minimized h1, 
+    .grid-stack-item-content.minimized h2, 
+    .grid-stack-item-content.minimized h3 {
+        margin: 0;
+        font-size: 1rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        line-height: 1.5;
+    }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -396,13 +230,15 @@
                 <div class="grid-stack-item" gs-id="inventory-widget" gs-w="8" gs-h="6" gs-x="0" gs-y="0">
                     <div class="grid-stack-item-content">
                         <section id="inventory-section">
-                            <h1>Inventaire des Denrées</h1>
-                            <div class="inventory-controls">
-                                <div>
-                                    <input type="checkbox" id="toggleAll" name="toggleAll">
-                                    <label for="toggleAll">Cocher/décocher tout</label>
-                                </div>
-                                <button id="addLowStockItemsBtn" class="btn" style="background-color: #e67e22;">Ajouter les articles en pénurie à la liste</button>
+                            <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-2">
+                                <h1 class="m-0 fs-4 text-primary"><i class="bi bi-box-seam me-2"></i>Inventaire</h1>
+                                <button id="addLowStockItemsBtn" class="btn btn-outline-warning btn-sm rounded-pill">
+                                    <i class="bi bi-cart-plus"></i> Pénuries vers liste
+                                </button>
+                            </div>
+                            <div class="inventory-controls mb-3">
+                                <input type="checkbox" id="toggleAll">
+                                <label for="toggleAll" style="margin-left: 8px; cursor: pointer;">Tout sélectionner pour la recette</label>
                             </div>
                             <div id="inventory-display"></div>
                         </section>
@@ -482,7 +318,7 @@
                             <h2>Livre de recettes</h2>
                             <button id="show-add-recipe-modal-btn" class="btn" style="background-color: #16a085; margin-bottom: 20px;">Ajouter une recette</button>
                             <!-- Utilisation du système de grille de Bootstrap pour les cartes -->
-                            <div id="recipe-list-display" class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
+                            <div id="recipe-list-display" class="row row-cols-1 g-3">
                                 <!-- Le JS remplira cette section avec des cartes -->
                             </div>
                         </section>

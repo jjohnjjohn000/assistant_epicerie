@@ -252,12 +252,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 const itemControls = document.createElement('div');
                 itemControls.className = 'item-controls';
 
-                // Boutons et inputs
+                // Bouton Moins (Icône)
                 const btnMinus = document.createElement('button');
-                btnMinus.className = 'btn btn-quantity-change';
+                btnMinus.className = 'btn-icon'; // Nouvelle classe CSS
                 btnMinus.dataset.itemId = item.id;
                 btnMinus.dataset.amount = '-1';
-                btnMinus.textContent = '-';
+                btnMinus.innerHTML = '<i class="bi bi-dash-lg"></i>'; // Icône Bootstrap
 
                 const quantityInput = document.createElement('input');
                 quantityInput.type = 'text';
@@ -265,15 +265,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 quantityInput.dataset.itemId = item.id;
                 quantityInput.className = 'item-quantity-input';
 
+                // Bouton Plus (Icône)
                 const btnPlus = document.createElement('button');
-                btnPlus.className = 'btn btn-quantity-change';
+                btnPlus.className = 'btn-icon'; // Nouvelle classe CSS
                 btnPlus.dataset.itemId = item.id;
                 btnPlus.dataset.amount = '1';
-                btnPlus.textContent = '+';
+                btnPlus.innerHTML = '<i class="bi bi-plus-lg"></i>'; // Icône Bootstrap
                 
-                const alertLabel = document.createElement('label');
-                alertLabel.style.cssText = 'font-size: 0.8em; color: #7f8c8d; margin-left: 8px;';
-                alertLabel.textContent = 'Alerte:';
+                // Section Alerte (plus discrète)
+                const alertWrapper = document.createElement('div');
+                alertWrapper.style.display = 'flex';
+                alertWrapper.style.alignItems = 'center';
+                alertWrapper.style.marginLeft = '15px';
+                alertWrapper.title = "Seuil d'alerte";
+                
+                const alertIcon = document.createElement('i');
+                alertIcon.className = 'bi bi-bell text-muted';
+                alertIcon.style.marginRight = '5px';
+                alertIcon.style.fontSize = '0.9rem';
 
                 const thresholdInput = document.createElement('input');
                 thresholdInput.type = 'number';
@@ -281,15 +290,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 thresholdInput.dataset.itemId = item.id;
                 thresholdInput.className = 'item-threshold-input';
                 thresholdInput.min = '0';
-                thresholdInput.style.width = '45px';
                 
+                alertWrapper.appendChild(alertIcon);
+                alertWrapper.appendChild(thresholdInput);
+                
+                // Bouton Supprimer (Poubelle rouge au survol)
                 const deleteBtn = document.createElement('button');
-                deleteBtn.className = 'btn btn-delete';
+                deleteBtn.className = 'btn-icon delete'; // Nouvelle classe CSS
                 deleteBtn.dataset.itemId = item.id;
-                deleteBtn.textContent = 'Supprimer';
+                deleteBtn.style.marginLeft = '10px';
+                deleteBtn.title = "Supprimer l'article";
+                deleteBtn.innerHTML = '<i class="bi bi-trash"></i>'; // Icône Bootstrap
 
-                // Ajout des contrôles à leur conteneur
-                itemControls.append(btnMinus, quantityInput, btnPlus, alertLabel, thresholdInput, deleteBtn);
+                // Ajout des contrôles
+                itemControls.append(btnMinus, quantityInput, btnPlus, alertWrapper, deleteBtn);
                 
                 // 3. Ajout des deux sections principales au <li>
                 li.appendChild(itemDetails);
@@ -953,7 +967,9 @@ document.addEventListener('DOMContentLoaded', function() {
         renderInventory();
     }
     function updateToggleAllCheckboxState() {
-        toggleAllCheckbox.checked = inventory.length > 0 && inventory.every(item => item.include);
+        if (toggleAllCheckbox) {
+            toggleAllCheckbox.checked = inventory.length > 0 && inventory.every(item => item.include);
+        }
     }
     function parseQuantity(q) {
         const match = String(q).match(/^[xX]?(\d+)/);
@@ -1015,6 +1031,62 @@ document.addEventListener('DOMContentLoaded', function() {
         grid.commit();
     }
 
+    /**
+     * Injecte les boutons de minimisation et gère la logique Gridstack
+     */
+    function setupWidgetMinimization() {
+        const items = document.querySelectorAll('.grid-stack-item-content');
+        
+        items.forEach(content => {
+            // Éviter les doublons si on réappelle la fonction
+            if (content.querySelector('.widget-controls')) return;
+
+            // Création du conteneur de bouton
+            const controls = document.createElement('div');
+            controls.className = 'widget-controls';
+            
+            const btn = document.createElement('button');
+            btn.className = 'btn-minimize';
+            btn.innerHTML = '<i class="bi bi-dash-lg"></i>'; // Icône tiret
+            btn.title = "Minimiser / Restaurer";
+            
+            // Gestion du clic
+            btn.addEventListener('click', function(e) {
+                // Empêcher le drag and drop de se déclencher sur le clic
+                e.stopPropagation(); 
+                
+                const widget = content.closest('.grid-stack-item');
+                const gsNode = widget.gridstackNode; // Accès interne à Gridstack
+
+                if (content.classList.contains('minimized')) {
+                    // --- ACTION : RESTAURER ---
+                    content.classList.remove('minimized');
+                    btn.innerHTML = '<i class="bi bi-dash-lg"></i>';
+                    
+                    // Récupérer la hauteur sauvegardée ou utiliser une valeur par défaut
+                    const originalH = parseInt(widget.dataset.savedHeight) || 4;
+                    
+                    // Mise à jour Gridstack
+                    grid.update(widget, { h: originalH });
+                    
+                } else {
+                    // --- ACTION : MINIMISER ---
+                    // Sauvegarder la hauteur actuelle
+                    widget.dataset.savedHeight = gsNode.h;
+                    
+                    content.classList.add('minimized');
+                    btn.innerHTML = '<i class="bi bi-square"></i>'; // Icône carré pour agrandir
+                    
+                    // Mise à jour Gridstack vers hauteur 1
+                    grid.update(widget, { h: 1 });
+                }
+            });
+
+            controls.appendChild(btn);
+            content.appendChild(controls); // Ajout en haut à droite (via CSS absolute)
+        });
+    }
+
     function initializeApp() {
         console.log("Initialisation de l'application...");
 
@@ -1061,6 +1133,8 @@ document.addEventListener('DOMContentLoaded', function() {
         reorganizeBtn = document.getElementById('reorganize-layout-btn');
         compactBtn = document.getElementById('compact-layout-btn');
         addCategoryBtn = document.getElementById('add-category-btn');
+
+        setupWidgetMinimization(); 
 
         document.body.addEventListener('dragstart', function(e) {
             const item = e.target.closest('.inventory-item');

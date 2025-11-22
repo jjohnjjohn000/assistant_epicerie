@@ -655,6 +655,78 @@ Maintenant, analyse la circulaire que je vais te fournir et génère le JSON cor
         </div>
     </div>
 
+    <!-- Modale pour les détails d'un rabais spécifique -->
+    <div id="deal-details-modal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2 id="detail-modal-store">Détails du Rabais</h2>
+                <span id="close-detail-modal-btn" class="close-btn">&times;</span>
+            </div>
+            <div id="modal-detail-body" style="padding: 20px;">
+                
+                <!-- En-tête : Produit et Marque -->
+                <div style="border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 15px;">
+                    <h3 id="detail-modal-product" style="color: #2c3e50; margin: 0 0 5px 0;"></h3>
+                    <span id="detail-modal-brand" style="background-color: #e1ecf4; color: #2c3e50; padding: 2px 8px; border-radius: 4px; font-size: 0.9em; font-weight: bold; display: none;"></span>
+                    <span id="detail-modal-category" style="background-color: #f0f0f0; color: #555; padding: 2px 8px; border-radius: 4px; font-size: 0.9em; margin-left: 5px; display: none;"></span>
+                </div>
+
+                <!-- Section Prix Principale -->
+                <div style="background-color: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #e9ecef;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        
+                        <!-- Prix du rabais -->
+                        <div>
+                            <small style="color: #7f8c8d; text-transform: uppercase; font-weight: bold;">Prix Actuel</small>
+                            <div id="detail-modal-price" style="color: #27ae60; font-weight: bold; font-size: 1.6em;"></div>
+                            <div id="detail-modal-price-unit" style="color: #555; font-size: 0.9em;"></div>
+                        </div>
+
+                        <!-- Comparaisons (si dispo) -->
+                        <div style="border-left: 1px solid #ddd; padding-left: 15px;">
+                            <div id="detail-row-regular" style="display: none; margin-bottom: 5px;">
+                                <small>Prix Régulier :</small> 
+                                <span id="detail-val-regular" style="text-decoration: line-through; color: #e74c3c;"></span>
+                            </div>
+                            <div id="detail-row-member" style="display: none;">
+                                <small>Prix Membre :</small> 
+                                <span id="detail-val-member" style="color: #8e44ad; font-weight: bold;"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Détails Techniques (Quantité, Dates, Description) -->
+                <div style="display: grid; grid-template-columns: 1fr; gap: 10px; font-size: 0.95em;">
+                    
+                    <div id="detail-row-quantity" style="display: none;">
+                        <strong><i class="bi bi-box-seam"></i> Quantité/Format :</strong> 
+                        <span id="detail-val-quantity"></span>
+                    </div>
+
+                    <div id="detail-row-desc">
+                        <strong><i class="bi bi-card-text"></i> Description :</strong>
+                        <p id="detail-modal-desc" style="margin: 5px 0; color: #555; font-style: italic;"></p>
+                    </div>
+
+                    <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee;">
+                        <strong><i class="bi bi-calendar-week"></i> Validité :</strong>
+                        <span id="detail-modal-dates" style="color: #333; margin-left: 5px;"></span>
+                    </div>
+                    
+                    <!-- Ajout pour afficher les ID pour le débogage ou référence -->
+                    <div style="margin-top: 5px; color: #aaa; font-size: 0.8em;">
+                        Source : <span id="detail-modal-source"></span>
+                    </div>
+                </div>
+
+            </div>
+            <div class="modal-footer" style="text-align: right; padding-top: 10px;">
+                <button class="btn btn-primary" id="btn-close-detail-modal" style="background-color: #7f8c8d;">Fermer</button>
+            </div>
+        </div>
+    </div>
+
     <!-- ============================================= -->
     <!-- ============== FIN DES MODALES ============== -->
     <!-- ============================================= -->
