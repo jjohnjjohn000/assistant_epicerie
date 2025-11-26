@@ -202,24 +202,111 @@
     /* État minimisé */
     .grid-stack-item-content.minimized {
         overflow: hidden !important;
-        padding: 10px 20px !important; /* Réduire le padding */
-        justify-content: center;
+        padding: 0 !important; /* On retire le padding global pour mieux centrer via flex */
+        display: flex !important;
+        align-items: center;     /* Centre verticalement */
+        justify-content: center; /* Centre horizontalement */
     }
 
-    /* Quand minimisé, on cache tout dans la section SAUF les titres */
-    .grid-stack-item-content.minimized section > *:not(h1):not(h2):not(h3) {
+    /* 1. On cache tout SAUF h1, h2 et les conteneurs .d-flex. Les h3 seront donc cachés. */
+    .grid-stack-item-content.minimized section > *:not(h1):not(h2):not(.d-flex) {
         display: none !important;
     }
 
+    /* 2. Nettoyage spécifique pour les conteneurs .d-flex (comme dans l'Inventaire) */
+    .grid-stack-item-content.minimized .d-flex > *:not(h1):not(h2) {
+        display: none !important;
+    }
+
+    /* 3. Style du conteneur .d-flex pour qu'il ne perturbe pas l'alignement */
+    .grid-stack-item-content.minimized .d-flex {
+        border: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        width: auto !important; /* S'adapte au contenu */
+        height: auto !important;
+    }
+    
+    /* 4. On s'assure que les sections vides (dont on a caché le h3) ne prennent pas de place */
+    .grid-stack-item-content.minimized section {
+        margin: 0 !important;
+        padding: 0 !important;
+        display: contents; /* Astuce: la section n'agit plus comme une boîte, seuls ses fils (h1/h2) comptent */
+    }
+
+    /* 5. Style final des titres restants */
     .grid-stack-item-content.minimized h1, 
-    .grid-stack-item-content.minimized h2, 
-    .grid-stack-item-content.minimized h3 {
-        margin: 0;
+    .grid-stack-item-content.minimized h2 {
+        margin: 0 !important;
+        padding: 0 35px 0 10px !important; /* Padding droit pour éviter de chevaucher le bouton '-' */
         font-size: 1rem;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
         line-height: 1.5;
+        text-align: center;
+        border: none !important;
+        width: 100%;
+    }
+    
+    /* --- AJOUTS POUR LA MODALE RECETTE --- */
+    
+    /* 1. Taille par défaut réduite */
+    #recipe-view-modal .modal-content {
+        max-width: 700px; /* Largeur confortable mais pas pleine page */
+        width: 90%;
+        transition: all 0.3s ease-in-out;
+        display: flex;
+        flex-direction: column;
+        max-height: 85vh; /* Évite que ça dépasse de l'écran */
+    }
+
+    #recipe-view-modal .modal-body {
+        overflow-y: auto; /* Scroll uniquement dans le corps */
+    }
+
+    /* 2. État Maximisé */
+    #recipe-view-modal .modal-content.maximized {
+        max-width: 98%;
+        width: 98%;
+        height: 95vh;
+        max-height: 95vh;
+    }
+
+    /* 3. Contrôles de fenêtre (Header) */
+    .modal-header .window-controls {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .modal-header h2 {
+        flex-grow: 1;
+        margin-right: 15px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* AJOUT POUR LE DRAG & DROP */
+    #recipe-view-modal .modal-header {
+        cursor: move; /* Curseur de déplacement */
+        user-select: none; /* Empêche de sélectionner le texte pendant qu'on bouge */
+    }
+
+    /* Important : on s'assure que le curseur reste normal sur les boutons */
+    #recipe-view-modal .modal-header button,
+    #recipe-view-modal .modal-header .close-btn {
+        cursor: pointer;
+    }
+    
+    /* Si la fenêtre est maximisée, on ne veut pas suggérer qu'elle est déplaçable */
+    #recipe-view-modal .modal-content.maximized .modal-header {
+        cursor: default; 
+    }
+    /* AJOUT : Désactive l'animation pendant le déplacement pour éviter le lag */
+    .modal-content.dragging {
+        transition: none !important;
     }
 </style>
 {% endblock %}
@@ -463,7 +550,18 @@ Maintenant, analyse la recette suivante :
         <div class="modal-content">
             <div class="modal-header">
                 <h2 id="recipe-view-title"></h2>
-                <span class="close-btn" id="close-recipe-view-modal">&times;</span>
+                
+                <!-- Contrôles de fenêtre -->
+                <div class="window-controls">
+                    <button id="btn-popout-recipe" class="btn-icon" title="Ouvrir dans une nouvelle fenêtre">
+                        <i class="bi bi-box-arrow-up-right"></i>
+                    </button>
+                    <button id="btn-maximize-recipe" class="btn-icon" title="Agrandir / Réduire">
+                        <i class="bi bi-arrows-fullscreen"></i>
+                    </button>
+                    <span class="close-btn" id="close-recipe-view-modal">&times;</span>
+                </div>
+
             </div>
             <div class="modal-body recipe-view-content">
                 <h3>Ingrédients</h3>

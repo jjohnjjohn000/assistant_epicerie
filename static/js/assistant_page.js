@@ -883,18 +883,107 @@ document.addEventListener('DOMContentLoaded', function() {
     function viewRecipe(recipeId) {
         const recipe = recipes.find(r => r.id == recipeId);
         if (!recipe) return;
+
+        // Reset de l'état maximisé à l'ouverture
+        const modalContent = document.querySelector('#recipe-view-modal .modal-content');
+        const modalHeader = document.querySelector('#recipe-view-modal .modal-header');
+
+        // On enlève l'état maximisé
+        modalContent.classList.remove('maximized');
+        // On enlève les styles injectés par le déplacement précédent (top, left, absolute...)
+        // Cela remet la fenêtre au centre (grâce au CSS par défaut)
+        modalContent.style = ''; 
+
         document.getElementById('recipe-view-title').textContent = recipe.name;
         document.getElementById('recipe-view-ingredients').textContent = recipe.ingredients || "N/A";
         document.getElementById('recipe-view-instructions').textContent = recipe.instructions || "N/A";
         document.getElementById('recipe-view-comments').textContent = recipe.comments || "N/A";
+        
         const footer = document.getElementById('recipe-view-footer');
         footer.innerHTML = `
             <button class="btn btn-success" id="add-ingredients-btn">Ajouter ingrédients à la liste</button>
             <button class="btn btn-warning" id="edit-recipe-btn">Éditer</button>
             <button class="btn btn-danger" id="delete-recipe-btn">Supprimer</button>`;
+        
         footer.querySelector('#add-ingredients-btn').addEventListener('click', () => addRecipeIngredientsToShoppingList(recipe.id));
         footer.querySelector('#edit-recipe-btn').addEventListener('click', () => { closeRecipeViewModal(); openRecipeFormModal(recipe.id); });
         footer.querySelector('#delete-recipe-btn').addEventListener('click', () => deleteRecipe(recipe.id));
+
+        // --- Logique Popout et Maximize ---
+        
+        // 1. Gestion du Popout (Nouvelle fenêtre)
+        // On clone le bouton pour retirer les anciens event listeners s'il y en a
+        const popoutBtn = document.getElementById('btn-popout-recipe');
+        const newPopoutBtn = popoutBtn.cloneNode(true);
+        popoutBtn.parentNode.replaceChild(newPopoutBtn, popoutBtn);
+
+        newPopoutBtn.addEventListener('click', () => {
+            const win = window.open("", "_blank", "width=800,height=900");
+            const content = `
+                <html>
+                <head>
+                    <title>${recipe.name}</title>
+                    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+                    <style>body { padding: 40px; font-family: sans-serif; }</style>
+                </head>
+                <body>
+                    <h1>${recipe.name}</h1>
+                    <hr>
+                    <h3>Ingrédients</h3>
+                    <pre>${recipe.ingredients || ''}</pre>
+                    <h3>Instructions</h3>
+                    <pre style="white-space: pre-wrap;">${recipe.instructions || ''}</pre>
+                    <h3>Notes</h3>
+                    <p>${recipe.comments || ''}</p>
+                    <div style="margin-top:30px">
+                        <button onclick="window.print()" class="btn btn-primary">Imprimer</button>
+                        <button onclick="window.close()" class="btn btn-secondary">Fermer</button>
+                    </div>
+                </body>
+                </html>
+            `;
+            win.document.write(content);
+            win.document.close();
+            // Optionnel : fermer la modale actuelle
+            // closeRecipeViewModal(); 
+        });
+
+        // 2. Gestion du Maximize (Agrandir)
+        // On clone aussi pour nettoyer les events
+        const maxBtn = document.getElementById('btn-maximize-recipe');
+        const newMaxBtn = maxBtn.cloneNode(true);
+        maxBtn.parentNode.replaceChild(newMaxBtn, maxBtn);
+
+        newMaxBtn.addEventListener('click', () => {
+            const isMaximized = modalContent.classList.toggle('maximized');
+            
+            // Si on maximise, on doit nettoyer les positions manuelles (top/left)
+            // pour que le CSS width:100% / height:100% fonctionne bien
+            if (isMaximized) {
+                modalContent.style.top = '';
+                modalContent.style.left = '';
+                modalContent.style.position = '';
+                modalContent.style.margin = '';
+            } else {
+                // Si on restaure, le CSS par défaut (margin: 10% auto) reprend le dessus
+                // La fenêtre revient au centre.
+            }
+
+            // Gestion de l'icône
+            const icon = newMaxBtn.querySelector('i');
+            if (isMaximized) {
+                icon.classList.remove('bi-arrows-fullscreen');
+                icon.classList.add('bi-fullscreen-exit');
+            } else {
+                icon.classList.remove('bi-fullscreen-exit');
+                icon.classList.add('bi-arrows-fullscreen');
+            }
+        });
+
+        // --- Activation du déplacement ---
+        // On appelle notre fonction utilitaire
+        makeDraggable(modalContent, modalHeader);
+
         recipeViewModal.style.display = 'block';
     }
 
@@ -1084,6 +1173,79 @@ document.addEventListener('DOMContentLoaded', function() {
 
             controls.appendChild(btn);
             content.appendChild(controls); // Ajout en haut à droite (via CSS absolute)
+        });
+    }
+
+    /**
+     * Rend un élément modal déplaçable via son en-tête.
+     * @param {HTMLElement} modalContent - L'élément qui bouge (.modal-content)
+     * @param {HTMLElement} handle - L'élément qui sert de poignée (.modal-header)
+     */
+    function makeDraggable(modalContent, handle) {
+        let isDragging = false;
+        let startX, startY, initialLeft, initialTop;
+
+        handle.addEventListener('mousedown', (e) => {
+            // Ignorer si maximisé ou si on clique sur un bouton/croix
+            if (modalContent.classList.contains('maximized') || 
+                e.target.closest('button') || 
+                e.target.closest('.close-btn')) {
+                return;
+            }
+
+            e.preventDefault(); // Empêche la sélection de texte
+            isDragging = true;
+            handle.style.cursor = 'grabbing';
+            
+            // 1. Désactiver la transition CSS pour supprimer le LAG
+            modalContent.classList.add('dragging');
+
+            // 2. Figer la position actuelle pour passer en mode absolu
+            const rect = modalContent.getBoundingClientRect();
+            
+            // Calcul du décalage exact entre la souris et le coin haut-gauche de la fenêtre
+            startX = e.clientX - rect.left;
+            startY = e.clientY - rect.top;
+
+            // On passe en position fixed/absolute par rapport à la vue
+            modalContent.style.margin = '0';
+            modalContent.style.position = 'fixed'; // 'fixed' est souvent plus stable que absolute pour les modales
+            modalContent.style.left = rect.left + 'px';
+            modalContent.style.top = rect.top + 'px';
+            modalContent.style.width = rect.width + 'px'; // Fixe la largeur pour éviter le redimensionnement
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            e.preventDefault();
+
+            // Positionnement simple et direct (souris - décalage initial)
+            const x = e.clientX - startX;
+            const y = e.clientY - startY;
+
+            modalContent.style.left = `${x}px`;
+            modalContent.style.top = `${y}px`;
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (isDragging) {
+                isDragging = false;
+                handle.style.cursor = 'move';
+                
+                // Réactiver la transition CSS
+                modalContent.classList.remove('dragging');
+                
+                // --- CORRECTION DU "DROP QUI FERME LA FENÊTRE" ---
+                // On ajoute un marqueur temporaire sur la fenêtre modale globale
+                // pour dire "Je viens de bouger, ne me ferme pas".
+                const modalContainer = modalContent.closest('.modal');
+                if (modalContainer) {
+                    modalContainer.dataset.justDropped = 'true';
+                    setTimeout(() => {
+                        modalContainer.dataset.justDropped = 'false';
+                    }, 100);
+                }
+            }
         });
     }
 
@@ -1287,8 +1449,17 @@ document.addEventListener('DOMContentLoaded', function() {
         if (closeOldDataModalBtn) closeOldDataModalBtn.addEventListener('click', () => viewOldDataModal.style.display = 'none');
 
         window.addEventListener('click', e => {
+            // ... vos gestionnaires existants ...
             if (e.target == recipeFormModal) closeRecipeFormModal();
-            if (e.target == recipeViewModal) closeRecipeViewModal();
+            
+            if (e.target == recipeViewModal) {
+                // Si on vient de lâcher la fenêtre (drag & drop), on ne ferme pas
+                if (recipeViewModal.dataset.justDropped === 'true') {
+                    return;
+                }
+                closeRecipeViewModal();
+            }
+            
             if (e.target == viewOldDataModal) viewOldDataModal.style.display = 'none';
         });
 
