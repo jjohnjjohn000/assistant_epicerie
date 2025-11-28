@@ -22,7 +22,8 @@ document.addEventListener('DOMContentLoaded', function() {
     closeRecipeFormBtn, closeRecipeViewBtn, recipeForm, recipeModalTitle, 
     copyRecipePromptBtn, importRecipeJsonBtn, viewOldInventoryBtn, 
     exportInventoryBtn, importInventoryBtn, inventoryFileInput, 
-    viewOldDataModal, closeOldDataModalBtn, oldDataContent, autoArrangeBtn, reorganizeBtn, compactBtn, addCategoryBtn;
+    viewOldDataModal, closeOldDataModalBtn, oldDataContent, autoArrangeBtn,
+    reorganizeBtn, compactBtn, addCategoryBtn, smartArrangeBtn;
 
     // --- PARTIE 2 : FONCTIONS (ELLES NE S'EXÉCUTENT PAS ENCORE) ---
     
@@ -254,7 +255,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 // Bouton Moins (Icône)
                 const btnMinus = document.createElement('button');
-                btnMinus.className = 'btn-icon'; // Nouvelle classe CSS
+                btnMinus.className = 'btn-icon btn-quantity-change';
                 btnMinus.dataset.itemId = item.id;
                 btnMinus.dataset.amount = '-1';
                 btnMinus.innerHTML = '<i class="bi bi-dash-lg"></i>'; // Icône Bootstrap
@@ -267,7 +268,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 // Bouton Plus (Icône)
                 const btnPlus = document.createElement('button');
-                btnPlus.className = 'btn-icon'; // Nouvelle classe CSS
+                btnPlus.className = 'btn-icon btn-quantity-change';
                 btnPlus.dataset.itemId = item.id;
                 btnPlus.dataset.amount = '1';
                 btnPlus.innerHTML = '<i class="bi bi-plus-lg"></i>'; // Icône Bootstrap
@@ -1249,6 +1250,31 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    /**
+     * Réorganisation Intelligente (Smart Arrange)
+     */
+    function smartAutoArrange() {
+        if (!grid) return;
+        
+        // Bloque les mises à jour visuelles pour la performance
+        grid.batchUpdate();
+        
+        // 1. On récupère les nœuds actuels
+        const nodes = grid.engine.nodes;
+        
+        // 2. On les trie selon leur position visuelle actuelle (Y puis X)
+        nodes.sort((a, b) => {
+            return (a.y - b.y) || (a.x - b.x);
+        });
+
+        // 3. On demande à GridStack de recalculer la position (autoPosition: true)
+        nodes.forEach(node => {
+            grid.update(node.el, { x: undefined, y: undefined, autoPosition: true });
+        });
+
+        grid.commit();
+    }
+
     function initializeApp() {
         console.log("Initialisation de l'application...");
 
@@ -1294,6 +1320,7 @@ document.addEventListener('DOMContentLoaded', function() {
         autoArrangeBtn = document.getElementById('auto-arrange-btn');
         reorganizeBtn = document.getElementById('reorganize-layout-btn');
         compactBtn = document.getElementById('compact-layout-btn');
+        smartArrangeBtn = document.getElementById('smart-arrange-layout-btn');
         addCategoryBtn = document.getElementById('add-category-btn');
 
         setupWidgetMinimization(); 
@@ -1445,6 +1472,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         if (compactBtn) {
             compactBtn.addEventListener('click', (e) => { e.preventDefault(); if (grid) grid.compact(); });
+        }
+        if (smartArrangeBtn) {
+            smartArrangeBtn.addEventListener('click', (e) => { e.preventDefault(); smartAutoArrange(); });
         }
         if (closeOldDataModalBtn) closeOldDataModalBtn.addEventListener('click', () => viewOldDataModal.style.display = 'none');
 

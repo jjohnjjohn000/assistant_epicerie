@@ -4,6 +4,7 @@
 {% block title %}Gestion d'Inventaire et Liste d'Épicerie{% endblock %}
 
 {% block head_styles %}
+<link rel="stylesheet" href="{% static 'css/tutorial.css' %}">
 <style>
     :root {
         --bg-color: #f3f4f6;
@@ -308,6 +309,17 @@
     .modal-content.dragging {
         transition: none !important;
     }
+    /* Ajustement pour aligner le bouton d'aide */
+    .grid-stack-item-content h1, 
+    .grid-stack-item-content h2,
+    .section-header {
+        display: flex;
+        align-items: center;
+    }
+    
+    .section-header-text {
+        flex-grow: 1;
+    }
 </style>
 {% endblock %}
 
@@ -319,6 +331,10 @@
                         <section id="inventory-section">
                             <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-2">
                                 <h1 class="m-0 fs-4 text-primary"><i class="bi bi-box-seam me-2"></i>Inventaire</h1>
+                                <div class="d-flex align-items-center" style="flex-grow: 1;">
+                                    <h1 class="m-0 fs-4 text-primary me-2"><i class="bi bi-box-seam me-2"></i>Inventaire</h1>
+                                    <button class="btn-help" onclick="startInventoryTutorial()" title="Comment ça marche ?">?</button>
+                                </div>
                                 <button id="addLowStockItemsBtn" class="btn btn-outline-warning btn-sm rounded-pill">
                                     <i class="bi bi-cart-plus"></i> Pénuries vers liste
                                 </button>
@@ -597,4 +613,176 @@ Maintenant, analyse la recette suivante :
 {% block body_scripts %}
     <script src="https://cdn.jsdelivr.net/npm/gridstack@10.2.0/dist/gridstack-all.js"></script>
     <script src="{% static 'js/assistant_page.js' %}"></script>
+    
+    <script src="{% static 'js/tutorial.js' %}"></script>
+    <script>
+        // --- SCÉNARIOS DE TUTORIEL ---
+
+        function startInventoryTutorial() {
+            // 1. Vérification de sécurité
+            if (document.querySelectorAll('.inventory-item').length === 0) {
+                alert("Votre inventaire est vide ! Ajoutez d'abord un article via le formulaire de droite pour voir le tutoriel.");
+                return;
+            }
+
+            window.Tutorial.run([
+                // --- VUE D'ENSEMBLE ---
+                { 
+                    selector: '#inventory-display', 
+                    text: "Bienvenue dans votre Inventaire intelligent. Vos articles sont triés par catégorie.",
+                    waitAfter: 2000
+                },
+
+                // --- MODIFICATION QUANTITÉ (BOUTONS) ---
+                { 
+                    selector: '.btn-quantity-change[data-amount="1"]', 
+                    text: "Action basique : Cliquez sur '+' pour augmenter la quantité...",
+                    action: 'click',
+                    waitAfter: 500
+                },
+                { 
+                    selector: '.btn-quantity-change[data-amount="-1"]', 
+                    text: "...ou sur '-' pour la diminuer au fur et à mesure que vous consommez.",
+                    action: 'click',
+                    waitAfter: 1000
+                },
+
+                // --- MODIFICATION QUANTITÉ (SAISIE) ---
+                { 
+                    selector: '.item-quantity-input', 
+                    text: "Pour les grands changements, cliquez et tapez directement le chiffre.",
+                    action: 'type',
+                    value: "12" 
+                },
+
+                // --- SEUIL D'ALERTE ---
+                { 
+                    selector: '.item-threshold-input', 
+                    text: "L'intelligence est ici : définissez un 'Seuil d'alerte'.",
+                    waitAfter: 1000
+                },
+                {
+                    selector: '.item-threshold-input',
+                    text: "Si je mets '15' ici alors que j'en ai 12...",
+                    action: 'type',
+                    value: "15"
+                },
+                {
+                    selector: '.inventory-item',
+                    text: "...l'article changera de couleur pour signaler une pénurie !",
+                    waitAfter: 2000
+                },
+
+                // --- ÉDITION DU NOM ---
+                {
+                    selector: '.inventory-item-name',
+                    text: "Une faute de frappe ? Cliquez simplement sur le nom pour le corriger instantanément.",
+                    action: 'click',
+                    waitAfter: 1500
+                },
+
+                // --- SÉLECTION POUR RECETTE (INDIVIDUELLE) ---
+                {
+                    selector: '.include-item',
+                    text: "Cochez les ingrédients que vous voulez utiliser ce soir...",
+                    action: 'click',
+                    waitAfter: 1000
+                },
+
+                // --- SÉLECTION POUR RECETTE (GLOBALE) ---
+                {
+                    selector: 'label[for="toggleAll"]',
+                    text: "...ou utilisez 'Tout sélectionner' pour dire à l'IA d'utiliser tout votre inventaire.",
+                    action: 'click',
+                    waitAfter: 1500
+                },
+
+                // --- TRANSFERT INTELLIGENT ---
+                {
+                    selector: '#addLowStockItemsBtn',
+                    text: "Fonctionnalité Clé : Un seul clic ici analyse vos seuils et ajoute TOUTES les pénuries à votre liste d'épicerie.",
+                    action: 'click',
+                    waitAfter: 2500
+                },
+
+                // --- GLISSER-DÉPOSER ---
+                {
+                    selector: '.inventory-item',
+                    text: "Astuce Pro : Maintenez le clic et glissez l'article pour réorganiser votre liste.",
+                    waitAfter: 2000
+                },
+
+                // --- SUPPRESSION ---
+                {
+                    selector: '.btn-icon.delete',
+                    text: "Et si vous ne tenez plus cet article en stock, supprimez-le ici.",
+                    waitAfter: 1500
+                }
+            ]);
+        }
+
+        function startAddToolTutorial() {
+            window.Tutorial.run([
+                {
+                    selector: '#itemName',
+                    text: "Tapez le nom de l'article ici.",
+                    action: 'type',
+                    value: "Pommes Rouges"
+                },
+                {
+                    selector: '#itemQuantity',
+                    text: "Indiquez la quantité.",
+                    action: 'type',
+                    value: "6"
+                },
+                {
+                    selector: '#itemCategory',
+                    text: "Choisissez une catégorie pour organiser votre inventaire.",
+                    action: 'click'
+                },
+                {
+                    selector: '#addItemForm button[type="submit"]',
+                    text: "Cliquez ici pour ajouter à l'inventaire.",
+                    action: 'click' // Pas de realClick pour ne pas polluer la DB
+                }
+            ]);
+        }
+        
+        function startShoppingListTutorial() {
+             window.Tutorial.run([
+                {
+                    selector: '#addShoppingItemForm input[type="text"]',
+                    text: "Ajoutez manuellement des articles ici.",
+                    action: 'type',
+                    value: "Lait"
+                },
+                {
+                    selector: '#generate-list-widget',
+                    text: "Ou utilisez l'IA plus bas pour générer une liste à partir de vos repas !",
+                    waitAfter: 2000
+                },
+                {
+                    selector: '.btn-move:first-of-type', 
+                    text: "Après l'achat, cliquez ici pour envoyer l'article vers votre inventaire.",
+                    // Utiliser un sélecteur générique au cas où la liste est vide, 
+                    // idéalement vérifier s'il y a des items avant de lancer cette étape
+                }
+            ]);
+        }
+
+        function startRecipeTutorial() {
+            window.Tutorial.run([
+                {
+                    selector: '#show-add-recipe-modal-btn',
+                    text: "Cliquez ici pour créer une nouvelle recette.",
+                    action: 'click'
+                },
+                {
+                    selector: '#ai-recipe-prompt',
+                    text: "Astuce : Utilisez ce texte avec Gemini pour importer n'importe quelle recette du web !",
+                    waitAfter: 3000
+                }
+            ]);
+        }
+    </script>
 {% endblock %}

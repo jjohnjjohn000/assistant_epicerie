@@ -11,8 +11,71 @@
     <title>{% block title %}Assistant Épicerie{% endblock %}</title>
 
     {% block head_styles %}{% endblock %}
+    
+    <style>
+        /* --- Styles pour les poignées de redimensionnement des marges --- */
+        :root {
+            --user-content-padding: 20px; /* Valeur par défaut */
+        }
+
+        /* Le conteneur fluide qui réagit à la variable CSS */
+        .dynamic-container {
+            width: 100%;
+            padding-left: var(--user-content-padding) !important;
+            padding-right: var(--user-content-padding) !important;
+            transition: padding 0.1s ease-out; /* Transition douce lors du drag */
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        /* Style des barres latérales */
+        .margin-handle {
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            width: 20px; /* Zone active large pour faciliter le survol */
+            z-index: 9999;
+            cursor: col-resize;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.3s;
+        }
+
+        .margin-handle::after {
+            content: '';
+            width: 4px;
+            height: 100%;
+            background-color: #3498db; /* Bleu */
+            opacity: 0;
+            transition: opacity 0.3s, box-shadow 0.3s;
+            border-radius: 2px;
+        }
+
+        /* Affichage au survol ou pendant le redimensionnement */
+        .margin-handle:hover::after,
+        .margin-handle.resizing::after {
+            opacity: 1;
+            box-shadow: 0 0 10px rgba(52, 152, 219, 0.5);
+        }
+
+       /* Positionnement dynamique : les poignées suivent la marge */
+        /* On soustrait 10px (la moitié de la largeur de 20px) pour centrer la ligne bleue visuelle sur la limite exacte */
+        #handle-left { left: calc(var(--user-content-padding) - 10px); }
+        #handle-right { right: calc(var(--user-content-padding) - 10px); }
+        
+        /* Empêche la sélection de texte pendant le redimensionnement */
+        body.is-resizing {
+            user-select: none;
+            cursor: col-resize;
+        }
+    </style>
 </head>
 <body>
+    <!-- Barres de redimensionnement -->
+    <div id="handle-left" class="margin-handle" title="Ajuster les marges"></div>
+    <div id="handle-right" class="margin-handle" title="Ajuster les marges"></div>
+
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top">
     <div class="container-fluid">
         <a class="navbar-brand" href="/">
@@ -48,6 +111,7 @@
                         </button>
                         <ul class="dropdown-menu" aria-labelledby="layoutOptionsDropdown">
                             <li><a class="dropdown-item" href="#" id="reorganize-layout-btn">Réorganiser l'affichage (Reset)</a></li>
+                            <li><a class="dropdown-item" href="#" id="smart-arrange-layout-btn">Réorganisation intelligente (Auto)</a></li>
                             <li><a class="dropdown-item" href="#" id="compact-layout-btn">Compacter les widgets</a></li>
                         </ul>
                     </div> 
@@ -60,7 +124,8 @@
 </nav>
 
 <main class="content-wrapper">
-    <div class="container mt-4">
+    <!-- Utilisation de dynamic-container au lieu de container fixe -->
+    <div class="dynamic-container mt-4">
         {% block content %}
         {% endblock %}
     </div>
@@ -69,6 +134,81 @@
 <!-- Scripts chargés à la fin pour de meilleures performances -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="{% static 'js/auth.js' %}"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const handleLeft = document.getElementById('handle-left');
+        const handleRight = document.getElementById('handle-right');
+        const root = document.documentElement;
+        
+        let isResizing = false;
+
+        // 1. Charger la préférence sauvegardée
+        const savedPadding = localStorage.getItem('userContentPadding');
+        if (savedPadding) {
+            root.style.setProperty('--user-content-padding', savedPadding);
+        }
+
+        // Fonction de démarrage du drag
+        function startResize(e) {
+            isResizing = true;
+            document.body.classList.add('is-resizing');
+            handleLeft.classList.add('resizing');
+            handleRight.classList.add('resizing');
+            e.preventDefault(); // Empêche la sélection de texte
+        }
+
+        // Fonction d'arrêt
+        function stopResize() {
+            if (isResizing) {
+                isResizing = false;
+                document.body.classList.remove('is-resizing');
+                handleLeft.classList.remove('resizing');
+                handleRight.classList.remove('resizing');
+                
+                // Sauvegarder la valeur actuelle
+                const currentPadding = getComputedStyle(root).getPropertyValue('--user-content-padding');
+                localStorage.setItem('userContentPadding', currentPadding);
+            }
+        }
+
+        // Fonction de mouvement
+        function resize(e) {
+            if (!isResizing) return;
+
+            // Calculer la nouvelle marge basée sur la position X de la souris
+            // On veut que si la souris est à gauche (X petit), le padding soit petit.
+            // Si la souris va vers le centre, le padding augmente.
+            
+            const screenWidth = window.innerWidth;
+            let newPadding;
+
+            // On détermine si on interagit avec la gauche ou la droite en fonction de la position de la souris
+            // Mais pour simplifier : la marge est la distance entre le bord et la souris.
+            if (e.clientX < screenWidth / 2) {
+                // Côté gauche
+                newPadding = e.clientX;
+            } else {
+                // Côté droit
+                newPadding = screenWidth - e.clientX;
+            }
+
+            // Limites (min 0px, max 40% de l'écran pour ne pas tout écraser)
+            const maxPadding = screenWidth * 0.4;
+            if (newPadding < 0) newPadding = 0;
+            if (newPadding > maxPadding) newPadding = maxPadding;
+
+            root.style.setProperty('--user-content-padding', `${newPadding}px`);
+        }
+
+        // Écouteurs d'événements
+        handleLeft.addEventListener('mousedown', startResize);
+        handleRight.addEventListener('mousedown', startResize);
+        
+        window.addEventListener('mousemove', resize);
+        window.addEventListener('mouseup', stopResize);
+    });
+</script>
 
 {% block body_scripts %}{% endblock %}
 

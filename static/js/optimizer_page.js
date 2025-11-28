@@ -18,7 +18,7 @@ document.addEventListener('DOMContentLoaded', function() {
         closeAddProductModalBtn, addProductForm, newProductNameDisplay,
         hiddenNewProductNameInput, addDealBtn, submitDealModal, closeDealModalBtn,
         submitDealForm, reportPriceModal, closeReportModalBtn, reportPriceForm,
-        reportProductName, hiddenReportPriceId, optimizationDisplay, autoArrangeBtn;
+        reportProductName, hiddenReportPriceId, optimizationDisplay, autoArrangeBtn, reorganizeBtn, compactBtn, smartArrangeBtn;
 
     // Variables d'état
     let optimizedItems = [];
@@ -1819,6 +1819,25 @@ Maintenant, génère le JSON pour la liste que je t'ai fournie.`;
         });
     }
 
+    /**
+     * Réorganisation Intelligente
+     * "Défragmente" la grille en comblant les espaces vides.
+     */
+    function smartAutoArrange() {
+        if (!grid) return;
+        grid.batchUpdate();
+        
+        // Trie les widgets par position visuelle pour garder l'ordre logique
+        const nodes = grid.engine.nodes.sort((a, b) => (a.y - b.y) || (a.x - b.x));
+        
+        // Force le re-positionnement automatique
+        nodes.forEach(node => {
+            grid.update(node.el, { x: undefined, y: undefined, autoPosition: true });
+        });
+        
+        grid.commit();
+    }
+
     async function initializePage() {
         // 1. Initialiser GridStack (la coquille vide)
         initializeGrid();
@@ -2031,5 +2050,9 @@ Maintenant, génère le JSON pour la liste que je t'ai fournie.`;
     }
     if (compactBtn) {
         compactBtn.addEventListener('click', (e) => { e.preventDefault(); if (grid) grid.compact(); });
+    }
+    // AJOUT DU LISTENER
+    if (smartArrangeBtn) {
+        smartArrangeBtn.addEventListener('click', (e) => { e.preventDefault(); smartAutoArrange(); });
     }
 });

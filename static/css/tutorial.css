@@ -1,0 +1,90 @@
+/* static/css/tutorial.css */
+
+/* Le faux curseur (souris) */
+#tutorial-cursor {
+    position: fixed;
+    width: 32px;
+    height: 32px;
+    z-index: 9999;
+    pointer-events: none; /* Permet de cliquer à travers */
+    transition: all 0.8s ease-in-out;
+    filter: drop-shadow(2px 2px 2px rgba(0,0,0,0.3));
+    display: none; /* Caché par défaut */
+}
+
+/* L'image du curseur (SVG encodé pour éviter une requête HTTP) */
+#tutorial-cursor::after {
+    content: '';
+    display: block;
+    width: 100%;
+    height: 100%;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23000000' stroke='white' stroke-width='1.5'%3E%3Cpath d='M5.5 3.21l10.8 15.35-5.26.54L14.25 24l-2.77 1.05-3.21-4.89-4.14 2.84V3.21z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+}
+
+/* Animation de clic */
+#tutorial-cursor.clicking {
+    transform: scale(0.8);
+}
+
+/* La bulle d'aide */
+#tutorial-tooltip {
+    position: fixed;
+    background-color: #333;
+    color: #fff;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 14px;
+    z-index: 9998;
+    max-width: 250px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+}
+
+#tutorial-tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 20px; /* Position de la flèche */
+    border-width: 5px;
+    border-style: solid;
+    border-color: #333 transparent transparent transparent;
+}
+
+/* Bouton d'aide dans les widgets */
+.btn-help {
+    background: none;
+    border: 1px solid var(--border-color);
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    margin-right: 8px;
+    transition: all 0.2s;
+}
+
+.btn-help:hover {
+    background-color: #e0f2fe;
+    color: #0284c7;
+    border-color: #0284c7;
+}
+
+/* Overlay pour empêcher l'utilisateur d'interférer pendant la démo (optionnel) */
+#tutorial-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0);
+    z-index: 9990;
+    display: none;
+    cursor: progress;
+}
